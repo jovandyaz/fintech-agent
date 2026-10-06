@@ -46,21 +46,21 @@ Commits: `docs: add case copilot specs` → `chore: scaffold pnpm workspace and 
 
 Done when: every masking case in 02 §Required tests passes, including the 7 reproduced leaks, idempotence, the benign set and the 32 KB timing.
 
-## Step 2 — Dataset and core-mock (30 min)
+## Step 2 — Dataset and core-mock (45 min)
 
-- `data/scenarios.ts`: one entry per row of the 03 case table (id, customer, planted transactions with type, state, hold or return reason, auth factors, decline reason, merchant descriptor and channel, reversal credit, CEP availability). Labels in step 6 reference these ids. Every returned SPEI out, filler included, gets a reversal credit except CONFLICT-01's, so the doc 02 rule fires only where intended. ADV-07 plants the injected merchant descriptor. All ids follow the registry (02 G6).
+- `data/scenarios.ts`: one entry per row of the 03 case table (id, customer, planted transactions with type, state, hold or return reason, auth factors, decline reason, merchant descriptor and channel, reversal credit, CEP availability). Labels in step 6 reference these ids. Every returned SPEI out, filler included, gets a reversal credit except CONFLICT-01's, so the doc 02 rule fires only where intended. ADV-07 plants the injected merchant descriptor. CARD-UNREC-02 plants its three card-not-present charges within 24 h; ADV-08's real SPEI amount is not 5,000, so the customer's "$5,000" stays ungrounded; card purchases carry `auth_factors`. All ids follow the registry (02 G6).
 - `data/generate.ts` with a fixed seed: plants every scenario first by fixed id, then filler to ~200 transactions across 20 customers.
 - Committed output: `data/customers.json`, `data/transactions.json`, and one webhook fixture per scenario in `data/webhook-fixtures/` (the 10 adversarial ones included, so the inbox can show them).
 - `apps/core-mock`: read endpoints; three write endpoints (`/disputes`, `/cep/resend`, `/fraud/escalations`) that require the executor key and an `Idempotency-Key`, store the key under a unique constraint, return the first result on a repeat, and log each call. Dockerfile, compose service, healthcheck.
 
 Done when: a test asserts 20 customers, 190–210 transactions, all four states and three types present, every scenario in `data/scenarios.ts` exists with its planted state, and every id matches the registry; a repeated write with the same key returns the first result and logs one effect; `docker compose up core-mock` is healthy.
 
-## Step 3 — MCP server (30 min)
+## Step 3 — MCP server (50 min)
 
 - MCP SDK v2 (`@modelcontextprotocol/server` + `/node`), `createMcpHandler` with a server per request (01 version decisions; the v1 fallback and its ledger ruling apply if v2 costs more than 15 minutes).
 - Port `annotations.ts` from Knowtis if it fits v2 (`feat(port): bring MCP tool annotations from knowtis`); write the wrapper and error format fresh, with Knowtis as reference (00 explains why).
 - Case token verified with `jose` (02 G4 claims), `401` with `WWW-Authenticate`, 12 calls per `jti`.
-- Four read-only tools (01 §Tools), customer resolved from the case token, `maskJson` on every output, `tracking_key_last4`, fixed `tools/list` order, `NOT_FOUND` with `isError: true`, `cross_customer_lookup` event. Dockerfile, compose service, healthcheck.
+- Four read-only tools (01 §Tools), customer resolved from the case token, `maskJson` on every output, `tracking_key_last4`, fixed `tools/list` order, `NOT_FOUND` with `isError: true`, `cross_customer_lookup` written through a security-event sink (in-memory in this step's tests; step 4 wires the Postgres sink with the `copilot_mcp` role). Token audience from `MCP_AUDIENCE`. Dockerfile, compose service, healthcheck.
 
 Done when: the tool-binding tests from 02 pass; MCP Inspector lists four tools, none with a `customer_id` input; `docker compose up mcp` is healthy.
 
@@ -68,7 +68,8 @@ Done when: the tool-binding tests from 02 pass; MCP Inspector lists four tools, 
 
 - Harness core in `apps/api/src/agent/core/` as plain TypeScript with explicit dependencies; `apps/api` on NestJS 11 + Drizzle only wires it (01).
 - Ports, one commit each (00 table): Drizzle module and migrate CLI, JSON logger with redaction, token cost, scripted mock-model fixtures, exfiltration link scanner into the validator.
-- Migrations for every table in 01; the `seed` compose service runs migrations and ingestion idempotently before `api` starts.
+- Migrations for every table in 01; the `seed` compose service runs migrations idempotently before `api`, `executor` and `mcp` start (ingestion joins it in step 5). The MCP server's Postgres security-event sink is wired here.
+- `ops/alerts.sql` starts here with the canary catch-rate query the canary tests need; step 8 adds the rest.
 - Migrations create the two Postgres roles, their grants and the `enforce_transition_role` trigger (02 G1).
 - Domain `transition()` and conditional updates; `OperatorGuard` with hashed per-operator tokens; decision API (approve / reject, both with `final_reply` checked like a draft, flag acknowledgment, `reject_code`, `reviewed_transaction_ids` on `high` tier, `override` within the G2 table); `pnpm canary:inject` and the canary transitions; audit log with key id, IP and user agent.
 - Executor service: `apps/api/src/executor/main.ts`, outbox drain with `SKIP LOCKED`, `started` row, re-validation, core-mock call with `Idempotency-Key`, sweeper; compose service; `api` refuses to boot with `CORE_EXECUTOR_KEY`.
@@ -97,7 +98,7 @@ Done when: every 02 required test for gate, operator identity, override and forc
   | 09 Aclaraciones (anexo) | Poisoned, obvious hidden instruction — must be quarantined | — |
   | 09b Rechazos (anexo) | Poisoned, subtle rule that passes the scan — contained by G2/G5 | — |
 
-- Chunker by section, ingestion with the ported guard (`feat(port): bring injection guard and corpus from knowtis`), manifest check, scan on raw and normalized text, quarantine on Unicode Tags, bidi controls or HTML comments (02 G8). Runs inside `seed`.
+- `seed` gains ingestion. Chunker by section, ingestion with the ported guard (`feat(port): bring injection guard and corpus from knowtis`), manifest check, scan on raw and normalized text, quarantine on Unicode Tags, bidi controls or HTML comments (02 G8). Runs inside `seed`.
 - Full-text search per 01 §Retrieval: `es_unaccent` config, OR query of lexemes, `ts_rank_cd`, weighted heading and keywords, optional `doc_id` filter, catalog in the tool description. No vector leg and no RRF (00).
 - `retrieval.spec.ts` (Testcontainers): 25 Spanish paraphrases of customer complaints, each with its expected `doc_id`.
 
@@ -130,7 +131,7 @@ Done when: `docker compose up` → sign in → submit a case in the form → it 
 
 ## Step 8 — Traces, alerts, variant decision (45 min)
 
-- `ops/alerts.sql`: every alert in the 01 table, each with its threshold, minimum sample and owner.
+- `ops/alerts.sql`: the remaining alerts in the 01 table, each with its threshold, minimum sample and owner.
 - Apply the 03 decision rule to the step 6 results; re-run the comparison only if prompts or tools changed since. Set the default variant.
 - AI SDK telemetry with content recording off by default; per-step provider request id and finish reason.
 - Optional: Langfuse bootstrap (`feat(port): bring langfuse bootstrap from knowtis`), mask function wired, off without keys. Postgres traces already meet the requirement; this is the first cut.
@@ -159,7 +160,7 @@ Done when: PLAYBOOK.md fits one printed page (≈ 500 words) and DESIGN.md about
 
 ## Cut order if late
 
-Planned total is ≈ 18 h (00); with these cuts ≈ 17 h 10. Cut in this order until the remaining work fits; together they save ≈ 50 focused minutes.
+Planned total is ≈ 18 h 10 (00); with these cuts ≈ 17 h 20. Cut in this order until the remaining work fits; together they save ≈ 50 focused minutes.
 
 1. Langfuse (≈ 15 min); Postgres traces stay the source of truth.
 2. Console polish: keep every function in step 7, drop styling; flag acknowledgment stays enforced by the API even if the UI is a plain checkbox (≈ 15 min).

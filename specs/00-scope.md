@@ -39,7 +39,7 @@ Priority order when time runs out (from the brief): security and evals first, th
 1. Cases and replies are in Spanish (Mexico). Code, specs and docs are in English, except PLAYBOOK.md, which is written in Spanish for albo teams that are not AI experts.
 2. One webhook event = one case. The emitter retries with the same `event_id`.
 3. Actions are limited to three: open a dispute (aclaración), resend a CEP receipt, escalate to fraud. None of them moves money; all still require approval because they touch customer data or trigger downstream work.
-4. A refund is not an action the agent can propose at all. A request for one is answered with the policy path (dispute) or escalated. The regulated credit for an unrecognized charge (Banxico Circ. 12/2018, 18.a: by the 2nd business day unless two-factor authentication is proven) is part of the dispute process `open_dispute` starts, not an agent action; the reply may state it only when it cites the policy.
+4. A refund is not an action the agent can propose at all. A request for one is answered with the policy path (dispute) or escalated. The regulated credit for an unrecognized charge (Banxico Circ. 12/2018, 18.a: by the 2nd business day unless two-factor authentication is proven) is part of the dispute process `open_dispute` starts, not an agent action; the reply may state it only through the `{{compromiso_abono}}` placeholder, which the harness renders when its predicate holds (02 G5).
 5. The reviewer runs with their own API key for evals; unit and integration tests run with no key.
 6. A single ops operator works a case at a time; no concurrent-edit handling beyond optimistic state checks.
 7. albo is an IFPE (authorized in DOF 2022-05-12), so LTOSF art. 23 (aclaraciones), Banxico Circ. 12/2018 (IFPE operations), Circ. 14/2017 (SPEI) and the CNBV–Banxico IFPE rules apply. The synthetic policy docs use the real deadlines from those texts, cited, and are marked synthetic. Sources in [references.md](references.md).
@@ -86,7 +86,7 @@ Not taken, on purpose: the step loop, model chain and error classification (buil
 | Traces, alerts, variant decision | 30 | 45 | Content recording off, alert table with owners |
 | DESIGN, EVALS, PLAYBOOK, AI_NOTES, README, compliance appendix | 50 | 70 | Rollout ladder with exit criteria, incident runbook, REUNE mapping |
 
-Total ≈ 18 h (first draft ≈ 7 h 45). Exceeding the brief's 6–8 h is a decision, not an overrun: the first draft met the budget by accepting eight residual risks, and the research showed that each had a control the industry already uses at a cost of minutes, not days (02 Residual risk). AI_NOTES.md records the decision. The Knowtis ports above still take ≈ 35 min off the harness and eval blocks. The cut order in 04 removes ≈ 50 min of optional work without touching any guarantee or the adversarial evals. If the harness block still overruns, that is the signal to cut, not to compress tests.
+Total ≈ 18 h 10 (first draft ≈ 7 h 45). Exceeding the brief's 6–8 h is a decision, not an overrun: the first draft met the budget by accepting eight residual risks, and the research showed that each had a control the industry already uses at a cost of minutes, not days (02 Residual risk). AI_NOTES.md records the decision. The Knowtis ports above still take ≈ 35 min off the harness and eval blocks. The cut order in 04 removes ≈ 50 min of optional work without touching any guarantee or the adversarial evals. If the harness block still overruns, that is the signal to cut, not to compress tests.
 
 ## Rubric mapping
 
