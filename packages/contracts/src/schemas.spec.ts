@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CASE_FLAGS,
   DecisionSchema,
   ResolutionSchema,
   WebhookEventSchema,
@@ -9,7 +10,14 @@ import {
 const validResolution = {
   category: 'unrecognized_card_charge',
   draft_reply: 'Registramos tu aclaración con folio {{folio}}.',
-  citations: [{ chunk_id: 'pol-04#2', doc_id: 'pol-04', section: 'Plazos' }],
+  citations: [
+    {
+      chunk_id: 'chunk_p04s2',
+      doc_id: 'pol-04',
+      section: 'Plazos',
+      quote: 'se abonará a más tardar el segundo día hábil',
+    },
+  ],
   abstained: false,
   evidence: [{ kind: 'card_auth', id: 'tx_0412' }],
   proposed_action: {
@@ -61,19 +69,73 @@ describe('ResolutionSchema (G2: closed, value-free actions)', () => {
         .success,
     ).toBe(false);
   });
+
+  it('requires a verbatim quote of at most 200 characters on every citation', () => {
+    const [citation] = validResolution.citations;
+    for (const quote of [undefined, '', 'x'.repeat(201)]) {
+      const withQuote = {
+        ...validResolution,
+        citations: [{ ...citation, quote }],
+      };
+      expect(ResolutionSchema.safeParse(withQuote).success).toBe(false);
+    }
+  });
+});
+
+describe('CASE_FLAGS', () => {
+  it('holds the signals ops must acknowledge and no longer the old soft flags', () => {
+    expect(CASE_FLAGS).toContain('action_fact_mismatch');
+    expect(CASE_FLAGS).toContain('first_party_signal');
+    expect(CASE_FLAGS).not.toContain('ungrounded_number');
+    expect(CASE_FLAGS).not.toContain('commitment_language');
+  });
 });
 
 describe('DecisionSchema', () => {
   const base = {
-    operator: 'ops.maria',
     final_reply: 'Hola, ya registramos tu aclaración.',
     acknowledged_flags: [],
   };
+  const approve = {
+    ...base,
+    decision: 'approve',
+    reviewed_transaction_ids: ['tx_0412'],
+  };
 
   it('accepts an approve', () => {
+    expect(DecisionSchema.safeParse(approve).success).toBe(true);
+  });
+
+  it('rejects an operator named in the body (G3: identity comes from the token)', () => {
+    expect(
+      DecisionSchema.safeParse({ ...approve, operator: 'ops.maria' }).success,
+    ).toBe(false);
+  });
+
+  it('requires the reviewed transaction list on an approve', () => {
     expect(
       DecisionSchema.safeParse({ ...base, decision: 'approve' }).success,
-    ).toBe(true);
+    ).toBe(false);
+  });
+
+  it('accepts an override within the closed action set and nothing else', () => {
+    const override = {
+      type: 'open_dispute',
+      transaction_ids: ['tx_0412'],
+      reason_code: 'unrecognized_charge',
+    };
+    expect(DecisionSchema.safeParse({ ...approve, override }).success).toBe(
+      true,
+    );
+    for (const bad of [
+      { ...override, type: 'refund' },
+      { ...override, amount: 5000 },
+      { ...override, clabe: '012180001234567899' },
+    ]) {
+      expect(
+        DecisionSchema.safeParse({ ...approve, override: bad }).success,
+      ).toBe(false);
+    }
   });
 
   it('requires a reject code on a reject', () => {
@@ -102,7 +164,6 @@ describe('DecisionSchema', () => {
   it('requires a final reply even on a reject', () => {
     expect(
       DecisionSchema.safeParse({
-        operator: 'ops.maria',
         decision: 'reject',
         reject_code: 'tone',
         acknowledged_flags: [],

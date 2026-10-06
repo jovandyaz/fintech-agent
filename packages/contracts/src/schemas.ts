@@ -36,9 +36,9 @@ export const EVIDENCE_KINDS = ['transaction', 'spei', 'card_auth'] as const;
 
 export const CASE_FLAGS = [
   'injection_signal',
-  'ungrounded_number',
-  'commitment_language',
   'policy_data_conflict',
+  'action_fact_mismatch',
+  'first_party_signal',
   'abstained',
   'fallback',
 ] as const;
@@ -55,10 +55,14 @@ export const REJECT_CODES = [
 ] as const;
 export type RejectCode = (typeof REJECT_CODES)[number];
 
+const MAX_QUOTE_CHARS = 200;
+
+/** `quote` is verbatim from the chunk; the validator checks it (CITATION_QUOTE_MISMATCH). */
 export const CitationSchema = z.strictObject({
   chunk_id: z.string().min(1),
   doc_id: z.string().min(1),
   section: z.string().min(1),
+  quote: z.string().min(1).max(MAX_QUOTE_CHARS),
 });
 
 export const EvidenceSchema = z.strictObject({
@@ -91,14 +95,30 @@ export const ResolutionSchema = z.strictObject({
 });
 export type Resolution = z.infer<typeof ResolutionSchema>;
 
+/** An operator's replacement action: the G2 fields only, no justification, no values. */
+export const OverrideSchema = z.strictObject({
+  type: z.enum(ACTION_TYPES),
+  transaction_ids: z.array(z.string().min(1)),
+  reason_code: z.enum(REASON_CODES),
+});
+export type Override = z.infer<typeof OverrideSchema>;
+
 const decisionBase = {
-  operator: z.string().min(1),
   final_reply: z.string().min(1),
   acknowledged_flags: z.array(z.enum(CASE_FLAGS)),
 };
 
+/**
+ * G3: the operator is resolved from their token, never named in the body, so
+ * the schema is strict and has no operator field.
+ */
 export const DecisionSchema = z.discriminatedUnion('decision', [
-  z.strictObject({ ...decisionBase, decision: z.literal('approve') }),
+  z.strictObject({
+    ...decisionBase,
+    decision: z.literal('approve'),
+    reviewed_transaction_ids: z.array(z.string().min(1)),
+    override: OverrideSchema.optional(),
+  }),
   z.strictObject({
     ...decisionBase,
     decision: z.literal('reject'),
