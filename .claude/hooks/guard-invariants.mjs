@@ -9,22 +9,22 @@ const PROTECTED = [
   {
     prefix: 'apps/api/src/executor/',
     invariant:
-      'G1 + G3: the executor is the only writer; it re-validates G2 and executes at most once',
+      'G1 + G3: the executor container is the only writer; it re-validates G2 and the effect happens once (outbox + idempotency key)',
   },
   {
     prefix: 'apps/api/src/approvals/',
     invariant:
-      'G3: nothing executes without a named operator; transitions are conditional and audited',
+      'G3: nothing executes without an authenticated operator; transitions are conditional, role-bound and audited; canaries never execute',
   },
   {
     prefix: 'packages/contracts/src/mask',
     invariant:
-      'G6: full CLABE, PAN, RFC, CURP and auth factors never reach logs, traces or the model',
+      'G6: full CLABE, PAN, phone, RFC, CURP and auth factors never reach logs, traces or the model; every run of 8+ digits is masked',
   },
   {
     prefix: 'apps/api/src/agent/validate',
     invariant:
-      'G5: provenance, allow-list, PII, link and auth-factor checks always run after the model',
+      'G5: provenance, quote, allow-list, fact-support, grounding, commitment, PII, link and auth-factor checks always run after the model',
   },
   {
     prefix: 'apps/mcp/',
