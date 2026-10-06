@@ -9,28 +9,30 @@ ticket system (simulated)
 ┌──────────────────────── apps/api (NestJS) ────────────────────────┐
 │ webhook → cases table (queue) → worker → agent harness            │
 │                                              │                    │
-│   approvals API ◄── console                  │ read-only          │
-│        │                                     ▼                    │
-│   executor (only writer)            MCP client (case token)       │
-└────────┼─────────────────────────────────────┼────────────────────┘
-         │ write                                │ Streamable HTTP
-         ▼                                      ▼
-   apps/core-mock  ◄──────── read ────────  apps/mcp (4 read tools)
+│   approvals API ◄── console (operator token) │ read-only          │
+│        │ approved row (outbox)               ▼                    │
+└────────┼──────────────────────────── MCP client (case token) ─────┘
+         ▼                                      │ Streamable HTTP
+   executor (own container, only writer)        ▼
+         │ write + Idempotency-Key        apps/mcp (4 read tools)
+         ▼                                      │
+   apps/core-mock  ◄──────── read ──────────────┘
    (dataset JSON)
 ```
 
 | Unit | Tech | Responsibility |
 | --- | --- | --- |
-| `apps/api` | NestJS 11, Drizzle, Postgres 16 | Webhook, queue worker, agent harness, retrieval, approvals, executor, traces, REST for the console |
-| `apps/mcp` | `@modelcontextprotocol/sdk`, plain TS | MCP server exposing four read-only tools; binds every call to the customer in the case token; masks PII at the boundary |
-| `apps/core-mock` | Small Node HTTP service | Serves the synthetic dataset; exposes the three write endpoints used only by the executor |
+| `apps/api` | NestJS 11, Drizzle, Postgres 16 | Webhook, queue worker, agent harness, retrieval, approvals, traces, REST for the console. Postgres role `copilot_api`; refuses to start if `CORE_EXECUTOR_KEY` is set |
+| `executor` | Same image as `api`, entrypoint `apps/api/src/executor/main.ts`, plain TS | Drains `approved` actions, re-validates, calls core-mock writes with an idempotency key, sweeps stale `started` rows. Only holder of `CORE_EXECUTOR_KEY`; Postgres role `copilot_executor` (02 G1) |
+| `apps/mcp` | `@modelcontextprotocol/server` + `@modelcontextprotocol/node` (v2), plain TS | MCP server exposing four read-only tools; binds every call to the customer in the case token; masks PII at the boundary |
+| `apps/core-mock` | Small Node HTTP service | Serves the synthetic dataset; exposes the three write endpoints used only by the executor, each requiring the executor key and an `Idempotency-Key` stored under a unique constraint (a repeat returns the first result) |
 | `apps/console` | React + Vite, TanStack Query | Inbox, new case form, run / re-run, case detail with trace, edit reply, decide |
 | `packages/contracts` | Zod | Shared schemas: case, resolution, proposed action, trace step, API DTOs |
 | `data/` | JSON + Markdown | Customers, transactions, policy docs, webhook fixtures. Generated once with a fixed seed and committed |
 | `evals/` | promptfoo (Node API) | Labeled cases, runner, judge, calibration labels |
-| `seed` (compose one-shot) | Node script | Idempotent: run migrations, ingest policy docs, exit. `api` starts after it succeeds |
+| `seed` (compose one-shot) | Node script | Idempotent: run migrations as the owner role (creating `copilot_api` and `copilot_executor`), check the policy manifest, ingest policy docs, exit. `api` and `executor` start after it succeeds |
 
-Why three services instead of one: the trust boundary is physical. The agent process holds an MCP client that can only read; the write client exists only in the executor module. A bug in a prompt cannot reach a write path that the process running the model does not call.
+Why four services instead of one: the trust boundary is physical. The process that runs the model holds an MCP client that can only read, and neither the executor key nor a database role that can record an execution. A bug in a prompt, or a compromised dependency in `api`, cannot reach a write path that process does not have.
 
 The harness core (`apps/api/src/agent/core/`) is plain TypeScript with explicit dependencies (model, MCP client, retrieval, repositories). Nest only wires it, so the eval runner calls the same `runCase()` without Nest DI.
 
@@ -43,27 +45,28 @@ pnpm workspaces, no Nx: four small packages do not justify it.
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `webhook_events` | `event_id` PK, `payload_hash`, `case_id`, `received_at` | Idempotency ledger |
-| `cases` | `id`, `ticket_id` unique, `folio` unique, `received_at`, `source` (`webhook` · `console` · `eval`), `customer_id`, `text_masked`, `status`, `attempts`, `manual_reruns`, `locked_until`, `category`, `flags` jsonb, `review_tier` | Also the queue. `status`: `queued → investigating → needs_review → resolved` (on the operator's decision), or `failed`. `flags` is one closed set: `injection_signal`, `ungrounded_number`, `commitment_language`, `policy_data_conflict`, `abstained`, `fallback`. `review_tier` is set by code at Persist: `high` if the action is `open_dispute` / `escalate_fraud` or `flags` is non-empty, else `standard`. The inbox sorts `high` first and hides `source = eval` by default. No model self-confidence is used |
-| `agent_runs` | `id`, `case_id`, `variant`, `model` (exact provider id), `prompt_version` (hash of system prompt + tool descriptions), `status` (`running` · `succeeded` · `fallback` · `failed` · `abandoned`), `stop_reason`, token counts, `cost_usd`, `latency_ms`, `error_code` | One row per attempt |
-| `run_steps` | `run_id`, `idx`, `kind` (`llm`, `tool`, `retrieval`, `guard`, `validation`), `name`, `input_masked`, `output_masked`, tokens, cost, `latency_ms` | The trace the console renders |
+| `cases` | `id`, `ticket_id` unique, `folio` unique, `received_at`, `source` (`webhook` · `console` · `eval`), `customer_id`, `text_masked`, `status`, `attempts`, `manual_reruns`, `locked_until`, `claim_token`, `next_attempt_at`, `category`, `flags` jsonb, `review_tier` | Also the queue. `status`: `queued → investigating → needs_review → resolved` (on the operator's decision), or `failed`. `folio` is `AC-XXXX-XXXX`, Crockford base32, never more than 4 consecutive digits (02 G6 registry). `flags` is one closed set: `injection_signal`, `policy_data_conflict`, `action_fact_mismatch`, `first_party_signal`, `abstained`, `fallback`. `review_tier` is set by code at Persist: `high` if the action is `open_dispute` / `escalate_fraud` or `flags` is non-empty, else `standard`. The inbox sorts `high` first and hides `source = eval` by default. No model self-confidence is used |
+| `agent_runs` | `id`, `case_id`, `variant`, `model` (exact provider id), `prompt_version` (hash of system prompt + tool descriptions), `status` (`running` · `succeeded` · `fallback` · `failed` · `abandoned`), `stop_reason` (`completed` · `budget` · `validation` · `agent_disabled` · `error`), token counts, `cost_usd`, `latency_ms`, `error_code` | One row per attempt |
+| `run_steps` | `run_id`, `idx`, `kind` (`llm`, `tool`, `retrieval`, `guard`, `validation`), `name`, `input_masked`, `output_masked`, tokens, cost, `latency_ms`, `provider_request_id`, `finish_reason` | The trace the console renders |
 | `resolutions` | `run_id`, `category`, `draft_reply`, `citations` jsonb, `abstained`, `reasoning_summary` | Validated agent output |
-| `proposed_actions` | `id`, `case_id`, `run_id`, `type`, `params` jsonb, `justification`, `status`, `proposed_at`, `decided_by`, `decided_at`, `final_reply`, `reject_code`, `reject_reason`, `reply_edit_ratio`, `acknowledged_flags` | One row per case decision, also for `type = none`. `status`: `proposed → approved → executed`, or `rejected`, `failed`. The operator's decision always stores `final_reply` (edited or not), approve or reject, and moves the case to `resolved`. `reject_code` ∈ `wrong_category`, `wrong_action`, `wrong_transactions`, `wrong_policy_or_ungrounded`, `missing_policy`, `tone`, `other`. `reply_edit_ratio` = normalized edit distance from `draft_reply` to `final_reply`, computed on every decision: a heavy edit is a silent rejection |
-| `action_executions` | `action_id` unique, `executed_at`, `result` | Unique key makes execution at-most-once |
-| `audit_log` | `id`, `at`, `actor`, `event`, `ref`, `detail_masked` | Append-only; no UPDATE or DELETE granted to the app role. `actor` is `operator:<id>` or `agent:case-copilot/<variant>@<prompt_version>`, so every proposal names the agent version and every decision the human |
-| `policy_chunks` | `id`, `doc_id`, `section`, `content`, `tsv`, `state_rules` jsonb, `content_hash`, `quarantined` | Retrieval corpus. `state_rules` come from the doc's front matter, e.g. `{id: return_credit_same_day, applies_to: {type: spei_out, status: returned, returned_business_days_ago: ">=1"}, requires: {field: reversal_credit_id, not_null: true}}`. A rule is evaluated only on a transaction whose `get_spei_status` or `get_card_authorization` output the run actually received, and only on fields that output contains; a missing tool call never produces a conflict (02 G5) |
+| `proposed_actions` | `id`, `case_id`, `run_id`, `agent_type`, `agent_params` jsonb, `type`, `params` jsonb, `justification`, `status`, `proposed_at`, `decided_by`, `decided_at`, `final_reply`, `reject_code`, `reject_reason`, `reply_edit_ratio`, `acknowledged_flags`, `reviewed_transaction_ids`, `operator_override`, `is_canary` | One row per case decision, also for `type = none`. `agent_*` hold the agent's proposal and never change; `type`/`params` are what executes, equal to them unless the operator overrides (02 G3). `status`: `proposed → approved → executed`, or `rejected`, `failed`; canaries end in `canary_caught` or `canary_missed` and are excluded from quality metrics. The operator's decision always stores `final_reply` (edited or not), approve or reject, and moves the case to `resolved`. `reject_code` ∈ `wrong_category`, `wrong_action`, `wrong_transactions`, `wrong_policy_or_ungrounded`, `missing_policy`, `tone`, `other`; an override counts as `wrong_action`. `reply_edit_ratio` = normalized edit distance from the placeholder-filled draft the operator saw to `final_reply`, computed on every decision: a heavy edit is a silent rejection. `is_canary` is never serialized to any DTO |
+| `action_executions` | `action_id` unique, `status` (`started` · `executed` · `failed`), `attempts`, `started_at`, `finished_at`, `result` | Written only by `copilot_executor`. The unique key plus core-mock's idempotency key make the effect happen once (02 G3) |
+| `audit_log` | `id`, `at`, `actor`, `event`, `ref`, `detail_masked`, `key_id`, `ip`, `user_agent` | Append-only; neither role has UPDATE or DELETE. `actor` is `operator:<id>` (from the operator token), `executor` or `agent:case-copilot/<variant>@<prompt_version>`, so every proposal names the agent version and every decision the human |
+| `policy_chunks` | `id`, `doc_id`, `section`, `content`, `keywords`, `tsv`, `state_rules` jsonb, `content_hash`, `quarantined` | Retrieval corpus. `content` is the normalized text (02 G8); `tsv` weights the section heading `A`, the manifest `keywords` (customer phrasings such as "no me llegó", "me cobraron") `B` and the body `D`, under the `es_unaccent` config. `state_rules` come from the doc's front matter, e.g. `{id: return_credit_same_day, applies_to: {type: spei_out, status: returned, returned_business_days_ago: ">=1"}, requires: {field: reversal_credit_id, not_null: true}}`. A rule is evaluated only on a transaction whose `get_spei_status` or `get_card_authorization` output the run actually received, and only on fields that output contains; a missing tool call never produces a conflict. Every non-quarantined rule whose `applies_to` matches runs, whether or not the chunk was cited (02 G5) |
 
-State transitions are enforced twice: in a domain function (`transition(from, event)`) and with a conditional `UPDATE … WHERE status = $expected` so two concurrent requests cannot both win.
+State transitions are enforced three times: in a domain function (`transition(from, event)`), with a conditional `UPDATE … WHERE status = $expected` so two concurrent requests cannot both win, and by the `enforce_transition_role` trigger that ties each transition to one Postgres role (02 G1).
 
 ## Webhook and queue
 
-- `POST /webhooks/tickets` body: `{ event_id, ticket_id, customer_id, text, created_at }` (≤ 32 KB). HMAC signature header verified against a stub secret.
+- `POST /webhooks/tickets` body: `{ event_id, ticket_id, customer_id, text, created_at }` (≤ 32 KB). Signed per Standard Webhooks v1: `webhook-id` (must equal `event_id`), `webhook-timestamp`, `webhook-signature: v1,<base64 HMAC-SHA256>` over `${id}.${timestamp}.${rawBody}` with `WEBHOOK_SECRET`. Verified on the raw bytes (`NestFactory.create(…, { rawBody: true })`) with `timingSafeEqual` before parsing; a timestamp outside ±5 minutes → `401` (Stripe's default tolerance); several space-separated signatures are accepted so the secret can rotate.
 - The console's new case form calls `POST /cases`; the API builds the event, signs it server-side and runs it through the same handler, so the secret never reaches the browser and console cases take the real path.
 - One transaction: insert into `webhook_events` `ON CONFLICT (event_id) DO NOTHING`; if inserted, insert the case with `status = 'queued'`, a `folio` and `received_at`, and record the automatic acknowledgment (acuse) as sent (mocked). Commit, return `202 { case_id, folio }`. The acknowledgment never waits for the agent (LTOSF art. 23).
 - Retry with the same `event_id` and same payload hash returns the original `case_id` with `200`. Same `event_id` with a different hash returns `409` and is logged.
-- The `cases` row is the job: the worker claims with `SELECT … FOR UPDATE SKIP LOCKED`, sets `locked_until`. No separate enqueue step means no window where the event is recorded and the job is lost.
-- Failure: up to 3 attempts with backoff; then `failed` with `error_code`, visible in the console with a "re-run" button. Each attempt is a new `agent_runs` row.
+- The `cases` row is the job: the worker claims with `SELECT … FOR UPDATE SKIP LOCKED` where `next_attempt_at <= now()`, sets a fresh `claim_token` (uuid) and `locked_until = now() + RUN_TIMEOUT_MS + 30 s`. Every write of that attempt carries `WHERE id = $1 AND claim_token = $2`, so a worker whose lease expired cannot overwrite the attempt that replaced it (fencing). No separate enqueue step means no window where the event is recorded and the job is lost.
+- Failure: up to 3 attempts; the next one waits `min(2^attempt × 10 s, 5 min)` ±20 % jitter in `next_attempt_at`; then `failed` with `error_code`, visible in the console with a "re-run" button. Each attempt is a new `agent_runs` row.
+- Kill switch: with `AGENT_MODE=off` the worker never calls the model; each claimed case goes to `needs_review` through the fallback path with `stop_reason = agent_disabled`, and the console shows a banner. Ops keeps working cases by hand (Monzo and DPD both rely on being able to turn the AI part off).
 
-Chosen over pg-boss: about 60 lines, atomic with the idempotency insert, nothing extra to operate. pg-boss is the first thing to adopt at higher volume.
+Chosen over pg-boss: the case row is the job, so job state and case status are one state machine with no second store to reconcile. pg-boss 12 can also enqueue inside the Drizzle transaction (`fromDrizzle`), so atomicity is not the reason; it becomes the choice with more job types or when a dead-letter queue and heartbeats are needed. A durable-execution engine (Temporal, DBOS, AI SDK `WorkflowAgent`) is not needed for a read-only loop of at most 8 steps: restarting it costs tokens, not correctness.
 
 ## Agent pipeline
 
@@ -71,20 +74,22 @@ A blueprint: deterministic nodes around one agentic node. Deterministic steps ar
 
 | # | Node | Kind | What it does |
 | --- | --- | --- | --- |
-| 1 | Intake | Deterministic | Load case. Mask PII in customer text. Run the heuristic injection scan; record a flag, do not block. |
+| 1 | Intake | Deterministic | Load case. Mask PII in customer text. Run the heuristic injection scan; record a flag, do not block. With `AGENT_MODE=off`, go straight to fallback. |
 | 2 | Investigate | Agentic | Tool loop with the four MCP tools plus local `search_policies`. Ends in a typed `Resolution`. |
-| 3 | Validate | Deterministic | Schema, provenance, allow-list, grounding and PII checks (see 02). One repair retry with the validator's error; then fall back. |
-| 4 | Persist | Deterministic | Write `resolutions`, `proposed_actions` (`proposed`), steps, costs. Case → `needs_review`. |
-| 5 | Decide | Human | Operator edits reply, approves or rejects. |
-| 6 | Execute | Deterministic | Separate module. Runs only for `approved`; idempotent; writes audit log. |
+| 3 | Validate | Deterministic | Schema, provenance, quote, allow-list, fact-support, grounding, commitment, link, auth-factor and PII checks (02 G5). One repair retry with the validator's codes; then fall back. |
+| 4 | Persist | Deterministic | Compute `action_fact_mismatch` and `first_party_signal`, `review_tier`. Write `resolutions`, `proposed_actions` (`proposed`), steps, costs. Case → `needs_review`. |
+| 5 | Decide | Human | Authenticated operator edits the reply, checks off transactions on `high` tier, optionally overrides the action, approves or rejects. |
+| 6 | Execute | Deterministic | Separate container. Runs only for `approved`; outbox with idempotency key; writes audit log. |
 
 Fallback when validation fails twice or the model errors out: case goes to `needs_review` with `action = none`, an empty draft and a visible reason. The agent never guesses to fill the gap.
 
 ### The agentic node
 
 - AI SDK 7 `ToolLoopAgent` with `output: Output.object({ schema: ResolutionSchema })`.
-- `stopWhen: isStepCount(8)`. Producing the structured output counts as a step, so `prepareStep` disables tools on the last allowed step to force the synthesis.
-- `NoObjectGeneratedError` / `NoOutputGeneratedError` are caught and routed to the repair retry, not surfaced as a crash.
+- `stopWhen: [isStepCount(8), overBudget(RUN_COST_CEILING_USD, RUN_INPUT_TOKEN_CEILING)]`, the second a custom stop condition over the steps' usage. Producing the structured output counts as a step, so `prepareStep` sets `activeTools: []` on the last allowed step to force the synthesis. Never `toolChoice: 'required'`: current Opus and Sonnet models reject forced tool use with `400`.
+- `timeout: { totalMs: RUN_TIMEOUT_MS, stepMs: 60_000, toolMs: 10_000 }` instead of a hand-rolled abort signal; a tool over its timeout comes back to the model as a tool error.
+- A stop by budget goes to fallback with `stop_reason = budget`, never to repair: repairing would spend more after the ceiling. `NoObjectGeneratedError` from a malformed output goes to the repair retry; a `NoOutputGeneratedError` after a budget stop goes to fallback.
+- Repair appends the validator's codes to the run's messages as a new user turn; earlier turns are never edited, because thinking blocks are bound to the exact prefix and an edited history is rejected.
 - The model never receives `customer_id` as a tool parameter. Identity travels in the MCP transport header as a short-lived case token minted by the harness (see 02).
 - AI SDK `toolApproval` was considered for the gate and rejected: approval here must survive process restarts, belong to a named operator and be auditable days later. That is a database state machine, not a message in a turn.
 
@@ -96,7 +101,7 @@ Fallback when validation fails twice or the model errors out: case goes to `need
                   'unrecognized_card_charge', 'card_purchase_declined',
                   'general_inquiry', 'out_of_scope_or_suspicious' ],
   draft_reply: string,              // Spanish, for the customer
-  citations: [{ chunk_id, doc_id, section }],   // ≥1 unless abstained
+  citations: [{ chunk_id, doc_id, section, quote }],   // ≥1 unless abstained; quote ≤ 200 chars, verbatim from the chunk
   abstained: boolean,               // true = no policy support found
   evidence: [{ kind: 'transaction' | 'spei' | 'card_auth', id }],
   proposed_action: { type: 'open_dispute' | 'resend_cep' | 'escalate_fraud' | 'none',
@@ -105,19 +110,23 @@ Fallback when validation fails twice or the model errors out: case goes to `need
 }
 ```
 
-No free-text amount, CLABE or account field exists anywhere in the action. The executor derives every value it needs from `transaction_ids`.
+No free-text amount, CLABE or account field exists anywhere in the action. The executor derives every value it needs from `transaction_ids`. `quote` replaces the Anthropic Citations API, which cannot be combined with structured outputs (`CITATION_QUOTE_MISMATCH`, 02 G5).
 
 ### Tools
 
 | Tool | Input (no `customer_id`) | Output (masked) |
 | --- | --- | --- |
 | `get_customer` | — | First name only, account status, masked CLABE, card last 4, KYC level. Name + surnames + another identifier is "Información Personal" under the CNBV–Banxico IFPE rules, so the full name never reaches the model; the harness fills `{{nombre}}` after validation |
-| `list_transactions` | `type?`, `status?`, `from?`, `to?`, `min_amount?`, `max_amount?`, `query?`, `limit` (default 10, max 25), `cursor?` | Compact rows + `total` + `next_cursor` |
-| `get_spei_status` | `transaction_id` | State, timestamps, tracking key, return reason, hold reason, `reversal_credit_id` (for returned SPEI out), CEP availability |
+| `list_transactions` | `type?`, `status?`, `from?`, `to?`, `min_amount?`, `max_amount?`, `query?`, `limit` (default 10, max 25), `cursor?` | Compact rows (card purchases include merchant descriptor and channel) + `total` + `next_cursor` |
+| `get_spei_status` | `transaction_id` | State, timestamps, `tracking_key_last4`, return reason, hold reason, `reversal_credit_id` (for returned SPEI out), `cep_available` |
 | `get_card_authorization` | `transaction_id` | Decision, decline reason code, merchant (descriptor and brand), `auth_factors` (count of independent factors; 3DS maps here), channel |
-| `search_policies` (local) | `query`, `k` (max 4) | Chunks with `chunk_id`, `doc_id`, `section` |
+| `search_policies` (local) | `query`, `k` (max 4), `doc_id?` | Chunks with `chunk_id`, `doc_id`, `section`, `content`. The tool description lists the policy catalog (id and title, generated from the manifest, never from doc bodies), so the model can query in the policies' own words; it is static and part of `prompt_version` |
 
-All MCP tools carry `readOnlyHint: true`. A lookup of an id that belongs to another customer returns `NOT_FOUND`, the same as a missing id, and raises a security event.
+All MCP tools carry `readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false`; annotations are informational (the spec calls them untrusted) and G1 is the guarantee. `tools/list` order is fixed. A lookup of an id that belongs to another customer returns `NOT_FOUND` as a tool result with `isError: true`, the same as a missing id, and raises a security event. More than 12 calls on one case token return `RATE_LIMITED` (02 G4).
+
+### Retrieval
+
+Postgres full-text search with a `es_unaccent` configuration (`COPY = spanish`, mapping through `unaccent` then `spanish_stem`), so `devolucion` finds `devolución`. The query is an OR of the query's lexemes ranked with `ts_rank_cd`, not `plainto_tsquery`, which ANDs every word and misses "cuánto tarda un SPEI en llegar" against a section titled "Tiempos SPEI". Embeddings are not used: the corpus is about ten short docs, `pgvector` is not in the `postgres:16-alpine` image, and `retrieval.spec.ts` measures recall instead of assuming it. Putting the whole corpus in the prompt (Anthropic's advice below 200k tokens) was rejected because it would make every chunk "seen" and empty `CITATION_UNSEEN`, and would place the poisoned 09b in every run.
 
 ## Context policy
 
@@ -138,21 +147,37 @@ A customer with 200 movements cannot overflow the window: the list tool is pagin
 
 | Failure | Handling |
 | --- | --- |
-| Provider timeout | Per-step abort signal; counts as a retryable error |
-| 429 / 5xx | SDK retries with backoff, max 2; then job-level retry |
+| Provider timeout | `timeout.stepMs` / `totalMs`; counts as a retryable error |
+| 429 / 529 / 5xx | SDK retries, max 2, honoring `retry-after`; then job-level retry with backoff |
+| Provider spend limit (`429` `enforced_spend_limit_reached`, or `400` "specified API usage limits") | Not retryable, like `no_api_key`: `error_code = provider_spend_limit`. A dedicated Anthropic workspace with its own spend limit backs `RUN_COST_CEILING_USD` (README) |
+| Provider outage (5 consecutive `429`/`529`/`5xx` after SDK retries) | Worker circuit breaker: stops claiming for 60 s, then half-open with one case; attempts are not consumed while open, so an outage does not turn every case `failed` |
+| Agent turned off (`AGENT_MODE=off`) | No model call; case → `needs_review`, `action = none`, `stop_reason = agent_disabled`; console banner |
 | Invalid or schema-violating JSON | One repair attempt with the validation error; then fallback |
 | MCP tool error | Returned to the model as a tool error once; second failure of the same tool ends the run in fallback |
 | Mock core down | Tool error path; case stays re-runnable |
-| Worker crash mid-run | `locked_until` expires; another attempt starts; partial run row marked `abandoned` |
+| Worker crash mid-run | `locked_until` expires; another attempt starts with a new `claim_token`; the old one can no longer write; partial run row marked `abandoned` |
+| Executor crash between `started` and the core-mock call | Sweeper retries after 2 min with the same `Idempotency-Key`; core-mock returns the first result if the write had landed (02 G3) |
 | No API key configured | Run ends at once with `error_code = no_api_key`, no retries; console shows it |
-| Policy contradicts account data | Not resolved by the model: a cited chunk's `state_rules` fail against the transactions seen → `POLICY_DATA_CONFLICT`, action forced to `none`, flag `policy_data_conflict`, shown to ops |
+| Policy contradicts account data | Not resolved by the model: the `state_rules` of any matching chunk, cited or not, fail against the transactions seen → `POLICY_DATA_CONFLICT`, action forced to `none`, flag `policy_data_conflict`, shown to ops |
 
 ## Observability
 
 - **Source of truth:** `agent_runs` and `run_steps` in Postgres, masked on write. The console trace and the evals read from here, so they work with no external service.
-- **Optional:** Langfuse through OpenTelemetry (`LangfuseSpanProcessor` with a `mask` function, AI SDK telemetry integration). Off when keys are absent.
-- **Per step:** tokens in/out, cached input tokens (priced separately, when the provider reports them), cost (from a dated price table in config), latency, tool name, masked args.
-- **Alerts worth paging for:** (1) share of proposals rejected **or approved with `reply_edit_ratio` > 0.3** over a rolling window — quality drift; (2) validation-block or injection-flag rate above baseline — attack or regression; (3) age of the oldest queued case **and of the oldest `proposed` action awaiting a decision** — pipeline or review stalled, and disputes are deadline-bound (02 regulatory).
+- **OpenTelemetry** through AI SDK telemetry (`invoke_agent`, `chat`, `execute_tool` spans with `gen_ai.usage.*`), with `recordInputs: false, recordOutputs: false` by default: the GenAI semantic conventions are still in Development and make content opt-in, and the SDK records it by default. Content is recorded only with the `maskJson` span processor wired. **Optional:** Langfuse as one more span processor (`LangfuseSpanProcessor` with `mask`). Off when keys are absent.
+- **Per step:** tokens in/out, cached input tokens (priced separately, when the provider reports them), cost (from a dated price table in config), latency, tool name, masked args, provider request id and finish reason.
+- **Alerts**, in `ops/alerts.sql`. Thresholds are starting points to recalibrate against the first weeks of shadow data; each has a minimum sample so a quiet hour cannot page:
+
+  | Alert | Threshold | Owner |
+  | --- | --- | --- |
+  | `action_executions` row without an operator decision | Any | Page: on-call + security |
+  | Canary catch rate per operator | < 100% over that operator's last 20 canaries | Ticket: ops lead (coaching, not blame) |
+  | `open_dispute` still `proposed` | > 1 business day after `received_at` (the 18.a credit is due on the 2nd) | Page: ops lead |
+  | Oldest queued case | > 15 min | Page: on-call |
+  | Fallback or provider error rate | > 10% over 30 min, n ≥ 10 | Page: on-call |
+  | Rejected or approved with `reply_edit_ratio` > 0.3 | > baseline + 10 pp over 7 days, n ≥ 20 | Ticket: AI lead |
+  | Injection flag or validation block rate | > 3× the 7-day median, n ≥ 10 | Ticket: AI lead + security |
+  | Cost per case p95 | > 2× baseline | Ticket: AI lead |
+  | PII sink scan (digit runs ≥ 8 outside exempt runs in logs and traces) | Any hit | Page: security |
 - **Dashboards, not pages:** cost per case p50/p95, cache-read share, fallback rate, steps per run, rejects by `reject_code`, approved → `executed` rate (vs `failed`), time-to-decision p50.
 
 ## Stack and verified APIs
@@ -161,17 +186,19 @@ Checked against official docs and npm on 2026-10-05. Re-check signatures against
 
 | Area | Package (latest seen) | Verified facts | Source |
 | --- | --- | --- | --- |
-| Agent loop | `ai` 7.0.128 | `ToolLoopAgent`; default `stopWhen: isStepCount(20)`; `hasToolCall`; `prepareStep` can set `activeTools`, `toolChoice`; per-call `toolsContext` | <https://ai-sdk.dev/docs/agents/building-agents> , <https://ai-sdk.dev/docs/agents/loop-control> |
+| Agent loop | `ai` 7.0.128 | `ToolLoopAgent`; default `stopWhen: isStepCount(20)`; `stopWhen` accepts an array (any condition stops); `hasToolCall`; `prepareStep` can set `activeTools`; `timeout: number \| { totalMs, stepMs, toolMs }`; per-call `toolsContext` | <https://ai-sdk.dev/docs/agents/building-agents> , <https://ai-sdk.dev/docs/agents/loop-control> |
 | Structured output | `ai` | `output: Output.object({ schema })`; output generation counts as a step; `NoObjectGeneratedError`, `NoOutputGeneratedError` | <https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data> |
 | Tools | `ai` | `tool({ description, inputSchema, execute, contextSchema })`; `onStepEnd`; `toolApproval` exists (not used) | <https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling> |
-| MCP client | `@ai-sdk/mcp` 2.0.67 | `createMCPClient({ transport: { type: 'http', url, headers } })`; `tools({ schemas })`; `close()` | <https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools> |
+| MCP client | `@ai-sdk/mcp` 2.0.67 | `createMCPClient({ transport: { type: 'http', url, headers } })`; speaks the stateless 2026-07-28 protocol and falls back to `initialize` for legacy servers; `tools({ schemas })`; `close()` | <https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools> |
 | Test doubles | `ai/test` | `MockLanguageModelV4` with `doGenerate`; `mockValues` | <https://ai-sdk.dev/docs/ai-sdk-core/testing> |
-| MCP server | `@modelcontextprotocol/sdk` 1.32.1 | `McpServer.registerTool`; stateless Streamable HTTP (`sessionIdGenerator: undefined`); handler `extra.authInfo` / `extra.requestInfo` | <https://github.com/modelcontextprotocol/typescript-sdk> |
-| Tracing | `@langfuse/otel`, `@langfuse/vercel-ai-sdk` 5.13.0 | `new LangfuseSpanProcessor({ mask })`; masks input, output, metadata | <https://langfuse.com/docs/observability/features/masking> |
-| Evals | `promptfoo` 0.124.0 | Node API `evaluate`; `javascript`, `llm-rubric`, `cost`, `latency`, `trajectory:*` assertions; `--repeat` | <https://www.promptfoo.dev/docs/configuration/expected-outputs/> |
+| MCP server | `@modelcontextprotocol/server` 2.3.1, `@modelcontextprotocol/node` 2.1.1 | Stable line implementing protocol 2026-07-28 (no sessions, no `initialize`); `createMcpHandler(({ authInfo }) => new McpServer(…))` builds a server per request; `registerTool` with Standard Schema input; the v1 package `@modelcontextprotocol/sdk` 1.32.1 stops at 2025-11-25 | <https://ts.sdk.modelcontextprotocol.io/v2/serving/http> , <https://modelcontextprotocol.io/specification/2026-07-28/changelog> |
+| Case token | `jose` 6.2.12 | `SignJWT`, `jwtVerify(token, key, { algorithms, issuer, audience })` | <https://github.com/panva/jose> |
+| Webhook signature | `standardwebhooks` 1.1.1 | Standard Webhooks v1 reference implementation; check its verify API at step 7, or hand-roll the ~20-line check with `timingSafeEqual` | <https://github.com/standard-webhooks/standard-webhooks> |
+| Tracing | `@ai-sdk/otel` 1.0.128 (`recordInputs`/`recordOutputs` default on), `@langfuse/otel` 5.13.0 optional | `new LangfuseSpanProcessor({ mask })`; masks input, output, metadata | <https://langfuse.com/docs/observability/features/masking> |
+| Evals | `promptfoo` 0.124.0 | Node API `evaluate`; `javascript`, `llm-rubric`, `cost`, `latency` assertions; per-test `options.repeat` (since 0.121.18), each repeat index cached separately, so the runner disables the cache | <https://www.promptfoo.dev/docs/configuration/test-cases> |
 
 Version decisions:
 
 - **NestJS 11**, not 12 (current `latest`): the ported patterns and my agent rules are written for 11; an upgrade is not what this challenge measures.
-- **MCP SDK v1** (`@modelcontextprotocol/sdk`), not the v2 split packages (`@modelcontextprotocol/server` 2.3.1): the Knowtis reference code and the `@ai-sdk/mcp` examples target v1, which is still published and current; the server is small enough that moving to v2 later is cheap.
+- **MCP SDK v2** (`@modelcontextprotocol/server` + `/node`), protocol 2026-07-28: it is the stable line, `@ai-sdk/mcp` speaks it by default, and the server is a rewrite anyway (00), so the Knowtis v1 code is reference only. Fallback if v2 costs more than 15 minutes at step 3: v1 1.32 with the client's protocol discovery turned off for legacy servers; the ruling goes in the ledger.
 - **Models:** set by env (`AGENT_MODEL_A`, `AGENT_MODEL_B`, `JUDGE_MODEL`). Variant A is a Sonnet-class model, variant B a Haiku-class model; the judge is a different model from the one being judged. Exact ids are pinned in `.env.example` at implementation time.
