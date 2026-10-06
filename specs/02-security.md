@@ -101,13 +101,15 @@ The model never computes dates or regulatory deadlines. The draft may use placeh
 
 | Pattern | Rule | Masked as |
 | --- | --- | --- |
-| CLABE | 18 digits, spaces or dashes allowed; checked first | `CLABE ••••1234` |
-| Card PAN | 13–19 digits passing Luhn | `tarjeta ••••1234` |
-| RFC | `[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}` | `RFC ••••` |
-| CURP | `[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z\d]\d` | `CURP ••••` |
-| Email | Standard local@domain | `a•••@domain` |
-| Phone (MX) | 10 digits, optional `+52` | `tel ••••1234` |
-| Auth factor | 3–6 digits after `CVV`, `NIP`, `código`, `OTP`, `token`, `contraseña` | `[factor]` |
+| CLABE | 18 digits with a valid control digit (weights 3-7-1); contiguous, glued to a word, or in groups of ≥ 3 split by spaces, dots, slashes, dashes, underscores, parentheses or line breaks; checked first | `CLABE ••••1234` |
+| Card PAN | 13–19 digits passing Luhn; contiguous (also glued to a word) or in 4-4-4-4, 4-6-5, 4-4-4-4-3 groups | `tarjeta ••••1234` |
+| RFC | `[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}`, any case, optional space or dash between segments, also glued to a word | `RFC ••••` |
+| CURP | `[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z\d]\d`, same tolerances as RFC; checked before RFC | `CURP ••••` |
+| Email | local@domain, Unicode letters allowed in the local part | `a•••@domain` |
+| Phone (MX) | 10 digits contiguous or as 2-4-4, 3-3-4, 2-8, optional `+52` and mobile `1` | `tel ••••1234` |
+| Auth factor | 3–8 digits (one inner space or dash allowed) after `CVV`/`CVC`(`2`), `NIP`, `PIN`, `OTP`, `token`, `código`, `contraseña`, `clave`, `password`, with up to 40 characters of words between; or before "es mi NIP"-style phrases. Never after `postal`, `rastreo`, `referencia`, `folio`, `interbancaria` | `[factor]` |
+
+Text is normalized to NFKC first, so no-break spaces and full-width digits cannot hide a value. UUIDs are left intact. Structured data (tool results, log fields, trace attributes, DB rows) is masked value by value with `maskJson`, never as serialized text, because an escaped `\n` inside JSON would split a value; keys named like an auth factor (`otp`, `nip`, `cvv`…) are masked whole. Both functions are linear: 32 KB of adversarial input masks in under 30 ms, so the webhook cannot be stalled through them.
 
 Card display rule: last 4 only, stricter than PCI DSS 3.4.1 (BIN + last 4 at most). Masking at intake and at the MCP boundary keeps the LLM provider out of PAN storage (PCI DSS 3.5.1).
 
@@ -127,7 +129,8 @@ The console renders reply, trace, chunks and case text as plain text: no Markdow
 | Operators rubber-stamp | The gate is only as good as the reviewer | Median time-to-approve under 10 s or approve rate over 98% on a rolling window → alert |
 | A subtle injection steers classification or the choice among allowed actions | The model still chooses among legal options | Action mix per policy doc and per category drifts; eval ADV set run on every prompt or model change |
 | Executor key lives in the same process as the agent | `apps/api` hosts both modules; G1 is a code boundary, not an OS boundary | Lint rule in CI; with more time, the executor runs as its own service with its own credentials |
-| Masker misses a new format (CLABE with dots, PAN in words) | Regexes are finite | Nightly canary scan of logs and traces for digit runs ≥ 13 → alert on any hit |
+| Masker misses a new format (a PAN spelled in words, an unusual grouping) | Patterns are finite | Nightly canary scan of logs and traces for digit runs ≥ 13 → alert on any hit |
+| A mistyped CLABE or card number, or a phone written in pairs (`55 12 34 56 78`), passes unmasked | Masking only values that pass their check digit keeps 18-digit SPEI tracking keys and number lists intact; a mistyped number is not a real account | Same canary scan; ops can report a leak from the console |
 | Account owner commits first-party fraud through a legitimate request | Not detectable from one case | Out of scope; `escalate_fraud` is available to the model and to ops |
 | Operator identity is a stub header | Auth is out of scope per the brief | Documented; every approval still records the operator chosen |
 
