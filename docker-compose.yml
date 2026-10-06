@@ -17,5 +17,25 @@ services:
       timeout: 3s
       retries: 20
 
+  core-mock:
+    build:
+      context: .
+      dockerfile: apps/core-mock/Dockerfile
+    environment:
+      CORE_MOCK_PORT: 3010
+      CORE_READ_KEY: ${CORE_READ_KEY:-dev-core-read-key}
+      CORE_EXECUTOR_KEY: ${CORE_EXECUTOR_KEY:-dev-core-executor-key}
+      CORE_DB_PATH: /var/lib/core-mock/core.db
+    ports:
+      - '${CORE_MOCK_PORT:-3010}:3010'
+    volumes:
+      - core-mock-data:/var/lib/core-mock
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3010/health || exit 1']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
 volumes:
   db-data:
+  core-mock-data:
