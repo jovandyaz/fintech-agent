@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "postgres-local": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--python", "3.12", "postgres-mcp", "--access-mode=restricted"],
+      "env": {
+        "DATABASE_URI": "${DATABASE_URL:-postgresql://copilot:copilot@localhost:5433/copilot}"
+      }
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@4.1.1"],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY:-}"
+      }
+    }
+  }
+}
