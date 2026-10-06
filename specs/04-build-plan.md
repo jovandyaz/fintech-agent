@@ -37,7 +37,7 @@ Done when: `pnpm install && pnpm verify` passes on an empty suite, `docker compo
 
 Commits: `docs: add case copilot specs` → `chore: scaffold pnpm workspace and tooling` → `chore: add versioned agent setup`.
 
-## Step 1 — Contracts and masking (100 min)
+## Step 1 — Contracts and masking (220 min)
 
 - `packages/contracts`: `ResolutionSchema` (citations with `quote`), `ProposedActionSchema` (closed enum, no value fields), decision DTO (no operator field; `reviewed_transaction_ids`; optional `override`), case flags (the closed set in 01), case, trace step and API DTOs in Zod.
 - Identifier registry: prefixes, payload grammar (never more than 4 consecutive digits), folio generator `AC-XXXX-XXXX`.
@@ -64,7 +64,7 @@ Done when: a test asserts 20 customers, 190–210 transactions, all four states 
 
 Done when: the tool-binding tests from 02 pass; MCP Inspector lists four tools, none with a `customer_id` input; `docker compose up mcp` is healthy.
 
-## Step 4 — Harness core (365 min)
+## Step 4 — Harness core (410 min)
 
 - Harness core in `apps/api/src/agent/core/` as plain TypeScript with explicit dependencies; `apps/api` on NestJS 11 + Drizzle only wires it (01).
 - Ports, one commit each (00 table): Drizzle module and migrate CLI, JSON logger with redaction, token cost, scripted mock-model fixtures, exfiltration link scanner into the validator.
@@ -75,6 +75,7 @@ Done when: the tool-binding tests from 02 pass; MCP Inspector lists four tools, 
 - Executor service: `apps/api/src/executor/main.ts`, outbox drain with `SKIP LOCKED`, `started` row, re-validation, core-mock call with `Idempotency-Key`, sweeper; compose service; `api` refuses to boot with `CORE_EXECUTOR_KEY`.
 - Validator with every code in 02 G5: fact predicates (`ACTION_UNSUPPORTED`), quote check, `UNGROUNDED_NUMBER`, `COMMITMENT_IN_REPLY` and the two commitment placeholders, `PII_IN_REPLY` as a diff, `state_rules` of every matching chunk for `POLICY_DATA_CONFLICT`; `action_fact_mismatch` and `first_party_signal` at Persist; repair retry; fallback.
 - Placeholder filler with business-day math over a committed Mexican bank-holiday list (`data/bank-holidays.json`, 2026–2027). Timebox 15 min.
+- Redactor in the Intake node (02 G6 Step 7): `REDACTOR_MODEL`, structured spans, exact replacement, `maskPii` again, `text_redacted`, degraded path. Timebox 45 min.
 - Agent node: `ToolLoopAgent`, structured output, `stopWhen` with step count and a budget condition, `timeout` object, `activeTools: []` on the last step, budget stop to fallback, repair as an appended turn, `AGENT_MODE` kill switch, provider error mapping including `no_api_key` and `provider_spend_limit`, worker circuit breaker (01 §Failure handling). Telemetry with content recording off.
 - Dated price table in config; cost per step and per case written to `agent_runs` from the first run.
 - Testcontainers Postgres for the integration tests.
@@ -109,6 +110,7 @@ Done when: recall@4 ≥ 0.9 on the paraphrases, "cuánto tarda un SPEI en llegar
 - Commit `evals/cases.ts` labels, keyed by the scenario ids from step 2, **before** the first real run: `test: add labeled eval cases`.
 - Ports, one commit each: eval runtime, judgment export and agreement (00 table).
 - Runner (one `evaluate()`, per-test repeat, cache off), checkers, judge rubric committed before labeling, the 7 known-bad controls, `eval:judgments` (with the mutation negatives), `eval:agreement` (TPR and TNR with Wilson intervals, kappa secondary), `eval:report` (writes the summary block into EVALS.md, with intervals, McNemar pairs and the attack-success upper bound), `evals/baseline.json` for the high-stakes gate.
+- `evals/redactor-cases.ts`: 20 strings the deterministic masker misses by construction, each with its secret span; the runner reports redactor recall and over-redaction (03).
 - First full run of both variants (104 runs, 03); hand-label the ~62 calibration rows blind; compute agreement.
 
 Done when: `pnpm eval` prints every metric in 03 for both variants, cost and latency included, and writes `evals/results/`. Failures are read case by case before any prompt change; each prompt change after this is its own commit, and its before/after numbers go in EVALS.md.
@@ -160,7 +162,7 @@ Done when: PLAYBOOK.md fits one printed page (≈ 500 words) and DESIGN.md about
 
 ## Cut order if late
 
-Planned total is ≈ 18 h 10 (00); with these cuts ≈ 17 h 20. Cut in this order until the remaining work fits; together they save ≈ 50 focused minutes.
+Planned total is ≈ 20 h 55 (00); with these cuts ≈ 20 h 05. Cut in this order until the remaining work fits; together they save ≈ 50 focused minutes.
 
 1. Langfuse (≈ 15 min); Postgres traces stay the source of truth.
 2. Console polish: keep every function in step 7, drop styling; flag acknowledgment stays enforced by the API even if the UI is a plain checkbox (≈ 15 min).

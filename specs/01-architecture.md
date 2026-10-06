@@ -45,7 +45,7 @@ pnpm workspaces, no Nx: four small packages do not justify it.
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `webhook_events` | `event_id` PK, `payload_hash`, `case_id`, `received_at` | Idempotency ledger |
-| `cases` | `id`, `ticket_id` unique, `folio` unique, `received_at`, `source` (`webhook` · `console` · `eval`), `customer_id`, `text_masked`, `status`, `attempts`, `manual_reruns`, `locked_until`, `claim_token`, `next_attempt_at`, `category`, `flags` jsonb, `review_tier` | Also the queue. `status`: `queued → investigating → needs_review → resolved` (on the operator's decision), or `failed`; a manual re-run moves `needs_review`, `failed` or `resolved` back to `queued` (02 G3). `folio` is `AC-XXXX-XXXX`, Crockford base32, never more than 4 consecutive digits (02 G6 registry). `flags` is one closed set: `injection_signal`, `policy_data_conflict`, `action_fact_mismatch`, `first_party_signal`, `abstained`, `fallback`. `review_tier` is set by code at Persist: `high` if the action is `open_dispute` / `escalate_fraud` or `flags` is non-empty, else `standard`. The inbox sorts `high` first and hides `source = eval` by default. No model self-confidence is used |
+| `cases` | `id`, `ticket_id` unique, `folio` unique, `received_at`, `source` (`webhook` · `console` · `eval`), `customer_id`, `text_masked`, `text_redacted`, `status`, `attempts`, `manual_reruns`, `locked_until`, `claim_token`, `next_attempt_at`, `category`, `flags` jsonb, `review_tier` | Also the queue. `status`: `queued → investigating → needs_review → resolved` (on the operator's decision), or `failed`; a manual re-run moves `needs_review`, `failed` or `resolved` back to `queued` (02 G3). `folio` is `AC-XXXX-XXXX`, Crockford base32, never more than 4 consecutive digits (02 G6 registry). `flags` is one closed set: `injection_signal`, `policy_data_conflict`, `action_fact_mismatch`, `first_party_signal`, `abstained`, `fallback`. `review_tier` is set by code at Persist: `high` if the action is `open_dispute` / `escalate_fraud` or `flags` is non-empty, else `standard`. The inbox sorts `high` first and hides `source = eval` by default. No model self-confidence is used |
 | `agent_runs` | `id`, `case_id`, `variant`, `model` (exact provider id), `prompt_version` (hash of system prompt + tool descriptions), `status` (`running` · `succeeded` · `fallback` · `failed` · `abandoned`), `stop_reason` (`completed` · `budget` · `validation` · `agent_disabled` · `error`), token counts, `cost_usd`, `latency_ms`, `error_code` | One row per attempt |
 | `run_steps` | `run_id`, `idx`, `kind` (`llm`, `tool`, `retrieval`, `guard`, `validation`), `name`, `input_masked`, `output_masked`, tokens, cost, `latency_ms`, `provider_request_id`, `finish_reason` | The trace the console renders |
 | `resolutions` | `run_id`, `category`, `draft_reply`, `citations` jsonb, `abstained`, `reasoning_summary` | Validated agent output |
@@ -75,7 +75,7 @@ A blueprint: deterministic nodes around one agentic node. Deterministic steps ar
 
 | # | Node | Kind | What it does |
 | --- | --- | --- | --- |
-| 1 | Intake | Deterministic | Load case. Mask PII in customer text. Run the heuristic injection scan; record a flag, do not block. With `AGENT_MODE=off`, go straight to fallback. |
+| 1 | Intake | Deterministic + one model call | Load case (`text_masked`, deterministic, 02 G6 Steps 1–6). Run the model redactor on it and store `text_redacted` (02 G6 Step 7). Run the heuristic injection scan; record a flag, do not block. With `AGENT_MODE=off`, go straight to fallback. |
 | 2 | Investigate | Agentic | Tool loop with the four MCP tools plus local `search_policies`. Ends in a typed `Resolution`. |
 | 3 | Validate | Deterministic | Schema, provenance, quote, allow-list, fact-support, grounding, commitment, link, auth-factor and PII checks (02 G5). One repair retry with the validator's codes; then fall back. |
 | 4 | Persist | Deterministic | Compute `action_fact_mismatch` and `first_party_signal`, `review_tier`. Write `resolutions`, `proposed_actions` (`proposed`), steps, costs. Case → `needs_review`. |
@@ -136,7 +136,7 @@ What enters the context, and when:
 | Content | When | Bound |
 | --- | --- | --- |
 | System instructions | Always; static, cache-friendly prefix | ~600 tokens |
-| Case text (masked, delimited as data) | Always | Truncated at 2,000 chars |
+| Case text (`text_redacted`, delimited as data) | Always | Truncated at 2,000 chars |
 | Customer summary | Only if the model calls `get_customer` | Fixed shape |
 | Transactions | Only via `list_transactions` with filters | ≤25 compact rows per call; never the full history |
 | Transaction detail | Only via the two `get_*` tools | One record per call |
@@ -152,6 +152,7 @@ A customer with 200 movements cannot overflow the window: the list tool is pagin
 | 429 / 529 / 5xx | SDK retries, max 2, honoring `retry-after`; then job-level retry with backoff |
 | Provider spend limit (`429` `enforced_spend_limit_reached`, or `400` "specified API usage limits") | Not retryable, like `no_api_key`: `error_code = provider_spend_limit`. A dedicated Anthropic workspace with its own spend limit backs `RUN_COST_CEILING_USD` (README) |
 | Provider outage (5 consecutive `429`/`529`/`5xx` after SDK retries) | Worker circuit breaker: stops claiming for 60 s, then half-open with one case; attempts are not consumed while open, so an outage does not turn every case `failed` |
+| Redactor error or timeout | Continue on `text_masked`; `redaction` guard step marked `degraded`; counted for the alert |
 | Agent turned off (`AGENT_MODE=off`) | No model call; case → `needs_review`, `action = none`, `stop_reason = agent_disabled`; console banner |
 | Invalid or schema-violating JSON | One repair attempt with the validation error; then fallback |
 | MCP tool error | Returned to the model as a tool error once; second failure of the same tool ends the run in fallback |
@@ -180,6 +181,7 @@ A customer with 200 movements cannot overflow the window: the list tool is pagin
   | Cost per case p95 | > 2× baseline | Ticket: AI lead |
   | PII sink scan (digit runs ≥ 8 outside exempt runs in logs and traces) | Any hit | Page: security |
   | `cross_customer_lookup` in `security_events` | Any | Ticket: security |
+  | Redactor degraded | > 5% of intakes over 1 h, n ≥ 20 | Ticket: AI lead |
 - **Dashboards, not pages:** cost per case p50/p95, cache-read share, fallback rate, steps per run, rejects by `reject_code`, approved → `executed` rate (vs `failed`), time-to-decision p50.
 
 ## Stack and verified APIs
@@ -203,4 +205,4 @@ Version decisions:
 
 - **NestJS 11**, not 12 (current `latest`): the ported patterns and my agent rules are written for 11; an upgrade is not what this challenge measures.
 - **MCP SDK v2** (`@modelcontextprotocol/server` + `/node`), protocol 2026-07-28: it is the stable line, `@ai-sdk/mcp` speaks it by default, and the server is a rewrite anyway (00), so the Knowtis v1 code is reference only. Fallback if v2 costs more than 15 minutes at step 3: v1 1.32 with the client's protocol discovery turned off for legacy servers; the ruling goes in the ledger.
-- **Models:** set by env (`AGENT_MODEL_A`, `AGENT_MODEL_B`, `JUDGE_MODEL`). Variant A is a Sonnet-class model, variant B a Haiku-class model; the judge is a different model from the one being judged. Exact ids are pinned in `.env.example` at implementation time.
+- **Models:** set by env (`AGENT_MODEL_A`, `AGENT_MODEL_B`, `JUDGE_MODEL`, `REDACTOR_MODEL`, a Haiku-class model). Variant A is a Sonnet-class model, variant B a Haiku-class model; the judge is a different model from the one being judged. Exact ids are pinned in `.env.example` at implementation time.

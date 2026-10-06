@@ -77,16 +77,16 @@ Not taken, on purpose: the step loop, model chain and error classification (buil
 | --- | --- | --- | --- |
 | Specs, agent setup (hooks, skills, reviewer, global setup snapshot), repo skeleton | 45 | 45 | — |
 | Industry research pass and spec revision | — | 45 | Seven researchers, rulings across their reports, `docs:` commits |
-| Contracts and masking | 25 | 100 | Fail-closed G6 (fold, digit runs, opaque tokens, per-message digit budget with capped exemptions, id registry), decision DTO without operator, new flags, quote in citations |
+| Contracts and masking | 25 | 220 | Fail-closed G6 (fold, digit runs, opaque tokens, per-message digit budget with capped exemptions, id registry), decision DTO without operator, new flags, quote in citations |
 | Dataset, mock core, MCP server, each in compose | 60 | 95 | Core-mock idempotency keys, registry ids and folio, MCP SDK v2, JWT claims, rate limit |
-| Harness core: gate, decision, executor, validation, placeholders + deterministic tests | 90 | 365 | Fact predicates, grounding and commitment blocks, quote check, executor container with roles, trigger and outbox, operator tokens, override, check-off, canaries, first-party signal, kill switch, AI SDK budget and timeout rules, spend-limit and breaker handling |
+| Harness core: gate, decision, executor, validation, placeholders + deterministic tests | 90 | 410 | Model redactor at intake, fact predicates, grounding and commitment blocks, quote check, executor container with roles, trigger and outbox, operator tokens, override, check-off, canaries, first-party signal, kill switch, AI SDK budget and timeout rules, spend-limit and breaker handling |
 | Policies and full-text retrieval | 30 | 60 | Accent folding and OR query, catalog in the tool, uncited `state_rules`, manifest, normalized-text scan, recall test |
 | Eval runner, first run, judge calibration | 60 | 130 | ADV-07..10, 104 runs instead of 80, mutation negatives, blind labeling, TPR/TNR, intervals, high-stakes gate |
 | Webhook, queue, console | 75 | 135 | Standard Webhooks, claim fencing and backoff, operator sign-in, check-off, override and canary feedback in the console |
 | Traces, alerts, variant decision | 30 | 45 | Content recording off, alert table with owners |
 | DESIGN, EVALS, PLAYBOOK, AI_NOTES, README, compliance appendix | 50 | 70 | Rollout ladder with exit criteria, incident runbook, REUNE mapping |
 
-Total ≈ 18 h 10 (first draft ≈ 7 h 45). Exceeding the brief's 6–8 h is a decision, not an overrun: the first draft met the budget by accepting eight residual risks, and the research showed that each had a control the industry already uses at a cost of minutes, not days (02 Residual risk). AI_NOTES.md records the decision. The Knowtis ports above still take ≈ 35 min off the harness and eval blocks. The cut order in 04 removes ≈ 50 min of optional work without touching any guarantee or the adversarial evals. If the harness block still overruns, that is the signal to cut, not to compress tests.
+Total ≈ 20 h 55 (first draft ≈ 7 h 45). Masking alone took four adversarial rounds and two redesigns; that time is in the table. Exceeding the brief's 6–8 h is a decision, not an overrun: the first draft met the budget by accepting eight residual risks, and the research showed that each had a control the industry already uses at a cost of minutes, not days (02 Residual risk). AI_NOTES.md records the decision. The Knowtis ports above still take ≈ 35 min off the harness and eval blocks. The cut order in 04 removes ≈ 50 min of optional work without touching any guarantee or the adversarial evals. If the harness block still overruns, that is the signal to cut, not to compress tests.
 
 ## Rubric mapping
 
