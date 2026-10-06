@@ -9,14 +9,14 @@ export default defineConfig({
       {
         test: {
           name: 'unit',
-          include: ['{apps,packages,evals}/**/*.spec.ts'],
+          include: ['{apps,packages,data,evals}/**/*.spec.ts'],
           exclude: ['**/*.int.spec.ts', '**/node_modules/**'],
         },
       },
       {
         test: {
           name: 'integration',
-          include: ['{apps,packages,evals}/**/*.int.spec.ts'],
+          include: ['{apps,packages,data,evals}/**/*.int.spec.ts'],
           exclude: ['**/node_modules/**'],
         },
       },

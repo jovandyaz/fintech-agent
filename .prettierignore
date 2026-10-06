@@ -1,6 +1,6 @@
 pnpm-lock.yaml
 specs/
-data/*.json
+data/**/*.json
 
 docs/agent-setup/
 .superpowers/
