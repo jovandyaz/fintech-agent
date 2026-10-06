@@ -1,0 +1,21 @@
+{
+  "name": "@fintech-agent/mcp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fintech-agent/contracts": "workspace:*",
+    "@fintech-agent/data": "workspace:*",
+    "@modelcontextprotocol/node": "2.1.1",
+    "@modelcontextprotocol/server": "2.3.1",
+    "jose": "6.2.12",
+    "tsx": "4.23.15",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.3.1"
+  }
+}
