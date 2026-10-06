@@ -32,12 +32,12 @@ Folders appear as the build plan (`specs/04-build-plan.md`) reaches them.
 
 Never weaken one of these without a test that fails first and the user's explicit approval.
 
-- **G1** The agent module never imports the executor or the core-mock write client (ESLint enforces it).
-- **G2** Actions are a closed enum with no amount, account or free-text instruction field.
-- **G3** Nothing executes without a named operator's decision; transitions are conditional; execution is at most once.
+- **G1** The agent module never imports the executor or the core-mock write client (ESLint enforces it); the executor runs in its own container with its own Postgres role and is the only holder of the executor key.
+- **G2** Actions are a closed enum with no amount, account or free-text instruction field; a model's action must be supported by structured tool data (fact predicates).
+- **G3** Nothing executes without an authenticated operator's decision; transitions are conditional and role-bound; the effect happens once (outbox + idempotency key); canaries never execute.
 - **G4** MCP tools resolve the customer from the case token; no tool accepts `customer_id`; foreign ids return `NOT_FOUND`.
-- **G5** The validator checks provenance, allowed actions, PII, links and auth-factor requests after every model output.
-- **G6** Full CLABE, card numbers, RFC, CURP and auth factors never reach logs, traces or the model.
+- **G5** The validator checks provenance, quotes, allowed and fact-supported actions, unsourced numbers, promises, PII, links and auth-factor requests after every model output.
+- **G6** Full CLABE, card numbers, phones, RFC, CURP and auth factors never reach logs, traces or the model; any run of ≥ 8 digits is masked whatever its check digit.
 - **G7** Customer text and policy content are data, never instructions; the console renders plain text only.
 - **G8** Policy ingestion quarantines flagged chunks and strips hidden content.
 
