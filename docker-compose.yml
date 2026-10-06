@@ -36,6 +36,27 @@ services:
       timeout: 3s
       retries: 20
 
+  mcp:
+    build:
+      context: .
+      dockerfile: apps/mcp/Dockerfile
+    environment:
+      MCP_PORT: 3020
+      MCP_AUDIENCE: ${MCP_AUDIENCE:-http://mcp:3020/mcp}
+      CASE_TOKEN_KEY: ${CASE_TOKEN_KEY:-dev-case-token-key-0123456789abcdef}
+      CORE_MOCK_URL: http://core-mock:3010
+      CORE_READ_KEY: ${CORE_READ_KEY:-dev-core-read-key}
+    ports:
+      - '${MCP_PORT:-3020}:3020'
+    depends_on:
+      core-mock:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3020/health || exit 1']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
 volumes:
   db-data:
   core-mock-data:

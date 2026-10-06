@@ -16,6 +16,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@fintech-agent/core-mock": "workspace:*",
     "@modelcontextprotocol/client": "2.3.1"
   }
 }

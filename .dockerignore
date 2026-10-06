@@ -9,3 +9,4 @@ specs
 .env
 .env.*.local
 *.log
+**/*.spec.ts
