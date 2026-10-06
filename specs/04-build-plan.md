@@ -41,7 +41,7 @@ Commits: `docs: add case copilot specs` → `chore: scaffold pnpm workspace and 
 
 - `packages/contracts`: `ResolutionSchema` (citations with `quote`), `ProposedActionSchema` (closed enum, no value fields), decision DTO (no operator field; `reviewed_transaction_ids`; optional `override`), case flags (the closed set in 01), case, trace step and API DTOs in Zod.
 - Identifier registry: prefixes, payload grammar (never more than 4 consecutive digits), folio generator `AC-XXXX-XXXX`.
-- `maskPii` and `maskJson` per 02 G6: fold, labeled masks, sweep, density window, opaque tokens; `maskJson` exempts only registry or UUID values under id-typed keys.
+- `maskPii` and `maskJson` per 02 G6: fold, text patterns, digit runs, opaque tokens, per-message digit budget, label echo; `maskJson` exempts only registry or UUID values under id-typed keys.
 - The first version (51 tests) and the review-hardened second version (110 tests) both leaked; the second pass reproduced 7 leaks in the committed code (Arabic-Indic digits, zero-width separators, 5-5-6 and single-digit groupings, `o`/`l` confusables, BIN shown on 4-2-2-4-4, duplicated label). Each becomes a failing test before the rewrite.
 
 Done when: every masking case in 02 §Required tests passes, including the 7 reproduced leaks, idempotence, the benign set and the 32 KB timing.

@@ -77,7 +77,7 @@ Not taken, on purpose: the step loop, model chain and error classification (buil
 | --- | --- | --- | --- |
 | Specs, agent setup (hooks, skills, reviewer, global setup snapshot), repo skeleton | 45 | 45 | — |
 | Industry research pass and spec revision | — | 45 | Seven researchers, rulings across their reports, `docs:` commits |
-| Contracts and masking | 25 | 100 | Fail-closed G6 (fold, sweep, density window, opaque tokens, id registry), decision DTO without operator, new flags, quote in citations |
+| Contracts and masking | 25 | 100 | Fail-closed G6 (fold, digit runs, opaque tokens, per-message digit budget with capped exemptions, id registry), decision DTO without operator, new flags, quote in citations |
 | Dataset, mock core, MCP server, each in compose | 60 | 95 | Core-mock idempotency keys, registry ids and folio, MCP SDK v2, JWT claims, rate limit |
 | Harness core: gate, decision, executor, validation, placeholders + deterministic tests | 90 | 365 | Fact predicates, grounding and commitment blocks, quote check, executor container with roles, trigger and outbox, operator tokens, override, check-off, canaries, first-party signal, kill switch, AI SDK budget and timeout rules, spend-limit and breaker handling |
 | Policies and full-text retrieval | 30 | 60 | Accent folding and OR query, catalog in the tool, uncited `state_rules`, manifest, normalized-text scan, recall test |
