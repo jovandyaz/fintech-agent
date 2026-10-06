@@ -1,29 +1,52 @@
 import { describe, expect, it } from 'vitest';
 
-import { maskPii } from './mask.js';
+import { maskJson, maskPii } from './mask.js';
 
-const CLABE = '012180001234567891';
-const CLABE_PASSING_LUHN = '012180001234567894';
+const CLABE = '012180001234567899';
+const CLABE_PASSING_LUHN = '012180001234500267';
 const VISA = '4111111111111111';
 const VISA_FAILING_LUHN = '4111111111111112';
 const AMEX = '378282246310005';
+const NBSP = ' ';
+const NARROW_NBSP = ' ';
+const MAX_MASK_MS_FOR_32KB = 250;
 
 describe('maskPii — CLABE', () => {
   it('masks an 18-digit CLABE keeping the last four', () => {
-    expect(maskPii(`Mi CLABE es ${CLABE}`)).toBe('Mi CLABE es CLABE ••••7891');
+    expect(maskPii(`Mi CLABE es ${CLABE}`)).toBe('Mi CLABE es CLABE ••••7899');
   });
 
   it('masks a CLABE written in groups with spaces or dashes', () => {
-    expect(maskPii('0121 8000 1234 5678 91')).toBe('CLABE ••••7891');
-    expect(maskPii('012-180-001234567891')).toBe('CLABE ••••7891');
+    expect(maskPii('0121 8000 1234 5678 99')).toBe('CLABE ••••7899');
+    expect(maskPii('012-180-001234567899')).toBe('CLABE ••••7899');
   });
 
   it('treats 18 digits as a CLABE even when they pass Luhn', () => {
-    expect(maskPii(CLABE_PASSING_LUHN)).toBe('CLABE ••••7894');
+    expect(maskPii(CLABE_PASSING_LUHN)).toBe('CLABE ••••0267');
   });
 
   it('does not let a preceding date swallow a CLABE', () => {
-    expect(maskPii(`2026-10-05 ${CLABE}`)).toBe('2026-10-05 CLABE ••••7891');
+    expect(maskPii(`2026-10-05 ${CLABE}`)).toBe('2026-10-05 CLABE ••••7899');
+  });
+
+  it.each([
+    ['dots', '012.180.001234567899'],
+    ['slashes', '012/180/00123456789/9'],
+    ['double spaces', '012  180  001234567899'],
+    ['a line break', '012180\n001234567899'],
+    ['tabs', '0121\t8000\t1234\t5678\t99'],
+    ['no-break spaces', `0121${NBSP}8000${NBSP}1234${NBSP}5678${NBSP}99`],
+    [
+      'narrow no-break spaces',
+      `0121${NARROW_NBSP}8000${NARROW_NBSP}1234${NARROW_NBSP}5678${NARROW_NBSP}99`,
+    ],
+    ['full-width digits', '０１２１８０００１２３４５６７８９９'],
+  ])('masks a CLABE written with %s', (_, text) => {
+    expect(maskPii(text)).toBe('CLABE ••••7899');
+  });
+
+  it('masks a CLABE glued to a word', () => {
+    expect(maskPii(`clabe${CLABE}`)).toBe('clabeCLABE ••••7899');
   });
 });
 
@@ -43,6 +66,31 @@ describe('maskPii — card numbers', () => {
       `referencia ${VISA_FAILING_LUHN}`,
     );
   });
+
+  it.each([
+    ['dots', '4111.1111.1111.1111'],
+    ['underscores', '4111_1111_1111_1111'],
+    ['no-break spaces', `4111${NBSP}1111${NBSP}1111${NBSP}1111`],
+    ['full-width digits', '４１１１１１１１１１１１１１１１'],
+    [
+      'narrow no-break spaces',
+      `4111${NARROW_NBSP}1111${NARROW_NBSP}1111${NARROW_NBSP}1111`,
+    ],
+  ])('masks a card number written with %s', (_, text) => {
+    expect(maskPii(text)).toBe('tarjeta ••••1111');
+  });
+
+  it('masks a card number glued to a word', () => {
+    expect(maskPii(`tarjeta${VISA}`)).toBe('tarjetatarjeta ••••1111');
+  });
+
+  it('masks an Amex number in 4-6-5 groups', () => {
+    expect(maskPii('3782 822463 10005')).toBe('tarjeta ••••0005');
+  });
+
+  it('keeps the card grouping when an expiry date follows', () => {
+    expect(maskPii('4111 1111 1111 1111 12 28')).toBe('tarjeta ••••1111 12 28');
+  });
 });
 
 describe('maskPii — identity documents', () => {
@@ -58,6 +106,16 @@ describe('maskPii — identity documents', () => {
   it('masks a CURP as a CURP, not as an RFC inside it', () => {
     expect(maskPii('CURP GODE561231HDFRRN09')).toBe('CURP CURP ••••');
   });
+
+  it.each([
+    ['GODE 561231 GR8', 'RFC ••••'],
+    ['GODE-561231-GR8', 'RFC ••••'],
+    ['GODE 561231 HDFRRN 09', 'CURP ••••'],
+    ['curpGODE561231HDFRRN09', 'curpCURP ••••'],
+    ['rfcGODE561231GR8', 'rfcRFC ••••'],
+  ])('masks an identity document written as %s', (text, expected) => {
+    expect(maskPii(text)).toBe(expected);
+  });
 });
 
 describe('maskPii — contact data', () => {
@@ -67,11 +125,26 @@ describe('maskPii — contact data', () => {
     );
   });
 
+  it('masks an email whose local part has accents or ñ', () => {
+    expect(maskPii('josé@correo.mx')).toBe('j•••@correo.mx');
+    expect(maskPii('peña@correo.mx')).toBe('p•••@correo.mx');
+  });
+
   it('masks a Mexican phone number with or without +52', () => {
     expect(maskPii('mi cel 5512345678')).toBe('mi cel tel ••••5678');
     expect(maskPii('llámenme al +52 55 1234 5678')).toBe(
       'llámenme al tel ••••5678',
     );
+  });
+
+  it.each([
+    '55.1234.5678',
+    '(55) 1234 5678',
+    '55-1234-5678',
+    '+52 (55) 1234 5678',
+    '+52 1 55 1234 5678',
+  ])('masks the phone format %s', (text) => {
+    expect(maskPii(text)).toBe('tel ••••5678');
   });
 });
 
@@ -87,6 +160,47 @@ describe('maskPii — authentication factors', () => {
 
   it('does not treat a postal code as an auth factor', () => {
     expect(maskPii('código postal 06600')).toBe('código postal 06600');
+  });
+
+  it.each([
+    ['CVV2 123', 'CVV2 [factor]'],
+    ['NIP1234', 'NIP[factor]'],
+    ['nip-1234', 'nip-[factor]'],
+    ['nip #1234', 'nip #[factor]'],
+    ['mi nip, 1234', 'mi nip, [factor]'],
+    ['nip "1234"', 'nip "[factor]"'],
+    ['mi nip sería 1234', 'mi nip sería [factor]'],
+    ['el código que me llegó es 123456', 'el código que me llegó es [factor]'],
+    ['token 12345678', 'token [factor]'],
+    ['nip 12 34', 'nip [factor]'],
+    ['mi clave es 1234', 'mi clave es [factor]'],
+    ['password 1234', 'password [factor]'],
+    ['el pin de mi tarjeta es 1234', 'el pin de mi tarjeta es [factor]'],
+    ['código 123 456', 'código [factor]'],
+    ['1234 es mi nip', '[factor] es mi nip'],
+  ])('masks the auth factor in "%s"', (text, expected) => {
+    expect(maskPii(text)).toBe(expected);
+  });
+
+  it('does not treat a SPEI tracking key as an auth factor', () => {
+    expect(maskPii('clave de rastreo MBAN01002510050012345678')).toBe(
+      'clave de rastreo MBAN01002510050012345678',
+    );
+  });
+});
+
+describe('maskPii — evidence ids stay intact', () => {
+  it.each([
+    '08bc9b76-6326-4987-8f2a-1c2d3e4f5a6b',
+    '12345678-1234-1234-1234-123456789012',
+    'rastreo 085904567890123456',
+    '10 20 30 40 50 60 70 80 90',
+    '2026-10-05 10:30',
+    '05/10/2026',
+    '192.168.1.1',
+    'tx_0412',
+  ])('leaves %s unchanged', (text) => {
+    expect(maskPii(text)).toBe(text);
   });
 });
 
@@ -110,6 +224,17 @@ describe('maskPii — properties', () => {
   it('is idempotent', () => {
     const once = maskPii(mixed);
     expect(maskPii(once)).toBe(once);
+  });
+
+  it.each([
+    ['digit pairs', '1 '.repeat(16_000)],
+    ['five-digit groups', '12345 '.repeat(5_400)],
+    ['dashed pairs', '12-'.repeat(10_900)],
+    ['one long digit run', '9'.repeat(32_000)],
+  ])('masks 32 KB of %s in linear time', (_, text) => {
+    const start = performance.now();
+    maskPii(text);
+    expect(performance.now() - start).toBeLessThan(MAX_MASK_MS_FOR_32KB);
   });
 
   const benign = [
@@ -152,5 +277,38 @@ describe('maskPii — properties', () => {
 
   it.each(benign)('leaves benign text unchanged: %s', (text) => {
     expect(maskPii(text)).toBe(text);
+  });
+});
+
+describe('maskJson', () => {
+  it('masks string values inside structured data, not the serialized text', () => {
+    expect(
+      maskJson({
+        t: `mi clabe 012180\n001234567899`,
+        nested: [{ email: 'ana@albo.mx' }],
+        id: 1234567890,
+        at: 1727000000000,
+      }),
+    ).toEqual({
+      t: 'mi clabe CLABE ••••7899',
+      nested: [{ email: 'a•••@albo.mx' }],
+      id: 1234567890,
+      at: 1727000000000,
+    });
+  });
+
+  it('masks auth-factor values by key, whether string or number', () => {
+    expect(
+      maskJson({ otp: '123456', pin: 4321, cvv: '123', nip: null }),
+    ).toEqual({ otp: '[factor]', pin: '[factor]', cvv: '[factor]', nip: null });
+  });
+
+  it('leaves non-string leaves and keys untouched', () => {
+    expect(maskJson([true, 3.5, null, { ok: false }])).toEqual([
+      true,
+      3.5,
+      null,
+      { ok: false },
+    ]);
   });
 });
