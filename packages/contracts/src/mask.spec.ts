@@ -174,7 +174,7 @@ describe('maskPii — fail-closed numbers', () => {
 
   it('masks a base64-encoded card number', () => {
     expect(maskPii(`mi tarjeta ${VISA_BASE64}`)).toBe(
-      'mi tarjeta ref ••••MQ==',
+      'mi tarjeta ref ••••ExMQ',
     );
   });
 });
@@ -666,5 +666,213 @@ describe('maskJson — attack review, round 3', () => {
     expect(maskJson({ phone: 5512345678n })).toEqual({ phone: 'tel ••••5678' });
     expect(maskJson({ raw: Buffer.from(VISA) })).toEqual({ raw: '[binary]' });
     expect(maskJson({ [VISA]: 'x' })).toEqual({ 'tarjeta ••••1111': 'x' });
+  });
+});
+
+describe('maskPii — attack review, round 4', () => {
+  it.each([
+    ['PEGJ850101 AB1'],
+    ['PEGJ 850101 AB 1'],
+    ['PEGJ850101-AB-1'],
+    ['PEGJ85/01/01AB1'],
+    ['P E G J 8 5 0 1 0 1 A B 1'],
+    ['PEGJ 85 01 01 AB1'],
+    ['RFC PEGJ 8501 01 1B3'],
+  ])('masks the RFC written as %s', (text) => {
+    const masked = maskPii(text);
+    expect(masked).toMatch(/RFC ••••$/);
+    expect(masked).not.toMatch(/PEGJ|P E G J/);
+  });
+
+  it.each([
+    ['PEGJ 850101 H DF RRN 09'],
+    ['PEGJ 850101 HDF RRN 0 9'],
+    ['PEGJ850101HDF-RRN-09'],
+  ])('masks the CURP written as %s', (text) => {
+    expect(maskPii(text)).toBe('CURP ••••');
+  });
+
+  it.each([
+    ['Cyrillic letters in an RFC', 'РЕGJ850101AB1', 'RFC ••••'],
+    ['a Cyrillic p in pin', 'рin 1234', 'pin [factor]'],
+    ['a Cyrillic n in nip', 'пip 1234', 'nip [factor]'],
+    ['a dotted keyword', 'mi n.i.p. es 1234', 'mi n.i.p. es [factor]'],
+  ])('folds %s', (_, text, expected) => {
+    expect(maskPii(text)).toBe(expected);
+  });
+
+  it('leaves a word written only in Cyrillic alone', () => {
+    expect(maskPii('спасибо')).toBe('спасибо');
+  });
+
+  it.each([
+    'mi cel es cinco cinco uno dos tres -- -- cuatro cinco seis siete ocho',
+    'cinco cinco uno dos tres. Luego: cuatro cinco seis siete ocho',
+    'cinco cinco uno dos tres y el resto es cuatro cinco seis siete ocho',
+    'fifty five twelve thirty four fifty six seventy eight',
+    'five five oh one two three four five six seven',
+    'quinientos cincuenta y cinco doce treinta y cuatro cincuenta y seis setenta y ocho',
+    'cinq cinq un deux trois quatre cinq six sept huit',
+    'cinco cinco um dois três quatro cinco seis sete oito',
+    'fünf fünf eins zwei drei vier fünf sechs sieben acht',
+  ])('masks a number spoken in parts or other words: %s', (text) => {
+    const masked = maskPii(text);
+    expect(masked).not.toBe(text);
+    expect(digitsLeft(masked)).toBeLessThanOrEqual(MAX_DIGITS_SHOWN);
+  });
+
+  it.each([
+    ['juan.perez AT example.com', 'j••• AT example.com'],
+    ['juan.perez [at] example.com', 'j••• [at] example.com'],
+    ['juan.perez (at) example.com', 'j••• (at) example.com'],
+    ['jperez(arroba)gmail.com', 'j•••(arroba)gmail.com'],
+    ['jperez at gmail dot com', 'j••• at gmail dot com'],
+    ['user%40example.com', 'u•••@example.com'],
+    ['user&#64;example.com', 'u•••@example.com'],
+  ])('masks the email %s', (text, expected) => {
+    expect(maskPii(text)).toBe(expected);
+  });
+
+  it('masks every local part of glued addresses', () => {
+    const masked = maskPii('maria@x.com-juan@y.com');
+    expect(masked).not.toContain('maria');
+    expect(masked).not.toContain('juan');
+  });
+
+  it.each([
+    ['password: hunter2', 'password: [factor]'],
+    ['mi contraseña es Perro123', 'mi contraseña es [factor]'],
+    ['mi clave de acceso es abc123', 'mi clave de acceso es [factor]'],
+    ['NIP is one two three four', 'NIP is [factor]'],
+    ['cvv one two three', 'cvv [factor]'],
+    ['my pin is twelve thirty four', 'my pin is [factor]'],
+    ['cvv: ciento veintitres', 'cvv: [factor]'],
+    ['nip cuatro-tres-dos-uno', 'nip [factor]'],
+    ['codigo de verificación 12 34 56', 'codigo de verificación [factor]'],
+    ['nip: 1 2 3 4 5 6 7 8 9', 'nip: [factor]'],
+    ['nip 12.34', 'nip [factor]'],
+    ['nip: 1_2_3_4', 'nip: [factor]'],
+    ['cvv: 12 3', 'cvv: [factor]'],
+    ['pin [1234]', 'pin [[factor]]'],
+    ['1234 is my pin', '[factor] is my pin'],
+    ['1234, mi nip', '[factor], mi nip'],
+    [
+      'los tres dígitos de atrás de mi tarjeta son 123',
+      'los tres dígitos de atrás de mi tarjeta son [factor]',
+    ],
+    ['mi palabra secreta es 1234', 'mi palabra secreta es [factor]'],
+    ['número secreto 1234', 'número secreto [factor]'],
+  ])('masks the auth factor in %j', (text, expected) => {
+    expect(maskPii(text)).toBe(expected);
+  });
+
+  it.each([
+    ['w6k1NTEyMzQ1Njc4'],
+    ['NTUxMjM0NTY3OMOp'],
+    ['ADU1MTIzNDU2Nzg='],
+    ['x=NTUxMjM0NTY3OA=='],
+    ['https://x.com/?t=NTUxMjM0NTY3OA==&u=1'],
+  ])('masks base64 that hides a phone: %s', (text) => {
+    expect(maskPii(text)).toContain('ref ••••');
+  });
+
+  it('shows no padding as the tail of an opaque token', () => {
+    expect(maskPii('GU2TEMBXGQ4TKNZYHE======')).not.toMatch(/====$/);
+  });
+
+  it.each([
+    '55123456787 1234 cuatroO1O1O1O1O1O1O1O1١٢٣٤٥٦٧٨ ',
+    'núm ••••juan@x.comjuan@x.com',
+    'maria@x.com-juan@y.com',
+  ])('is idempotent on %j', (text) => {
+    const once = maskPii(text);
+    expect(maskPii(once)).toBe(once);
+  });
+
+  it.each([
+    'Mi saldo era de $10,543.21 y ahora es $9,543.21, me falta $1,000.00.',
+    'Cargos: $100.00, $200.00, $300.00, $400.00 el 01/01/2025',
+    'Pagué $15,000.00 de renta, $2,300.00 de luz y $850.00 de agua',
+    'El pago de $100.00, $200.00, $300.00 y $400.00 se aplicó',
+    'Son $1,234,567.89 en total?',
+    'La tasa anual es 24.5% y el plazo es por 24 meses, me cobran desde hace 30 días',
+    'Orden 4455667 y pedido 7788991 pagados con $1,500.00 el 2025-07-07.',
+    'Total de $12,345.67 + $8,901.23 = $21,246.90 ref 123456.',
+    'Me llamaron a las 12:00 13:00 14:00',
+    'Contrato 2025-0042, vigencia 01/01/2025',
+  ])('leaves ordinary support text unchanged: %s', (text) => {
+    expect(maskPii(text)).toBe(text);
+  });
+});
+
+describe('maskJson — attack review, round 4', () => {
+  it.each([
+    [{ 'pin-code': '1234' }],
+    [{ 'auth code': '123456' }],
+    [{ 'x.otp': '1' }],
+    [{ 'otp value': '1' }],
+    [{ clave: '1234' }],
+    [{ contrasena: 'abc' }],
+    [{ pwd: 'abc' }],
+    [{ passwd: 'x' }],
+    [{ pass: 'x' }],
+    [{ totp: '123456' }],
+    [{ mfa_code: '123456' }],
+    [{ '2fa': '123456' }],
+    [{ secreto: 'x' }],
+    [{ pins: ['1234'] }],
+  ])('replaces the value of %j whole', (value) => {
+    const [key] = Object.keys(value);
+    expect(maskJson(value)).toEqual({ [key ?? '']: '[factor]' });
+  });
+
+  it('masks the value of a name/value pair naming an auth factor', () => {
+    expect(maskJson({ name: 'nip', value: '1234' })).toEqual({
+      name: 'nip',
+      value: '[factor]',
+    });
+    expect(maskJson([['cvv', '123']])).toEqual([['cvv', '[factor]']]);
+  });
+
+  it.each([
+    [{ tel: 5512.345678 }],
+    [{ x: 12345.67891 }],
+    [{ amount: 5512.345678901 }],
+    [{ cents: 1234567.8901234567 }],
+    [{ amount: 0.002010077777777771 }],
+  ])('masks numbers whose digits carry a value: %j', (value) => {
+    expect(maskJson(value)).not.toEqual(value);
+  });
+
+  it('keeps an ordinary amount with cents', () => {
+    expect(maskJson({ amount: 1250.5 })).toEqual({ amount: 1250.5 });
+  });
+
+  it('unboxes primitive wrappers before masking', () => {
+    expect(maskJson({ a: new String('5512345678') })).toEqual({
+      a: 'tel ••••5678',
+    });
+  });
+
+  it('does not keep a UUID-shaped number under an id key', () => {
+    const value = { account_id: '55123456-7890-1234-5678-90123456789a' };
+    expect(maskJson(value)).not.toEqual(value);
+  });
+
+  it('does not throw on throwing getters', () => {
+    const value = {
+      get a(): string {
+        throw new Error('boom');
+      },
+    };
+    expect(() => maskJson(value)).not.toThrow();
+  });
+
+  it('keeps both values when two keys mask to the same text', () => {
+    const masked = maskJson({ '5512345678': 1, 'tel ••••5678': 2 }) as Record<
+      string,
+      number
+    >;
+    expect(Object.values(masked).sort()).toEqual([1, 2]);
   });
 });
