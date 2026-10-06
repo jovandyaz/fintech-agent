@@ -1,0 +1,28 @@
+{
+  "name": "fintech-agent",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && pnpm -r --if-present typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test:unit": "vitest run --project unit",
+    "test:hooks": "node --test \".claude/hooks/__tests__/*.test.mjs\"",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:hooks",
+    "test": "vitest run && pnpm test:hooks"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.1",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  }
+}
