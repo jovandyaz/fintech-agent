@@ -1,13 +1,7 @@
-import {
-  MS_PER_HOUR,
-  SPEI_DISPUTE_AFTER_HOURS,
-  type ActionType,
-  type Transaction,
-} from '@fintech-agent/contracts';
+import type { ActionType, Transaction } from '@fintech-agent/contracts';
 
 import { shapeViolation, type G2Violation } from '../actions/allowed.js';
-
-const SPEI_WINDOW_MS = SPEI_DISPUTE_AFTER_HOURS * MS_PER_HOUR;
+import { pastSpeiWindow } from '../actions/spei-window.js';
 
 /** Why an approved action may no longer execute, besides a G2 row violation. */
 export const REVALIDATION_FAILURES = [
@@ -17,10 +11,6 @@ export const REVALIDATION_FAILURES = [
 ] as const;
 export type RevalidationFailure =
   (typeof REVALIDATION_FAILURES)[number] | G2Violation;
-
-// Negated so a settlement time that does not parse (NaN) fails closed.
-const pastSpeiWindow = (settledAt: string | null, now: Date): boolean =>
-  settledAt !== null && now.getTime() - Date.parse(settledAt) >= SPEI_WINDOW_MS;
 
 /**
  * Re-checks an approved action against core data read just now (02 G2, G3):

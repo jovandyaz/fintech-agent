@@ -7,6 +7,7 @@ import {
 
 import { actionNotAllowed } from './actions.js';
 import type { RunEvidence } from './evidence.js';
+import { actionSupported } from './predicates.js';
 import { provenanceCodes } from './provenance.js';
 
 /** A policy rule that failed against a transaction the run saw (02 G5). */
@@ -47,8 +48,11 @@ export function validate(
   if (!parsed.success) return { ok: false, codes: ['SCHEMA'] };
   const resolution = parsed.data;
   const codes = provenanceCodes(resolution, context.evidence);
-  if (actionNotAllowed(resolution.proposed_action, context.evidence)) {
+  const action = resolution.proposed_action;
+  if (actionNotAllowed(action, context.evidence)) {
     codes.push('ACTION_NOT_ALLOWED');
+  } else if (!actionSupported(action, context.evidence)) {
+    codes.push('ACTION_UNSUPPORTED');
   }
   return codes.length > 0
     ? { ok: false, codes: inCodeOrder(codes) }
