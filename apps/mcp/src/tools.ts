@@ -1,5 +1,6 @@
 import {
   CASE_TOKEN_MAX_CALLS,
+  GetCustomerInputSchema,
   ListTransactionsInputSchema,
   MAX_LIST_LIMIT,
   maskJson,
@@ -258,10 +259,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     {
       description:
         'The case customer: first name, account status, KYC level, masked CLABE, card last four and card status.',
+      inputSchema: advertised(GetCustomerInputSchema),
       annotations: READ_ONLY,
     },
-    () =>
+    (args) =>
       guarded(GET_CUSTOMER, async (): Promise<CustomerView> => {
+        parse(GetCustomerInputSchema, args);
         const customer = await core.customer(claims.sub);
         if (customer === null) throw new ToolFailure(TOOL_ERROR.notFound);
         return {

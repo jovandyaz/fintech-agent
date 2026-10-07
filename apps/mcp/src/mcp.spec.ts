@@ -457,10 +457,12 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
     for (const tool of tools) {
       expect(tool.annotations).toMatchObject(READ_ONLY);
       expect(JSON.stringify(tool.inputSchema)).not.toContain('customer_id');
+      expect(tool.inputSchema, tool.name).toMatchObject({
+        additionalProperties: false,
+      });
     }
     const [, list, spei] = tools;
     expect(list?.inputSchema).toMatchObject({
-      additionalProperties: false,
       properties: { from: { format: 'date-time' }, limit: { maximum: 25 } },
     });
     expect(spei?.inputSchema).toMatchObject({ required: ['transaction_id'] });
@@ -597,6 +599,16 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
       isError: true,
       body: { error: 'INVALID_ARGUMENTS', fields: [] },
     });
+    await client.close();
+  });
+
+  it('rejects any argument to get_customer instead of ignoring it', async () => {
+    const client = await connect(await mint());
+    expect(await call(client, 'get_customer', { customer_id: OTHER })).toEqual({
+      isError: true,
+      body: { error: 'INVALID_ARGUMENTS', fields: [] },
+    });
+    expect(upstream).toEqual([]);
     await client.close();
   });
 

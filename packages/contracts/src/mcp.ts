@@ -66,6 +66,8 @@ const transactionId = z
   .max(MAX_QUERY_CHARS)
   .regex(registryIdPattern('tx'));
 
+export const GetCustomerInputSchema = z.strictObject({});
+
 export const ListTransactionsInputSchema = z.strictObject({
   type: z.enum(TX_TYPES).optional(),
   status: z.enum(TX_STATUSES).optional(),
