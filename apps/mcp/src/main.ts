@@ -11,6 +11,11 @@ const log = (line: Record<string, unknown>): void => {
   console.log(JSON.stringify(line));
 };
 
+function failBoot(error: unknown): void {
+  process.stderr.write(`${bootFailureLine(error)}\n`);
+  process.exitCode = 1;
+}
+
 function start(): void {
   const config = loadMcpConfig(process.env);
   const app = createMcpApp({
@@ -28,6 +33,8 @@ function start(): void {
     log,
   });
 
+  // listen() reports a taken port as an event, after start() has returned.
+  app.server.once('error', failBoot);
   app.server.listen(config.MCP_PORT, () => {
     log({ event: 'mcp_listening', port: config.MCP_PORT });
   });
@@ -42,6 +49,5 @@ function start(): void {
 try {
   start();
 } catch (error) {
-  process.stderr.write(`${bootFailureLine(error)}\n`);
-  process.exitCode = 1;
+  failBoot(error);
 }

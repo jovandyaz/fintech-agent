@@ -17,6 +17,11 @@ function required(name: string): string {
   return value;
 }
 
+function failBoot(error: unknown): void {
+  process.stderr.write(`${bootFailureLine(error)}\n`);
+  process.exitCode = 1;
+}
+
 function start(): void {
   const dataDir =
     process.env.DATA_DIR ?? join(import.meta.dirname, '../../../data');
@@ -32,6 +37,8 @@ function start(): void {
   });
 
   const port = Number(process.env.CORE_MOCK_PORT ?? DEFAULT_PORT);
+  // listen() reports a taken port as an event, after start() has returned.
+  core.server.once('error', failBoot);
   core.server.listen(port, () => {
     console.log(JSON.stringify({ event: 'core_mock_listening', port }));
   });
@@ -49,6 +56,5 @@ function start(): void {
 try {
   start();
 } catch (error) {
-  process.stderr.write(`${bootFailureLine(error)}\n`);
-  process.exitCode = 1;
+  failBoot(error);
 }
