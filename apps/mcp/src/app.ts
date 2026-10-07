@@ -2,8 +2,10 @@ import { createServer, type Server } from 'node:http';
 
 import {
   CaseTokenClaimsSchema,
+  createCoreClient,
   maskPii,
   redactCredentials,
+  type FetchLike,
 } from '@fintech-agent/contracts';
 import {
   createMcpHandler,
@@ -18,7 +20,6 @@ import {
 } from '@modelcontextprotocol/node';
 
 import { verifyCaseToken } from './case-token.js';
-import { createCoreClient, type FetchLike } from './core-client.js';
 import type { SecurityEventSink } from './security-events.js';
 import { createCallBudget, registerTools } from './tools.js';
 

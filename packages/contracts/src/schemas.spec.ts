@@ -209,8 +209,7 @@ describe('ActionParamsSchema (G2: what executes, value-free)', () => {
       ActionParamsSchema.safeParse({ ...params, amount: 5000 }).success,
     ).toBe(false);
     expect(
-      ActionParamsSchema.safeParse({ ...params, type: 'open_dispute' })
-        .success,
+      ActionParamsSchema.safeParse({ ...params, type: 'open_dispute' }).success,
     ).toBe(false);
   });
 });

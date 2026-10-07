@@ -1,5 +1,6 @@
 import {
   CASE_TOKEN_MAX_CALLS,
+  CoreUnavailableError,
   GetCustomerInputSchema,
   ListTransactionsInputSchema,
   MAX_LIST_LIMIT,
@@ -9,6 +10,7 @@ import {
   TransactionLookupInputSchema,
   type CardAuthorization,
   type CaseTokenClaims,
+  type CoreClient,
   type CustomerView,
   type McpToolError,
   type McpToolName,
@@ -28,7 +30,6 @@ import type {
 import type { z } from 'zod';
 
 import { READ_ONLY } from './annotations.js';
-import { CoreUnavailableError, type CoreClient } from './core-client.js';
 import type { SecurityEventSink } from './security-events.js';
 
 const LAST_FOUR = 4;
