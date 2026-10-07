@@ -3,12 +3,24 @@ import { resolve } from 'node:path';
 
 import {
   TransactionRecordSchema,
+  cardAuthorizationOf,
+  isSpeiRecord,
+  speiStatusOf,
+  transactionRowOf,
+  type Resolution,
   type Transaction,
 } from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { shapeViolation } from '../actions/allowed.js';
+import { DATASET_NOW } from '../../../../data/scenarios.js';
+import {
+  buildEvidence,
+  type ToolResult,
+} from '../agent/core/validate/evidence.js';
+import { factFlags } from '../agent/core/validate/flags.js';
+import { validate } from '../agent/core/validate/index.js';
 import { replyViolations } from '../replies/reply-checks.js';
 import { CANARY_DEFECTS, CANARY_TEMPLATES } from './templates.js';
 
@@ -65,4 +77,70 @@ describe('canary templates (02 G3)', () => {
       /canar|defect|wrong|test/,
     );
   });
+});
+
+// What a run on the canary's case would have seen: the customer's movements
+// and the status output of every transaction the action names.
+function runFor(
+  customerId: string,
+  transactionIds: readonly string[],
+): ToolResult[] {
+  const rows = DATASET.filter((tx) => tx.customer_id === customerId);
+  const statuses = transactionIds.flatMap((id): ToolResult[] => {
+    const tx = byId.get(id);
+    if (!tx) return [];
+    return [
+      isSpeiRecord(tx)
+        ? { tool: 'get_spei_status', output: speiStatusOf(tx) }
+        : { tool: 'get_card_authorization', output: cardAuthorizationOf(tx) },
+    ];
+  });
+  return [
+    {
+      tool: 'list_transactions',
+      output: {
+        items: rows.map(transactionRowOf),
+        total: rows.length,
+        next_cursor: null,
+        truncated: false,
+      },
+    },
+    ...statuses,
+  ];
+}
+
+describe('canary templates through the validator (02 G3, G5)', () => {
+  const at = new Date(DATASET_NOW);
+
+  it.each(CANARY_TEMPLATES)(
+    '$defect passes every check but the citations Step 5 adds, with the flags Persist computes',
+    ({ seed }) => {
+      const resolution: Resolution = {
+        category: seed.category,
+        draft_reply: seed.draftReply,
+        citations: [],
+        abstained: false,
+        evidence: seed.action.transaction_ids.map((id) => ({
+          kind: 'transaction' as const,
+          id,
+        })),
+        proposed_action: seed.action,
+        reasoning_summary: seed.reasoningSummary,
+      };
+      const evidence = buildEvidence({
+        toolResults: runFor(seed.customerId, seed.action.transaction_ids),
+        receivedAt: at,
+        now: at,
+        injectionSignal: false,
+        crossCustomerLookup: false,
+      });
+      expect(validate(resolution, { evidence, stateRules: [] })).toEqual({
+        ok: false,
+        codes: ['NO_SUPPORT'],
+      });
+      expect(factFlags(resolution, evidence, { priorOpenDisputes: 0 })).toEqual(
+        seed.flags,
+      );
+    },
+  );
 });

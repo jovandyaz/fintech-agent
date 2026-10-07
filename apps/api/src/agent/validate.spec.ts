@@ -30,6 +30,7 @@ import {
 } from './core/validate/evidence.js';
 import { factFlags } from './core/validate/flags.js';
 import { validate } from './core/validate/index.js';
+import { validateWithRepair } from './core/validate/repair.js';
 import type { ChunkStateRules } from './core/validate/state-rules.js';
 
 const CARD_DISPUTE_RUN: ToolResult[] = [
@@ -842,5 +843,123 @@ describe('calendar coverage', () => {
         stateRules: lateReturn,
       }),
     ).toThrow(CalendarRangeError);
+  });
+});
+
+describe('repair and fallback', () => {
+  const context = (toolResults: ToolResult[] = CARD_DISPUTE_RUN) => ({
+    evidence: buildEvidence(runOf(toolResults)),
+    stateRules: [],
+  });
+  const ungrounded = replying('Revisamos el cargo de $5,000 que mencionas.');
+
+  it('never calls the repair turn when the first output is valid', async () => {
+    const repairs: unknown[] = [];
+    const outcome = await validateWithRepair(
+      resolutionOf(),
+      (codes) => {
+        repairs.push(codes);
+        return Promise.resolve(resolutionOf());
+      },
+      context(),
+    );
+    expect(outcome).toMatchObject({ kind: 'valid', repaired: false });
+    expect(repairs).toEqual([]);
+  });
+
+  it('gives the repair turn the codes and accepts a valid second output', async () => {
+    const repairs: unknown[] = [];
+    const outcome = await validateWithRepair(
+      ungrounded,
+      (codes) => {
+        repairs.push(codes);
+        return Promise.resolve(resolutionOf());
+      },
+      context(),
+    );
+    expect(repairs).toEqual([['UNGROUNDED_NUMBER']]);
+    expect(outcome).toMatchObject({
+      kind: 'valid',
+      repaired: true,
+      resolution: resolutionOf(),
+    });
+  });
+
+  it('repairs a malformed output with SCHEMA', async () => {
+    const repairs: unknown[] = [];
+    await validateWithRepair(
+      '{"category":',
+      (codes) => {
+        repairs.push(codes);
+        return Promise.resolve(resolutionOf());
+      },
+      context(),
+    );
+    expect(repairs).toEqual([['SCHEMA']]);
+  });
+
+  it('falls back to none after a second failure, with one repair only', async () => {
+    let repairs = 0;
+    const outcome = await validateWithRepair(
+      ungrounded,
+      () => {
+        repairs += 1;
+        return Promise.resolve(replying('Tranquila, te reembolsaremos.'));
+      },
+      context(),
+    );
+    expect(repairs).toBe(1);
+    expect(outcome).toEqual({
+      kind: 'fallback',
+      codes: ['COMMITMENT_IN_REPLY'],
+      action: {
+        type: 'none',
+        transaction_ids: [],
+        reason_code: 'insufficient_information',
+        justification:
+          'Validation failed after one repair: COMMITMENT_IN_REPLY',
+      },
+      conflicts: [],
+    });
+  });
+
+  it('keeps the policy conflicts of the run on a fallback', async () => {
+    const outcome = await validateWithRepair(
+      ungrounded,
+      () => Promise.resolve(ungrounded),
+      {
+        evidence: buildEvidence(
+          runOf([
+            ...CARD_DISPUTE_RUN,
+            {
+              tool: 'get_spei_status',
+              output: speiStatus({
+                status: 'returned',
+                returned_at: '2026-10-02T17:00:00Z',
+              }),
+            },
+          ]),
+        ),
+        stateRules: [
+          {
+            chunk_id: 'chunk_p02s3',
+            quarantined: false,
+            rules: [
+              {
+                id: 'return_credit_same_day',
+                applies_to: { type: 'spei_out', status: 'returned' },
+                requires: { field: 'reversal_credit_id', not_null: true },
+              },
+            ],
+          },
+        ],
+      },
+    );
+    expect(outcome).toMatchObject({
+      kind: 'fallback',
+      conflicts: [
+        { rule_id: 'return_credit_same_day', transaction_id: SPEI_TX },
+      ],
+    });
   });
 });

@@ -223,3 +223,13 @@ describe('numberAtoms, spaced thousands and dates before amounts', () => {
     ]);
   });
 });
+
+describe('numberAtoms, spacing', () => {
+  it('reads through repeated spaces and line breaks', () => {
+    expect(numberAtoms('en 5  días, el 15  de marzo, en 3\n horas')).toEqual([
+      'dur:5:dia',
+      'date:--03-15',
+      'dur:3:hora',
+    ]);
+  });
+});
