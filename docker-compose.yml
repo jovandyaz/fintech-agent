@@ -53,6 +53,22 @@ services:
       timeout: 3s
       retries: 20
 
+  executor:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: ['node', '--import', 'tsx', 'src/executor/main.ts']
+    environment:
+      EXECUTOR_DATABASE_URL: postgresql://copilot_executor:${EXECUTOR_DB_PASSWORD:-dev-executor-db-password}@db:5432/${POSTGRES_DB:-copilot}
+      CORE_MOCK_URL: http://core-mock:3010
+      CORE_EXECUTOR_KEY: ${CORE_EXECUTOR_KEY:-dev-core-executor-key}
+      EXECUTOR_POLL_MS: ${EXECUTOR_POLL_MS:-1000}
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      core-mock:
+        condition: service_healthy
+
   core-mock:
     build:
       context: .
