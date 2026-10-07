@@ -5,29 +5,43 @@ import {
   hasLinkOutsideAllowList,
 } from './link-scanner.js';
 
-const SENTENCE_END = /[.!?¿¡\n]+/;
 const DIACRITICS = /\p{M}/gu;
+const SENTENCE_END = /[.!?;]+/;
+const FACTOR_MARK = '\uE000';
 
 const FACTOR =
-  /\b(?:nip|pin|cvv2?|cvc|otp|contrasenas?|password|token|codigo (?:de (?:seguridad|verificacion|acceso)|dinamico|que te (?:llego|enviamos))|clave (?:dinamica|de (?:acceso|seguridad)))\b/g;
-const REQUEST =
-  /\b(?:envia(?:nos|me)?|manda(?:nos|me)?|comparte(?:nos)?|compartenos|proporciona(?:nos)?|proporcionanos|indica(?:nos)?|indicanos|dinos|dime|escribe(?:nos)?|escribenos|confirma(?:nos)?|confirmanos|dicta(?:nos)?|dictanos|pasa(?:nos)?|pasanos|ingresa|captura|necesitamos|requerimos|nos (?:das|compartes|confirmas|envias|proporcionas|indicas)|(?:puedes|podrias) (?:darnos|compartir(?:nos)?|enviar(?:nos)?|confirmar(?:nos)?|indicar(?:nos)?)|cual es tu)\b/g;
-// Spanish negation sits right before its verb, with only clitics or a set
-// phrase between ("nunca, por ningún motivo, te pediremos"), so "No te
-// preocupes, envíanos tu NIP" is still a request.
-const NEGATED =
-  /\b(?:no|nunca|jamas)\b(?:[\s,]+(?:te|nos|me|lo|la|le|les|se|por ningun motivo|en ningun caso|bajo ninguna circunstancia))*[\s,]*$/;
+  /\b(?:nip|pin|cvv2?|cvc|otp|contrasenas?|password|token|clave(?! (?:de rastreo|interbancaria))|codigo (?:de (?:seguridad|verificacion|acceso|autorizacion)|dinamico|(?:que|del|por|via) [^.!?;]{0,30}?\bsms\b|que (?:te )?(?:llego|recibiste|enviamos|mandamos))|digitos [^.!?;]{0,20}?\b(?:reverso|atras|seguridad))\b/g;
 
-function asksForAuthFactor(text: string): boolean {
+// Spanish puts the negated verb right before what it governs, so between a
+// warning and the factor it covers only possessives, other factors and list
+// words may sit; "no compartas esto con nadie, pero envíanos tu NIP" is a request.
+const GOVERNED_TAIL =
+  /(?:[\s,\uE000]|\b(?:tu|tus|su|sus|el|la|los|las|ni|o|y)\b)*$/;
+const WARNING =
+  /\b(?:no|nunca|jamas)\b(?:[\s,]+(?:te|nos|le|lo|la|se|por ningun motivo|en ningun caso|bajo ninguna circunstancia))*[\s,]+(?:pediremos|pedimos|pedira|solicitaremos|solicitamos|solicitara|necesitamos|requerimos|compartas|des|envies|proporciones|reveles|digas|escribas)(?:\s+que(?:\s+(?:nos|me|le))?\s+(?:confirmes|envies|compartas|des|digas|proporciones|escribas))?$/;
+
+function isWarned(sentence: string, factorAt: number): boolean {
+  const before = sentence
+    .slice(0, factorAt)
+    .replace(FACTOR, FACTOR_MARK)
+    .replace(GOVERNED_TAIL, '');
+  return WARNING.test(before);
+}
+
+/**
+ * Fails closed: a reply may name an authentication factor only inside a
+ * warning not to share it (IFPE rules art. 18 fr. III). Any other mention,
+ * a request or not, is a violation the operator or the repair turn rewords.
+ */
+function namesAuthFactor(text: string): boolean {
   const plain = text.normalize('NFKD').replace(DIACRITICS, '').toLowerCase();
-  return plain.split(SENTENCE_END).some((sentence) => {
-    const requests = [...sentence.matchAll(REQUEST)]
-      .map((match) => match.index)
-      .filter((index) => !NEGATED.test(sentence.slice(0, index)));
-    return [...sentence.matchAll(FACTOR)].some(({ index: factorAt }) =>
-      requests.some((requestAt) => requestAt < factorAt),
+  return plain
+    .split(SENTENCE_END)
+    .some((sentence) =>
+      [...sentence.matchAll(FACTOR)].some(
+        ({ index }) => !isWarned(sentence, index),
+      ),
     );
-  });
 }
 
 /**
@@ -40,6 +54,6 @@ export function replyViolations(text: string): ReplyCheckCode[] {
   if (hasLinkOutsideAllowList(text, ALLOWED_REPLY_HOSTS)) {
     codes.push('LINK_IN_REPLY');
   }
-  if (asksForAuthFactor(text)) codes.push('AUTH_FACTOR_REQUEST');
+  if (namesAuthFactor(text)) codes.push('AUTH_FACTOR_REQUEST');
   return codes;
 }
