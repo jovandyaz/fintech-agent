@@ -167,7 +167,7 @@ A customer with 200 movements cannot overflow the window: the list tool is pagin
 - **Source of truth:** `agent_runs` and `run_steps` in Postgres, masked on write. The console trace and the evals read from here, so they work with no external service.
 - **OpenTelemetry** through AI SDK telemetry (`invoke_agent`, `chat`, `execute_tool` spans with `gen_ai.usage.*`), with `recordInputs: false, recordOutputs: false` by default: the GenAI semantic conventions are still in Development and make content opt-in, and the SDK records it by default. Content is recorded only with the `maskJson` span processor wired. **Optional:** Langfuse as one more span processor (`LangfuseSpanProcessor` with `mask`). Off when keys are absent.
 - **Per step:** tokens in/out, cached input tokens (priced separately, when the provider reports them), cost (from a dated price table in config), latency, tool name, masked args, provider request id and finish reason.
-- **Alerts**: those over tables are queries in `ops/alerts.sql`; those over log lines (the log half of the PII sink scan, `security_event_unrecorded`) are checks in `ops/scan-logs.mjs` over the services' JSON log stream. Thresholds are starting points to recalibrate against the first weeks of shadow data; each has a minimum sample so a quiet hour cannot page:
+- **Alerts**: those over tables are queries in `ops/alerts.sql`; those over log lines (the log half of the PII sink scan, `security_event_unrecorded`, `auth_rejected`) are checks in `ops/scan-logs.mjs` over the services' JSON log stream. Thresholds are starting points to recalibrate against the first weeks of shadow data; each has a minimum sample so a quiet hour cannot page:
 
   | Alert | Threshold | Owner |
   | --- | --- | --- |
@@ -182,6 +182,7 @@ A customer with 200 movements cannot overflow the window: the list tool is pagin
   | PII sink scan (digit runs ≥ 8 outside exempt runs in logs and traces) | Any hit | Page: security |
   | `cross_customer_lookup` in `security_events` | Any | Ticket: security |
   | `security_event_unrecorded` in MCP logs (a lost fraud signal) | Any | Page: security |
+  | `auth_rejected` in MCP logs (forged or stale tokens, foreign Host or Origin; reason only, never the token) | > 10 in 5 min | Ticket: security |
   | Redactor degraded | > 5% of intakes over 1 h, n ≥ 20 | Ticket: AI lead |
 - **Dashboards, not pages:** cost per case p50/p95, cache-read share, fallback rate, steps per run, rejects by `reject_code`, approved → `executed` rate (vs `failed`), time-to-decision p50.
 
