@@ -66,6 +66,24 @@ export const REPLY_CHECK_CODES = [
 export type ReplyCheckCode = (typeof REPLY_CHECK_CODES)[number];
 
 /**
+ * The twelve validator codes that trigger one repair retry and then the
+ * fallback (02 G5). `POLICY_DATA_CONFLICT` is not one: it forces `none`.
+ */
+export const VALIDATION_CODES = [
+  'SCHEMA',
+  'CITATION_UNSEEN',
+  'CITATION_QUOTE_MISMATCH',
+  'EVIDENCE_UNSEEN',
+  'NO_SUPPORT',
+  'ACTION_NOT_ALLOWED',
+  'ACTION_UNSUPPORTED',
+  'UNGROUNDED_NUMBER',
+  'COMMITMENT_IN_REPLY',
+  ...REPLY_CHECK_CODES,
+] as const;
+export type ValidationCode = (typeof VALIDATION_CODES)[number];
+
+/**
  * The only sentences in which a reply may name an authentication factor
  * (02 G5 AUTH_FACTOR_REQUEST), matched after case, accent and spacing are
  * normalized; the console offers them for insertion.
