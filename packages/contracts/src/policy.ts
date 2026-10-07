@@ -12,9 +12,26 @@ export const PolicyChunkSchema = z.strictObject({
 });
 export type PolicyChunk = z.infer<typeof PolicyChunkSchema>;
 
+/** Chunks one `search_policies` call may return (01 §Context policy). */
+export const SEARCH_POLICIES_MAX_K = 4;
+const MAX_POLICY_QUERY_CHARS = 200;
+
+export const SearchPoliciesInputSchema = z.strictObject({
+  query: z.string().min(1).max(MAX_POLICY_QUERY_CHARS),
+  k: z
+    .number()
+    .int()
+    .min(1)
+    .max(SEARCH_POLICIES_MAX_K)
+    .default(SEARCH_POLICIES_MAX_K),
+  doc_id: z.string().min(1).optional(),
+});
+export type SearchPoliciesInput = z.infer<typeof SearchPoliciesInputSchema>;
+
 export const SearchPoliciesOutputSchema = z.strictObject({
   chunks: z.array(PolicyChunkSchema),
 });
+export type SearchPoliciesOutput = z.infer<typeof SearchPoliciesOutputSchema>;
 
 /** `>=1`, `<3`, `=0`: a business-day count compared with a non-negative integer. */
 export const DAY_COMPARISON = /^(>=|<=|>|<|=)(\d{1,3})$/;
