@@ -103,7 +103,9 @@ beforeEach(async () => {
     executorKey: EXECUTOR_KEY,
     databasePath: ':memory:',
   });
-  await new Promise<void>((resolve) => core.server.listen(0, '127.0.0.1', resolve));
+  await new Promise<void>((resolve) =>
+    core.server.listen(0, '127.0.0.1', resolve),
+  );
   const { port } = core.server.address() as AddressInfo;
   base = `http://127.0.0.1:${port}`;
 });
