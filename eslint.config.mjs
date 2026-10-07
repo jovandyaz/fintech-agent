@@ -35,6 +35,10 @@ const MODULE_LOADERS = ['module', 'node:module'].map((name) => ({
 const CORE_READ_CLIENT = [
   "Identifier[name='createCoreClient']",
   "Literal[value='createCoreClient']",
+  "Identifier[name='CORE_READ_KEY']",
+  "Literal[value='CORE_READ_KEY']",
+  "Identifier[name='CORE_CLIENT']",
+  'Literal[value=/^x-core-key$/i]',
 ].map((selector) => ({ selector, message: AGENT_TO_CORE_READ }));
 const LOADER_SYNTAX = [
   'ImportExpression[source.value=/^(node:)?module$/]',
@@ -86,6 +90,10 @@ export default defineConfig(
             {
               group: ['**/executor', '**/executor/**'],
               message: AGENT_TO_EXECUTOR,
+            },
+            {
+              group: ['**/approvals', '**/approvals/**'],
+              message: AGENT_TO_CORE_READ,
             },
             {
               group: [

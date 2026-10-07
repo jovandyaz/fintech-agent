@@ -168,6 +168,21 @@ describe('G1 lint boundary between agent/ and executor/ (02 Process boundary)', 
       `import * as contracts from '@fintech-agent/contracts';\nexport const load = () => contracts['createCoreClient'];\n`,
     ],
     [
+      'the core read key read in agent/',
+      AGENT_FILE,
+      `export const key = (config: { CORE_READ_KEY: string }) => config.CORE_READ_KEY;\n`,
+    ],
+    [
+      'the core key header sent from agent/',
+      AGENT_FILE,
+      `export const read = (key: string) => fetch('http://core-mock:3010/transactions/x', { headers: { 'x-core-key': key } });\n`,
+    ],
+    [
+      'the approvals module imported into agent/',
+      AGENT_FILE,
+      `import { CORE_CLIENT } from '../../approvals/approvals.module.js';\nexport { CORE_CLIENT };\n`,
+    ],
+    [
       'an inline disable in agent/',
       AGENT_FILE,
       `// eslint-disable-next-line no-restricted-imports\nimport { run } from '../../executor/run.js';\nexport { run };\n`,
