@@ -103,6 +103,10 @@ export const ProposedActionSchema = z.strictObject({
 });
 export type ProposedAction = z.infer<typeof ProposedActionSchema>;
 
+/** Bounds a reply, draft or final, and with it the edit-ratio computation between them. */
+export const MAX_REPLY_CHARS = 4000;
+export const MAX_REJECT_REASON_CHARS = 1000;
+
 /**
  * The agent's structured output. Structural only: allowed action/transaction
  * combinations, provenance and PII are checked by the validator, because
@@ -110,7 +114,7 @@ export type ProposedAction = z.infer<typeof ProposedActionSchema>;
  */
 export const ResolutionSchema = z.strictObject({
   category: z.enum(CASE_CATEGORIES),
-  draft_reply: z.string().min(1),
+  draft_reply: z.string().min(1).max(MAX_REPLY_CHARS),
   citations: z.array(CitationSchema),
   abstained: z.boolean(),
   evidence: z.array(EvidenceSchema),
@@ -136,10 +140,6 @@ export const OverrideSchema = z.strictObject({
   reason_code: z.enum(REASON_CODES),
 });
 export type Override = z.infer<typeof OverrideSchema>;
-
-/** Bounds what an operator sends, and with it the edit-ratio computation over the reply. */
-export const MAX_REPLY_CHARS = 4000;
-export const MAX_REJECT_REASON_CHARS = 1000;
 
 const decisionBase = {
   final_reply: z.string().min(1).max(MAX_REPLY_CHARS),
