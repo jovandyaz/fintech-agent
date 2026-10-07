@@ -122,7 +122,7 @@ describe('numberAtoms, other written forms', () => {
     ]);
   });
 
-  it('reads a bare "mil" as one thousand', () => {
+  it('reads a bare "mil" before a currency word as one thousand', () => {
     expect(numberAtoms('un cargo de mil pesos')).toEqual(['amount:100000']);
   });
 
@@ -231,5 +231,54 @@ describe('numberAtoms, spacing', () => {
       'date:--03-15',
       'dur:3:hora',
     ]);
+  });
+});
+
+describe('numberAtoms, "mil" as a courtesy', () => {
+  it('leaves "mil" alone only before a courtesy noun', () => {
+    expect(numberAtoms('¡Mil gracias por tu paciencia!')).toEqual([]);
+    expect(numberAtoms('Mil disculpas por la espera.')).toEqual([]);
+    expect(numberAtoms('cinco mil de vuelta')).toEqual(['amount:500000']);
+  });
+
+  it('reads a lone "mil" in an amount slot as one thousand', () => {
+    expect(numberAtoms('Recibirás mil de vuelta.')).toEqual(['amount:100000']);
+    expect(numberAtoms('Tu cargo fue de mil y ya quedó.')).toEqual([
+      'amount:100000',
+    ]);
+    expect(numberAtoms('un reembolso de $mil')).toEqual(['amount:100000']);
+  });
+});
+
+describe('numberAtoms, bare three- and four-digit figures', () => {
+  it('reads them as amounts', () => {
+    expect(
+      numberAtoms('Recibirás 5000 de vuelta y un cargo de 899 queda igual'),
+    ).toEqual(['amount:500000', 'amount:89900']);
+    expect(numberAtoms('el máximo es max 500 al final 700')).toEqual([
+      'amount:50000',
+      'amount:70000',
+    ]);
+    expect(
+      numberAtoms('Te devolveremos **4500** de vuelta, • 899 o * 750'),
+    ).toEqual(['amount:450000', 'amount:89900', 'amount:75000']);
+  });
+
+  it('leaves years and the last digits of a card alone', () => {
+    expect(
+      numberAtoms(
+        'durante 2026, la tarjeta con terminación 4321, terminación en 6666, terminada en 8765, con final 1111, ****2222, XXXX5555 o •••• 3333, últimos 4 dígitos 4444',
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe('groundingAtoms, signed amounts', () => {
+  it('grounds a figure on a negative amount of the same size', () => {
+    const grounding = groundingAtoms({
+      outputs: [{ id: 'tx_c001', amount: -1250 }],
+      citedTexts: [],
+    });
+    expect(ungroundedAtoms('$1,250.00', grounding)).toEqual([]);
   });
 });

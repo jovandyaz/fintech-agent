@@ -1,19 +1,15 @@
-import {
-  MS_PER_HOUR,
-  type ProposedAction,
-  type SpeiStatus,
-} from '@fintech-agent/contracts';
+import { MS_PER_HOUR, type ProposedAction } from '@fintech-agent/contracts';
 
+import { isSettled } from '../../../actions/allowed.js';
 import { pastSpeiWindow } from '../../../actions/spei-window.js';
 import type { RunEvidence } from './evidence.js';
 
-/** Card-not-present charges at one merchant that make a burst (02 G2). */
-export const CNP_BURST_CHARGES = 3;
+/** Independent authentication factors from which 18.a lets a credit be declined. */
+export const TWO_FACTORS = 2;
+// Card-not-present charges at one merchant that make a burst (02 G2).
+const CNP_BURST_CHARGES = 3;
 const CNP_BURST_WINDOW_HOURS = 24;
 const CNP_BURST_WINDOW_MS = CNP_BURST_WINDOW_HOURS * MS_PER_HOUR;
-
-const isSettled = (status: SpeiStatus | undefined): status is SpeiStatus =>
-  status?.status === 'settled';
 
 /**
  * ≥ 3 card-not-present charges at the same merchant within 24 h among the

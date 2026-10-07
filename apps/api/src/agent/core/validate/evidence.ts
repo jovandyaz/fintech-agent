@@ -14,12 +14,13 @@ import {
   type TxStatus,
   type TxType,
 } from '@fintech-agent/contracts';
+
 import type { z } from 'zod';
+
+import { CARD_PURCHASE } from '../../../actions/allowed.js';
 
 export const POLICY_SEARCH_TOOL = 'search_policies';
 export type ToolName = McpToolName | typeof POLICY_SEARCH_TOOL;
-
-const CARD_PURCHASE = 'card_purchase';
 
 /** A successful tool result as the run received it, before any parsing. */
 export interface ToolResult {

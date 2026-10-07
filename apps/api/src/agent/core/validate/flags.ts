@@ -5,14 +5,18 @@ import type {
 } from '@fintech-agent/contracts';
 
 import type { RunEvidence } from './evidence.js';
-import { cardNotPresentBurst, fraudDeclineSeen } from './predicates.js';
+import {
+  CARD_PURCHASE,
+  DISPUTABLE_CARD_STATUSES,
+} from '../../../actions/allowed.js';
+import {
+  TWO_FACTORS,
+  cardNotPresentBurst,
+  fraudDeclineSeen,
+} from './predicates.js';
 
-/** Independent authentication factors from which 18.a lets a credit be declined. */
-export const TWO_FACTORS = 2;
-/** Prior approved or executed disputes that raise `first_party_signal` (synthetic). */
-export const FIRST_PARTY_PRIOR_DISPUTES = 3;
-/** How far back Persist counts those disputes, canaries excluded. */
-export const FIRST_PARTY_LOOKBACK_DAYS = 120;
+// Prior approved or executed disputes that raise `first_party_signal` (synthetic).
+const FIRST_PARTY_PRIOR_DISPUTES = 3;
 
 /** What Persist flags: the accepted resolution, or the fallback's `none`. */
 export interface FlagSubject {
@@ -20,11 +24,6 @@ export interface FlagSubject {
   category: CaseCategory | null;
   proposed_action: ProposedAction;
 }
-
-const DISPUTABLE_CARD_STATUSES: ReadonlySet<string> = new Set([
-  'settled',
-  'pending',
-]);
 
 // A fallback has no category to rule the charge out, so it reads as a
 // possible unrecognized one: the suppressed dispute stays visible.
@@ -38,7 +37,7 @@ function actionFactMismatch(
       subject.category === 'unrecognized_card_charge') &&
     [...evidence.transactions.values()].some(
       (transaction) =>
-        transaction.type === 'card_purchase' &&
+        transaction.type === CARD_PURCHASE &&
         DISPUTABLE_CARD_STATUSES.has(transaction.status) &&
         transaction.auth_factors !== null &&
         transaction.auth_factors < TWO_FACTORS,

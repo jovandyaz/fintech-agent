@@ -10,5 +10,5 @@ const SPEI_WINDOW_MS = SPEI_DISPUTE_AFTER_HOURS * MS_PER_HOUR;
  * SPEI" window). An unsettled or unparseable time is never past it.
  */
 export const pastSpeiWindow = (settledAt: string | null, now: Date): boolean =>
-  // Negated so a settlement time that does not parse (NaN) fails closed.
+  // A time that does not parse is NaN, and NaN >= x is false: fails closed.
   settledAt !== null && now.getTime() - Date.parse(settledAt) >= SPEI_WINDOW_MS;

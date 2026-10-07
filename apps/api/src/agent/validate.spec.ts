@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   NOW,
+  RECEIVED_AT,
   CARD_TX,
   POLICY_CHUNK_ID,
   SPEI_TX,
@@ -23,6 +24,7 @@ import {
   speiStatus,
 } from '../../test/validator-fixtures.js';
 import { fastestRunMs } from '../../test/timing.js';
+import { replyViolations } from '../replies/reply-checks.js';
 import { CalendarRangeError } from './core/calendar.js';
 import {
   buildEvidence,
@@ -31,6 +33,7 @@ import {
 } from './core/validate/evidence.js';
 import { factFlags } from './core/validate/flags.js';
 import { validate } from './core/validate/index.js';
+import { fillPlaceholders } from './core/validate/placeholders.js';
 import {
   RepairEvidenceError,
   validateWithRepair,
@@ -47,9 +50,10 @@ const CARD_DISPUTE_RUN: ToolResult[] = [
 const codesOf = (
   raw: unknown,
   toolResults: ToolResult[] = CARD_DISPUTE_RUN,
+  facts: Partial<Omit<RunFacts, 'toolResults'>> = {},
 ): readonly string[] => {
   const outcome = validate(raw, {
-    evidence: buildEvidence(runOf(toolResults)),
+    evidence: buildEvidence(runOf(toolResults, facts)),
     stateRules: [],
   });
   return outcome.ok ? [] : outcome.codes;
@@ -258,14 +262,6 @@ const proposing = (
   draft_reply: NEUTRAL_REPLY,
 });
 
-const codesIn = (raw: unknown, run: RunFacts): readonly string[] => {
-  const outcome = validate(raw, {
-    evidence: buildEvidence(run),
-    stateRules: [],
-  });
-  return outcome.ok ? [] : outcome.codes;
-};
-
 const speiDisputeRun = (settledAt: string): ToolResult[] => [
   ...CARD_DISPUTE_RUN,
   {
@@ -473,13 +469,10 @@ describe('ACTION_UNSUPPORTED', () => {
 
     it('holds on the intake injection flag or a cross-customer lookup', () => {
       expect(
-        codesIn(escalate, runOf(CARD_DISPUTE_RUN, { injectionSignal: true })),
+        codesOf(escalate, CARD_DISPUTE_RUN, { injectionSignal: true }),
       ).toEqual([]);
       expect(
-        codesIn(
-          escalate,
-          runOf(CARD_DISPUTE_RUN, { crossCustomerLookup: true }),
-        ),
+        codesOf(escalate, CARD_DISPUTE_RUN, { crossCustomerLookup: true }),
       ).toEqual([]);
     });
   });
@@ -844,6 +837,44 @@ describe('date placeholders and their commitments', () => {
       'SCHEMA',
     ]);
     expect(codesOf(replying('Folio{{folio}} registrado.'))).toEqual(['SCHEMA']);
+  });
+
+  it('fails two placeholders with nothing between them (SCHEMA)', () => {
+    expect(
+      codesOf(replying('Hola {{nombre}}, folio {{folio}}{{fecha_recepcion}}.')),
+    ).toEqual(['SCHEMA']);
+  });
+});
+
+describe('validate, then fill', () => {
+  const DRAFT =
+    'Hola {{nombre}}, tu folio es {{folio}}. {{compromiso_dictamen}} {{compromiso_abono}}';
+  const FOLIO = 'AC-K7Q3-M9X2';
+  const filledFor = (receivedAt: Date): string => {
+    const outcome = validate(replying(DRAFT), {
+      evidence: buildEvidence(runOf(CARD_DISPUTE_RUN, { receivedAt })),
+      stateRules: [],
+    });
+    if (!outcome.ok) throw new Error(outcome.codes.join(', '));
+    return fillPlaceholders(outcome.resolution.draft_reply, {
+      receivedAt,
+      folio: FOLIO,
+      firstName: 'Ana',
+    });
+  };
+
+  it('fills an accepted draft with the approved wording and its dates', () => {
+    const filled = filledFor(RECEIVED_AT);
+    expect(filled).toBe(
+      'Hola Ana, tu folio es AC-K7Q3-M9X2. Te daremos una respuesta por escrito a más tardar el 21 de noviembre de 2026. Si no estás de acuerdo con ella, puedes acudir a la CONDUSEF. Te abonaremos el importe del cargo a más tardar el 9 de octubre de 2026, mientras resolvemos tu aclaración.',
+    );
+    expect(replyViolations(filled)).toEqual([]);
+  });
+
+  it('skips a weekend and a bank holiday in the credit deadline', () => {
+    expect(filledFor(new Date('2026-10-30T18:00:00Z'))).toContain(
+      'a más tardar el 4 de noviembre de 2026, mientras',
+    );
   });
 });
 
