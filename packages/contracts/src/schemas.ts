@@ -120,10 +120,13 @@ export const ActionParamsSchema = ProposedActionSchema.pick({
 });
 export type ActionParams = z.infer<typeof ActionParamsSchema>;
 
+/** The most transactions any action of the 02 G2 table names (`escalate_fraud`). */
+export const MAX_ACTION_TRANSACTIONS = 5;
+
 /** An operator's replacement action: the G2 fields only, no justification, no values. */
 export const OverrideSchema = z.strictObject({
   type: z.enum(ACTION_TYPES),
-  transaction_ids: z.array(z.string().min(1)),
+  transaction_ids: z.array(z.string().min(1)).max(MAX_ACTION_TRANSACTIONS),
   reason_code: z.enum(REASON_CODES),
 });
 export type Override = z.infer<typeof OverrideSchema>;
@@ -145,7 +148,9 @@ export const DecisionSchema = z.discriminatedUnion('decision', [
   z.strictObject({
     ...decisionBase,
     decision: z.literal('approve'),
-    reviewed_transaction_ids: z.array(z.string().min(1)),
+    reviewed_transaction_ids: z
+      .array(z.string().min(1))
+      .max(MAX_ACTION_TRANSACTIONS),
     override: OverrideSchema.optional(),
   }),
   z.strictObject({
