@@ -59,7 +59,7 @@ Allowed combinations, checked by the validator and re-checked by the executor. T
 | `escalate_fraud` | 0–5 | Any category; the only action allowed with zero transactions | At least one code-produced fraud signal: a seen `hold_reason = fraud_review`; a seen decline with reason `card_blocked_fraud`; ≥ 3 card-not-present charges from the same merchant within 24 h among seen rows; intake flag `injection_signal`; a `cross_customer_lookup` row in `security_events` for the run |
 | `none` | 0 | Always | — |
 
-Flag `action_fact_mismatch` (not a block; raises `review_tier` to `high`): the action is `none` while a seen `settled` or `pending` card purchase in an `unrecognized_card_charge` case has `auth_factors < 2` (from a `list_transactions` row or a `get_card_authorization` output), or a seen decline is `card_blocked_fraud`, or the card-not-present burst holds. A suppressed dispute becomes visible to the operator, who can override it.
+Flag `action_fact_mismatch` (not a block; raises `review_tier` to `high`): the action is `none` while a seen `settled` or `pending` card purchase in an `unrecognized_card_charge` case has `auth_factors < 2` (from a `list_transactions` row or a `get_card_authorization` output), or a seen decline is `card_blocked_fraud`, or the card-not-present burst holds. A fallback has no category, so there the card-purchase half applies whatever the case is about. A suppressed dispute becomes visible to the operator, who can override it.
 
 **G3 — Nothing executes without an authenticated human, and the effect happens once.**
 
