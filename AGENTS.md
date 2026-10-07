@@ -45,6 +45,7 @@ Never weaken one of these without a test that fails first and the user's explici
 
 - Check the official docs (website or Context7) before using a library API; versions in use are pinned in `package.json`, not in memory.
 - TDD: write the test, watch it fail for the right reason, then implement.
+- Every build step and every behavior change follows one sequence, in this order and with no stage skipped: `developing-feature` → `reviewing-pr` plus `invariant-reviewer` (any diff on a G1–G8 path, before it is committed) → `verifying-change` with a fresh verifier → `committing-change`. The skills are listed in `docs/agent-setup/README.md` §Skills by phase.
 - A spec change is its own `docs:` commit with the reason. Ports from Knowtis use the `port` scope and come with their tests (`specs/00-scope.md`).
 - Commits: one line, Conventional Commits, English, imperative. Never squash.
 - No secrets in the repo. Every variable lives in `.env.example` with a dev default; only `ANTHROPIC_API_KEY` is left empty.
