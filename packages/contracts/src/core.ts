@@ -145,3 +145,10 @@ export const CORE_WRITE_REFUSALS = [
   'idempotency_key_reused',
 ] as const;
 export type CoreWriteRefusal = (typeof CORE_WRITE_REFUSALS)[number];
+
+/**
+ * How long a settled outgoing SPEI must sit before a dispute is allowed: the
+ * "policy window" of the 02 G2 table. The "Tiempos SPEI" policy states the
+ * same figure.
+ */
+export const SPEI_DISPUTE_AFTER_HOURS = 24;
