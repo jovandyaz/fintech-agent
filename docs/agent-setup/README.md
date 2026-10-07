@@ -30,11 +30,22 @@ The main session orchestrates and dispatches by role, not by model name. Two sch
 
 Effort: high effort only for demanding implementers; reviews never run at the highest effort, because it measurably degraded review quality.
 
-## Plugins and MCP servers used
+## Skills by phase
 
-- **superpowers**: brainstorming, writing and executing plans, TDD, systematic debugging, verification before completion.
-- **workflows**: committing, reviewing and shipping a change.
-- **Context7**: current library docs before using any API (also in `.mcp.json`).
+The repo declares the plugins it is built with in `.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`), so a clone asks for the same set once the folder is trusted. The workflow skills come from my public marketplace [`jovandyaz/agentic-development-workflows`](https://github.com/jovandyaz/agentic-development-workflows); they orchestrate Superpowers rather than copy it.
+
+| Phase | Skill | How it shows up here |
+| --- | --- | --- |
+| Standards and docs | `workflows:applying-engineering-standards`, Context7 | Every library API is checked against the installed version or its official docs before use; material decisions are recorded as `Decision / Project evidence / Official source / Tradeoff / Verification` in the ledger |
+| Design | `superpowers:brainstorming` | The specs in `specs/` are the approved design; a change that reopens one goes through brainstorming and a `docs:` commit |
+| Planning | `superpowers:writing-plans` | `specs/04-build-plan.md` is the plan; deviations are `Ruling:` lines in the ledger |
+| Execution | `workflows:developing-feature`, `superpowers:executing-plans`, `superpowers:test-driven-development` | Each build step and each behavior change outside a step; every test is seen failing first, and mutation checks prove the tests bite |
+| Bugs | `workflows:fixing-bug`, `superpowers:systematic-debugging` | A defect starts with the test that reproduces it |
+| Review | `workflows:reviewing-pr` (code-quality gate, then `superpowers:requesting-code-review`, then Matt Pocock's two-axis `code-review`), plus the repo's `invariant-reviewer` | At the end of every step on that step's commit range, and on the whole branch at the end. The Anthropic `code-review` lens publishes to GitHub, so it stays off: the repo is local |
+| Verification | `workflows:verifying-change`, `superpowers:verification-before-completion` | A fresh verifier checks each claim: `curl --fail-with-body` for HTTP surfaces, Playwright MCP (desktop and mobile) for the console, promptfoo evals for agent behavior |
+| Commit | `workflows:committing-change` | One concern per commit, single-line Conventional Commits, never squashed |
+
+Prerequisites outside the plugins: Matt Pocock's `code-review` and `setup-matt-pocock-skills` (`pnpm dlx skills@1.5.23 add https://github.com/mattpocock/skills/archive/6654f6b60cd9d5be8b54c6fafe44346dabeb3b76.tar.gz --skill code-review --skill setup-matt-pocock-skills`, then `/setup-matt-pocock-skills` once per repo), and the MCP servers in `.mcp.json`: Context7, Playwright and a read-only Postgres.
 
 ## What stays personal
 
