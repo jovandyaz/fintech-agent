@@ -569,6 +569,13 @@ describe('factFlags', () => {
     expect(flagsOf(fallback, [customerSeen])).toEqual([]);
   });
 
+  it('sets first_party_signal from prior disputes whatever the action', () => {
+    expect(flagsOf(proposing(NONE), CARD_DISPUTE_RUN, 3)).toEqual([
+      'action_fact_mismatch',
+      'first_party_signal',
+    ]);
+  });
+
   it('sets first_party_signal from three prior disputes, not from two', () => {
     expect(flagsOf(resolutionOf(), CARD_DISPUTE_RUN, 3)).toEqual([
       'first_party_signal',
