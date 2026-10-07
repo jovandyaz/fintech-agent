@@ -645,16 +645,26 @@ const foldMixedScript = (token: string): string =>
     ? token.replace(HOMOGLYPH, (c) => HOMOGLYPHS[c] ?? c)
     : token;
 
-function fold(text: string): string {
-  const normalized = text
-    .normalize('NFKC')
-    .replace(INVISIBLE, '')
-    .replace(COMBINING, '')
-    .replace(CONTROL, '')
-    .replace(ENCODED_AT, '@')
+/**
+ * Latin look-alikes from Cyrillic or Greek inside a Latin word become Latin,
+ * and decimal digits of any script (and CJK numerals) become ASCII, so a
+ * check that reads letters or digits cannot be passed by swapping scripts.
+ */
+export const foldLookalikes = (text: string): string =>
+  text
     .replace(MIXED_SCRIPT_TOKEN, foldMixedScript)
     .replace(CJK_DIGIT, (c) => CJK_DIGITS[c] ?? '0')
-    .replace(ND_DIGIT, toAsciiDigit)
+    .replace(ND_DIGIT, toAsciiDigit);
+
+function fold(text: string): string {
+  const normalized = foldLookalikes(
+    text
+      .normalize('NFKC')
+      .replace(INVISIBLE, '')
+      .replace(COMBINING, '')
+      .replace(CONTROL, '')
+      .replace(ENCODED_AT, '@'),
+  )
     .replace(OTHER_NUMERIC, '0')
     .replace(CONFUSABLE_TOKEN, (token) =>
       token.replace(ZERO_LOOKALIKE, '0').replace(ONE_LOOKALIKE, '1'),
