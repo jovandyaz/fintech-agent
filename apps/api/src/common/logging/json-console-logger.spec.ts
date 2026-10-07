@@ -104,17 +104,20 @@ describe('JsonConsoleLogger behind Nest Logger', () => {
   });
 
   it.each([
-    ['verbose', 'debug'],
-    ['debug', 'debug'],
-    ['log', 'info'],
-    ['warn', 'warn'],
-    ['fatal', 'error'],
+    ['verbose', 'debug', 'stdout'],
+    ['debug', 'debug', 'stdout'],
+    ['log', 'info', 'stdout'],
+    ['warn', 'warn', 'stdout'],
+    ['fatal', 'error', 'stderr'],
   ] as const)(
-    'maps the %s level to the %s severity on stdout',
-    (method, level) => {
+    'maps the %s level to the %s severity on %s',
+    (method, level, stream) => {
       new Logger('Probe')[method]('probe');
 
-      expect(onlyEntry(stdout).level).toBe(level);
+      const [written, silent] =
+        stream === 'stdout' ? [stdout, stderr] : [stderr, stdout];
+      expect(onlyEntry(written).level).toBe(level);
+      expect(linesWrittenTo(silent)).toEqual([]);
     },
   );
 
