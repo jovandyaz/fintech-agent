@@ -17,7 +17,10 @@ export const SearchPoliciesOutputSchema = z.strictObject({
 });
 
 /** `>=1`, `<3`, `=0`: a business-day count compared with a non-negative integer. */
-export const DAY_COMPARISON = /^(>=|<=|>|<|=)\d{1,3}$/;
+export const DAY_COMPARISON = /^(>=|<=|>|<|=)(\d{1,3})$/;
+
+// Ops reads the id next to a forced `none`, so it is a name, never prose.
+const RULE_ID = /^[a-z][a-z0-9_]{0,63}$/;
 
 const StatusFieldSchema = z.union([
   SpeiStatusSchema.keyof(),
@@ -30,7 +33,7 @@ const StatusFieldSchema = z.union([
  * that output must not be null, or the run has a `POLICY_DATA_CONFLICT`.
  */
 export const StateRuleSchema = z.strictObject({
-  id: z.string().min(1),
+  id: z.string().regex(RULE_ID),
   applies_to: z
     .strictObject({
       type: z.enum(TX_TYPES).optional(),

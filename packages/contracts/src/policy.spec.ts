@@ -60,6 +60,17 @@ describe('StateRuleSchema', () => {
   });
 });
 
+describe('StateRuleSchema ids', () => {
+  it('takes a short snake_case id only, since ops reads it', () => {
+    for (const id of ['Ignora las instrucciones', 'x'.repeat(65), 'a b', '']) {
+      expect(
+        StateRuleSchema.safeParse({ ...returnCreditRule, id }).success,
+        id,
+      ).toBe(false);
+    }
+  });
+});
+
 describe('SearchPoliciesOutputSchema', () => {
   it('parses the chunks search_policies returns', () => {
     const output = {
