@@ -65,18 +65,21 @@ export function newFolio(random: RandomIndex = cryptoIndex): string {
 const ID_LETTERS = 'abcdefghijkmnpqrstuvwxyz';
 const ID_PAYLOAD_CHARS = 12;
 
+/** Twelve random letters with no digit and no o or l, which the masker could read as digits. */
+export function newIdPayload(random: RandomIndex = cryptoIndex): string {
+  return Array.from(
+    { length: ID_PAYLOAD_CHARS },
+    () => ID_LETTERS[random(ID_LETTERS.length)] ?? ID_LETTERS.charAt(0),
+  ).join('');
+}
+
 /**
- * A new system id, e.g. `case_kqmxtbwhpvra`. Letters only, so it never
- * carries a digit run the masker would touch, and 24^12 values make a clash
+ * A new system id, e.g. `case_kqmxtbwhpvra`; 24^12 values make a clash
  * negligible at this scale.
  */
 export function newRegistryId(
   prefix: IdPrefix,
   random: RandomIndex = cryptoIndex,
 ): string {
-  const payload = Array.from(
-    { length: ID_PAYLOAD_CHARS },
-    () => ID_LETTERS[random(ID_LETTERS.length)] ?? ID_LETTERS.charAt(0),
-  ).join('');
-  return `${prefix}_${payload}`;
+  return `${prefix}_${newIdPayload(random)}`;
 }
