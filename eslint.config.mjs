@@ -22,6 +22,19 @@ const COMPUTED_DYNAMIC_IMPORT = {
     'G1: a dynamic import here takes a literal path, so the boundary rules can check it (specs/02-security.md).',
 };
 
+const LOAD_THROUGH_IMPORT =
+  'G1: load modules through import, so the boundary rules can check them (specs/02-security.md).';
+
+// createRequire and getBuiltinModule load a module no import rule sees.
+const MODULE_LOADERS = ['module', 'node:module'].map((name) => ({
+  name,
+  message: LOAD_THROUGH_IMPORT,
+}));
+const BUILTIN_MODULE_LOOKUP = {
+  selector: "MemberExpression[property.name='getBuiltinModule']",
+  message: LOAD_THROUGH_IMPORT,
+};
+
 export default defineConfig(
   {
     ignores: [
@@ -38,7 +51,7 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['**/*.ts', '**/*.tsx'],
+    files: ['**/*.{ts,tsx,mts,cts}'],
     extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
@@ -50,11 +63,13 @@ export default defineConfig(
   {
     // 02 G1: the process running the model has no write path. Nothing under
     // the agent module may import the executor or the core-mock write client.
-    files: ['apps/api/src/agent/**/*.ts'],
+    files: ['apps/api/src/agent/**/*.{ts,tsx,mts,cts}'],
+    linterOptions: { noInlineConfig: true },
     rules: {
       'no-restricted-imports': [
         'error',
         {
+          paths: MODULE_LOADERS,
           patterns: [
             {
               group: ['**/executor', '**/executor/**'],
@@ -76,16 +91,19 @@ export default defineConfig(
         dynamicImportOf('executor', AGENT_TO_EXECUTOR),
         dynamicImportOf('core-write-client', AGENT_TO_WRITE_CLIENT),
         COMPUTED_DYNAMIC_IMPORT,
+        BUILTIN_MODULE_LOOKUP,
       ],
     },
   },
   {
     // 02 G1, the other direction: the executor never imports the agent module.
-    files: ['apps/api/src/executor/**/*.ts'],
+    files: ['apps/api/src/executor/**/*.{ts,tsx,mts,cts}'],
+    linterOptions: { noInlineConfig: true },
     rules: {
       'no-restricted-imports': [
         'error',
         {
+          paths: MODULE_LOADERS,
           patterns: [
             {
               group: ['**/agent', '**/agent/**'],
@@ -98,6 +116,7 @@ export default defineConfig(
         'error',
         dynamicImportOf('agent', EXECUTOR_TO_AGENT),
         COMPUTED_DYNAMIC_IMPORT,
+        BUILTIN_MODULE_LOOKUP,
       ],
     },
   },
