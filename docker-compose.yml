@@ -17,6 +17,39 @@ services:
       timeout: 3s
       retries: 20
 
+  seed:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: ['node', '--import', 'tsx', 'src/seed/main.ts']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-copilot}:${POSTGRES_PASSWORD:-copilot}@db:5432/${POSTGRES_DB:-copilot}
+      API_DB_PASSWORD: ${API_DB_PASSWORD:-dev-api-db-password}
+      EXECUTOR_DB_PASSWORD: ${EXECUTOR_DB_PASSWORD:-dev-executor-db-password}
+      MCP_DB_PASSWORD: ${MCP_DB_PASSWORD:-dev-mcp-db-password}
+    restart: 'no'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      API_PORT: 3000
+      API_DATABASE_URL: postgresql://copilot_api:${API_DB_PASSWORD:-dev-api-db-password}@db:5432/${POSTGRES_DB:-copilot}
+    ports:
+      - '${API_PORT:-3000}:3000'
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/health || exit 1']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
   core-mock:
     build:
       context: .
@@ -47,11 +80,14 @@ services:
       CASE_TOKEN_KEY: ${CASE_TOKEN_KEY:-dev-case-token-key-0123456789abcdef}
       CORE_MOCK_URL: http://core-mock:3010
       CORE_READ_KEY: ${CORE_READ_KEY:-dev-core-read-key}
+      MCP_DATABASE_URL: postgresql://copilot_mcp:${MCP_DB_PASSWORD:-dev-mcp-db-password}@db:5432/${POSTGRES_DB:-copilot}
     ports:
       - '${MCP_PORT:-3020}:3020'
     depends_on:
       core-mock:
         condition: service_healthy
+      seed:
+        condition: service_completed_successfully
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3020/health || exit 1']
       interval: 2s
