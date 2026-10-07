@@ -893,46 +893,36 @@ const SENTENCE_PUNCTUATION = /^[.,;:!?)\]"'»]*$/u;
 const MAX_PUNCTUATION_AFTER_FOLIO = 2;
 
 type Replacer = (match: string, ...groups: string[]) => string;
-type ValueSpan = (match: string, ...groups: string[]) => [number, number];
 
-const valueAfter: ValueSpan = (match, keyword = '', gap = '') => [
-  keyword.length + gap.length,
-  match.length,
-];
-const valueBefore: ValueSpan = (match, rest = '') => [
-  0,
-  match.length - rest.length,
-];
+const NO_FOLIO = -1;
 
 // A folio such as AC-PWDW-8NYN is a system id whose groups can spell a
-// keyword. A value is spared only when it is a folio plus the sentence
-// punctuation a greedy match swallows; anything else beside a folio is masked.
-function replaceUnlessValueInFolio(
+// keyword. A match is spared only when it lies inside one folio, keyword
+// included, plus the sentence punctuation a greedy match swallows.
+function replaceOutsideFolios(
   text: string,
   pattern: RegExp,
-  valueSpan: ValueSpan,
   replace: Replacer,
 ): string {
   const folios = [...text.matchAll(FOLIO)];
   if (folios.length === 0) return text.replace(pattern, replace);
-  const inFolio = new Array<boolean>(text.length).fill(false);
-  for (const folio of folios) {
-    inFolio.fill(true, folio.index, folio.index + folio[0].length);
-  }
+  const folioAt = new Int32Array(text.length).fill(NO_FOLIO);
+  folios.forEach((folio, id) => {
+    folioAt.fill(id, folio.index, folio.index + folio[0].length);
+  });
   return text.replace(pattern, (match: string, ...rest: unknown[]) => {
     const at = rest.findIndex((arg) => typeof arg === 'number');
+    const offset = rest[at] as number;
     const groups = rest.slice(0, at) as string[];
-    const [from, to] = valueSpan(match, ...groups).map(
-      (offset) => (rest[at] as number) + offset,
-    ) as [number, number];
+    const touched = new Set<number>();
     let outside = '';
-    let touchesFolio = false;
-    for (let i = from; i < to; i++) {
-      if (inFolio[i]) touchesFolio = true;
-      else outside += text[i] ?? '';
+    for (let i = offset; i < offset + match.length; i++) {
+      const id = folioAt[i] ?? NO_FOLIO;
+      if (id === NO_FOLIO) outside += text[i] ?? '';
+      else touched.add(id);
     }
     const spared =
-      touchesFolio &&
+      touched.size === 1 &&
       outside.length <= MAX_PUNCTUATION_AFTER_FOLIO &&
       SENTENCE_PUNCTUATION.test(outside);
     return spared ? match : replace(match, ...groups);
@@ -945,26 +935,23 @@ function maskSegment(text: string): string {
     .replace(CURP_LOOSE, `CURP ${MASK}`)
     .replace(RFC_COMPACT, `RFC ${MASK}`)
     .replace(RFC_LOOSE, `RFC ${MASK}`);
-  const withoutSecrets = replaceUnlessValueInFolio(
+  const withoutSecrets = replaceOutsideFolios(
     identified,
     SECRET_AFTER,
-    valueAfter,
     (match, keyword = '', gap = '', secret = '') =>
       secret === FACTOR || !STRONG_SECRET.test(secret)
         ? match
         : `${keyword}${gap}${FACTOR}`,
   );
-  const withoutFactorsAfter = replaceUnlessValueInFolio(
+  const withoutFactorsAfter = replaceOutsideFolios(
     withoutSecrets,
     AUTH_FACTOR_AFTER,
-    valueAfter,
     (match, keyword = '', gap = '') =>
       NOT_AN_AUTH_FACTOR.test(gap) ? match : `${keyword}${gap}${FACTOR}`,
   );
-  const patterned = replaceUnlessValueInFolio(
+  const patterned = replaceOutsideFolios(
     withoutFactorsAfter,
     AUTH_FACTOR_BEFORE,
-    valueBefore,
     (_, rest = '') => `${FACTOR}${rest}`,
   )
     .replace(EMAIL_LOCAL_PART, (_, first: string) => `${first}•••`)

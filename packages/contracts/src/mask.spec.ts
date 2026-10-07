@@ -347,6 +347,19 @@ describe('maskPii — folios whose groups spell an auth keyword', () => {
   ])('masks a secret glued to a folio: %s', (text, secret) => {
     expect(maskPii(text)).not.toContain(secret);
   });
+
+  it.each([
+    ['pass:AC-KMQX-PDRT', 'KMQX-PDRT'],
+    ['pass:AC-KMQX-PDRT,AC-HJKM-NPQR', 'HJKM-NPQR'],
+    ['pass:AC-KMQX-PDRT.AC-HJKM-NPQR.AC-TVWX-YZ12', 'TVWX-YZ12'],
+    ['AC-KMQX-P123 es mi CVV', 'P123'],
+    ['AC-KMQX-P482 es mi NIP', 'P482'],
+  ])(
+    'masks a folio-shaped secret named by a keyword outside it: %s',
+    (text, secret) => {
+      expect(maskPii(text)).not.toContain(secret);
+    },
+  );
 });
 
 describe('maskPii — number-like ids that could hide personal data', () => {
