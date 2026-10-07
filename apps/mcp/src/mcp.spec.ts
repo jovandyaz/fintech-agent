@@ -845,6 +845,20 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
     await client.close();
     await listen(core.server);
   });
+
+  it('logs why core is unavailable with personal data masked', async () => {
+    stubbed = () =>
+      Promise.reject(new Error('socket hang up near 4111111111111111'));
+    const client = await connect(await mint());
+    await call(client, 'get_customer');
+    const outages = logs.filter((line) => line.event === 'core_unavailable');
+    expect(outages).toEqual([
+      expect.objectContaining({ tool: 'get_customer', run_id: RUN_ID }),
+    ]);
+    expect(String(outages[0]?.reason)).toContain('socket hang up');
+    expect(JSON.stringify(outages)).not.toMatch(/\d{8}/);
+    await client.close();
+  });
 });
 
 describe('per-token call budget (02 G4)', () => {
