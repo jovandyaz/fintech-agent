@@ -12,6 +12,7 @@ import {
   type CustomerView,
   type McpToolError,
   type McpToolName,
+  type SecurityEventKind,
   type SpeiStatus,
   type TransactionPage,
   type TransactionRow,
@@ -28,10 +29,7 @@ import type { z } from 'zod';
 
 import { READ_ONLY } from './annotations.js';
 import { CoreUnavailableError, type CoreClient } from './core-client.js';
-import type {
-  SecurityEventKind,
-  SecurityEventSink,
-} from './security-events.js';
+import type { SecurityEventSink } from './security-events.js';
 
 const LAST_FOUR = 4;
 const GET_CUSTOMER = 'get_customer' satisfies McpToolName;
