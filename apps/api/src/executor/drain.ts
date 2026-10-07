@@ -326,12 +326,28 @@ async function retry(deps: ExecutorDeps, row: StaleExecution): Promise<void> {
   await executeClaimed(deps, { ...row, type: row.type });
 }
 
+// Exhausting is only safe once core says no effect landed; while it cannot
+// answer the outcome is unknown, and the row stays `started` for a later sweep.
+async function exhaust(deps: ExecutorDeps, row: StaleExecution): Promise<void> {
+  const landed = await attempt(deps, row.actionId, () =>
+    deps.writer.effectOf(row.actionId),
+  );
+  if (landed === DEFERRED) return;
+  await finish(
+    deps,
+    row.actionId,
+    landed
+      ? { status: EXECUTION_STATUS.executed, detail: landed }
+      : failure(ATTEMPTS_EXHAUSTED, lastDeferral(row.result)),
+  );
+}
+
 /**
  * Retries every `started` execution whose last attempt is older than
  * `SWEEP_AFTER_MS`, with the same key: it first asks core whether the effect
  * landed, so a crash or a lost answer neither loses the action nor repeats
- * it. After `MAX_EXECUTION_ATTEMPTS` the execution fails, naming the last
- * reason it was deferred. One row's error is reported and the rest still run.
+ * it. After `MAX_EXECUTION_ATTEMPTS` it fails, naming the last reason it was
+ * deferred, but only once core confirms no effect landed. One row's error is reported and the rest still run.
  */
 export async function sweep(
   deps: ExecutorDeps,
@@ -363,11 +379,7 @@ export async function sweep(
     if (options.signal?.aborted) return;
     try {
       if (row.attempts >= MAX_EXECUTION_ATTEMPTS) {
-        await finish(
-          deps,
-          row.actionId,
-          failure(ATTEMPTS_EXHAUSTED, lastDeferral(row.result)),
-        );
+        await exhaust(deps, row);
       } else {
         await retry(deps, row);
       }

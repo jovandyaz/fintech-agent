@@ -251,9 +251,14 @@ export function createCoreMock(options: CoreMockOptions): CoreMock {
     ) {
       throw new HttpError(STATUS.unauthorized, ERROR.unauthorized);
     }
-    const key = decodeURIComponent(
-      url.pathname.slice(CORE_EFFECTS_PATH.length + 1),
-    );
+    let key: string;
+    try {
+      key = decodeURIComponent(
+        url.pathname.slice(CORE_EFFECTS_PATH.length + 1),
+      );
+    } catch {
+      throw notFound();
+    }
     const stored = findEffect.get(key) as { response: string } | undefined;
     if (!stored) throw notFound();
     return JSON.parse(stored.response);

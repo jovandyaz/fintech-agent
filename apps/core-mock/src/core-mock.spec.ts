@@ -278,6 +278,10 @@ describe('core-mock effect lookup (02 G3)', () => {
     expect((await effect('act_none1')).status).toBe(404);
   });
 
+  it('answers 404 for a key that is not valid percent-encoding', async () => {
+    expect((await effect('act_%E0%A4%A')).status).toBe(404);
+  });
+
   it('refuses the lookup without the executor key', async () => {
     expect((await effect(dispute.action_id, READ_KEY)).status).toBe(401);
   });

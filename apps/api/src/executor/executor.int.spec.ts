@@ -366,14 +366,20 @@ describe('executor outbox (02 G3)', () => {
     expect(lookups).toEqual([id, id]);
   });
 
-  it('fails an execution after the last attempt, naming why it waited', async () => {
-    const id = await approved();
-    mode = 'down';
-    await drainOnce();
-    for (let sweeps = 0; sweeps < MAX_EXECUTION_ATTEMPTS; sweeps += 1) {
+  const sweepTimes = async (times: number) => {
+    for (let sweeps = 0; sweeps < times; sweeps += 1) {
       later(SWEEP_AFTER_MS + 1);
       await sweep(deps);
     }
+  };
+
+  it('fails an execution once core confirms no effect after the last attempt, naming why it waited', async () => {
+    const id = await approved();
+    mode = 'down';
+    await drainOnce();
+    await sweepTimes(MAX_EXECUTION_ATTEMPTS - 1);
+    mode = 'ok';
+    await sweepTimes(1);
     expect(await stateOf(id)).toMatchObject({
       action: 'failed',
       execution: 'failed',
@@ -383,6 +389,59 @@ describe('executor outbox (02 G3)', () => {
     expect(await auditOf(id)).toEqual([
       { actor: 'executor', event: 'execution.failed' },
     ]);
+  });
+
+  it('records the effect the last attempt landed instead of exhausting it', async () => {
+    const id = await approved();
+    mode = 'down';
+    await drainOnce();
+    await sweepTimes(MAX_EXECUTION_ATTEMPTS - 2);
+    mode = 'crash_after_write';
+    await sweepTimes(1);
+    mode = 'ok';
+    await sweepTimes(1);
+    expect(await stateOf(id)).toMatchObject({
+      action: 'executed',
+      result: expect.objectContaining({ id: 'eff_1' }) as unknown,
+    });
+  });
+
+  it('keeps an execution started while core cannot say whether it landed', async () => {
+    const id = await approved();
+    mode = 'down';
+    await drainOnce();
+    await sweepTimes(MAX_EXECUTION_ATTEMPTS + 2);
+    expect(await stateOf(id)).toMatchObject({ execution: 'started' });
+  });
+
+  it('isolates a row whose ending fails, rolling it back, and still sweeps the rest', async () => {
+    const broken = await approved();
+    const healthy = await approved({ transactionIds: ['tx_c2'] });
+    mode = 'down';
+    await drainOnce();
+    await drainOnce();
+    await owner`alter table proposed_actions disable trigger enforce_transition_role`;
+    await owner`update proposed_actions set status = 'superseded' where id = ${broken}`;
+    await owner`alter table proposed_actions enable trigger enforce_transition_role`;
+    mode = 'ok';
+    const errors: unknown[] = [];
+    later(SWEEP_AFTER_MS + 1);
+    await sweep(deps, { onError: (error) => errors.push(error) });
+    expect(errors).toHaveLength(1);
+    expect(await stateOf(broken)).toMatchObject({ execution: 'started' });
+    expect(await auditOf(broken)).toEqual([]);
+    expect(await stateOf(healthy)).toMatchObject({ action: 'executed' });
+  });
+
+  it('stops sweeping once the executor is told to stop', async () => {
+    await approved();
+    mode = 'down';
+    await drainOnce();
+    const stopped = new AbortController();
+    stopped.abort();
+    later(SWEEP_AFTER_MS + 1);
+    await sweep(deps, { signal: stopped.signal });
+    expect(lookups).toEqual([]);
   });
 
   it('lets one of two concurrent drains claim an action', async () => {
