@@ -48,6 +48,7 @@ export const MCP_TOOL_ERRORS = [
   'RATE_LIMITED',
   'UPSTREAM_UNAVAILABLE',
   'INTERNAL',
+  'INVALID_ARGUMENTS',
 ] as const;
 export type McpToolError = (typeof MCP_TOOL_ERRORS)[number];
 

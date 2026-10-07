@@ -458,6 +458,17 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
       expect(tool.annotations).toMatchObject(READ_ONLY);
       expect(JSON.stringify(tool.inputSchema)).not.toContain('customer_id');
     }
+    const [, list, spei] = tools;
+    expect(list?.inputSchema).toMatchObject({
+      additionalProperties: false,
+      properties: { from: { format: 'date-time' }, limit: { maximum: 25 } },
+    });
+    expect(spei?.inputSchema).toMatchObject({
+      required: ['transaction_id'],
+      properties: {
+        transaction_id: { pattern: expect.stringMatching(/^\^tx_/) },
+      },
+    });
     await client.close();
   });
 
@@ -551,11 +562,15 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
       to: '2026-10-02T23:59:59-06:00',
     });
     expect(day.body).toMatchObject({ total: 1, items: [{ id: speiOut.id }] });
-    const bareDate = await client.callTool({
-      name: 'list_transactions',
-      arguments: { from: '2026-10-02', to: '2026-10-02' },
+    expect(
+      await call(client, 'list_transactions', {
+        from: '2026-10-02',
+        to: '2026-10-02',
+      }),
+    ).toEqual({
+      isError: true,
+      body: { error: 'INVALID_ARGUMENTS', fields: ['from', 'to'] },
     });
-    expect(bareDate.isError).toBe(true);
     await client.close();
   });
 
@@ -566,11 +581,13 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
       'tx_../customers',
       '4111111111111111',
     ]) {
-      const outcome = await client.callTool({
-        name: 'get_spei_status',
-        arguments: { transaction_id },
+      expect(
+        await call(client, 'get_spei_status', { transaction_id }),
+        transaction_id,
+      ).toEqual({
+        isError: true,
+        body: { error: 'INVALID_ARGUMENTS', fields: ['transaction_id'] },
       });
-      expect(outcome.isError, transaction_id).toBe(true);
     }
     expect(upstream).toEqual([]);
     await client.close();
@@ -578,12 +595,12 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
 
   it('rejects a customer_id argument instead of honoring it', async () => {
     const client = await connect(await mint());
-    const outcome = await client.callTool({
-      name: 'list_transactions',
-      arguments: { customer_id: OTHER },
+    expect(
+      await call(client, 'list_transactions', { customer_id: OTHER }),
+    ).toEqual({
+      isError: true,
+      body: { error: 'INVALID_ARGUMENTS', fields: [] },
     });
-    expect(outcome.isError).toBe(true);
-    expect(JSON.stringify(outcome.content)).not.toContain('tx_f001');
     await client.close();
   });
 
@@ -729,6 +746,18 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
     expect((await call(fresh, 'get_customer')).isError).toBe(false);
     await client.close();
     await fresh.close();
+  });
+
+  it('counts calls with invalid arguments against the per-token budget', async () => {
+    const client = await connect(await mint({ jti: 'jti_invalid' }));
+    for (let i = 0; i < CASE_TOKEN_MAX_CALLS; i++) {
+      await call(client, 'get_spei_status', { transaction_id: '..' });
+    }
+    expect(await call(client, 'get_customer')).toEqual({
+      isError: true,
+      body: { error: 'RATE_LIMITED' },
+    });
+    await client.close();
   });
 
   it('calls core-mock with its own read key and never forwards the case token', async () => {

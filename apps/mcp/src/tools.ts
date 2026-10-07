@@ -4,7 +4,6 @@ import {
   MAX_LIST_LIMIT,
   maskJson,
   maskPii,
-  MCP_TOOL_NAMES,
   SPEI_TYPES,
   TransactionLookupInputSchema,
   type CardAuthorization,
@@ -19,23 +18,28 @@ import {
   type SpeiTx,
   type Transaction,
 } from '@fintech-agent/contracts';
-import type { CallToolResult, McpServer } from '@modelcontextprotocol/server';
+import type {
+  CallToolResult,
+  McpServer,
+  StandardSchemaWithJSON,
+} from '@modelcontextprotocol/server';
+import type { z } from 'zod';
 
 import { READ_ONLY } from './annotations.js';
 import { CoreUnavailableError, type CoreClient } from './core-client.js';
-import {
-  SECURITY_EVENT_KINDS,
-  type SecurityEventSink,
+import type {
+  SecurityEventKind,
+  SecurityEventSink,
 } from './security-events.js';
 
 const LAST_FOUR = 4;
-const [
-  GET_CUSTOMER,
-  LIST_TRANSACTIONS,
-  GET_SPEI_STATUS,
-  GET_CARD_AUTHORIZATION,
-] = MCP_TOOL_NAMES;
-const [CROSS_CUSTOMER_LOOKUP] = SECURITY_EVENT_KINDS;
+const GET_CUSTOMER = 'get_customer' satisfies McpToolName;
+const LIST_TRANSACTIONS = 'list_transactions' satisfies McpToolName;
+const GET_SPEI_STATUS = 'get_spei_status' satisfies McpToolName;
+const GET_CARD_AUTHORIZATION = 'get_card_authorization' satisfies McpToolName;
+const CROSS_CUSTOMER_LOOKUP =
+  'cross_customer_lookup' satisfies SecurityEventKind;
+const ADVERTISED_VENDOR = 'case-copilot';
 const MS_PER_SECOND = 1000;
 const TOOL_ERROR = {
   notFound: 'NOT_FOUND',
@@ -43,6 +47,7 @@ const TOOL_ERROR = {
   rateLimited: 'RATE_LIMITED',
   upstream: 'UPSTREAM_UNAVAILABLE',
   internal: 'INTERNAL',
+  invalidArguments: 'INVALID_ARGUMENTS',
 } as const satisfies Record<string, McpToolError>;
 
 /** Counts tool calls per case token `jti`; entries are dropped once their token has expired. */
@@ -78,7 +83,10 @@ export interface ToolContext {
 }
 
 class ToolFailure extends Error {
-  constructor(readonly code: McpToolError) {
+  constructor(
+    readonly code: McpToolError,
+    readonly fields?: string[],
+  ) {
     super(code);
   }
 }
@@ -87,10 +95,36 @@ const text = (value: unknown): CallToolResult => ({
   content: [{ type: 'text', text: JSON.stringify(value) }],
 });
 
-const failure = (code: McpToolError): CallToolResult => ({
-  ...text({ error: code }),
+const failure = (code: McpToolError, fields?: string[]): CallToolResult => ({
+  ...text(fields === undefined ? { error: code } : { error: code, fields }),
   isError: true,
 });
+
+/**
+ * Publishes the schema's JSON Schema in `tools/list` but lets every argument
+ * through the SDK, which would otherwise answer bad input with free text outside
+ * the closed error set and before the call budget; `parse` validates instead.
+ */
+function advertised<T>(schema: z.ZodType<T>): StandardSchemaWithJSON {
+  return {
+    '~standard': {
+      version: 1,
+      vendor: ADVERTISED_VENDOR,
+      validate: (value: unknown) => ({ value }),
+      jsonSchema: schema['~standard'].jsonSchema,
+    },
+  };
+}
+
+/** Field paths only, never values or unknown key names, so the reply cannot echo input. */
+function parse<T>(schema: z.ZodType<T>, args: unknown): T {
+  const result = schema.safeParse(args ?? {});
+  if (result.success) return result.data;
+  const fields = result.error.issues
+    .map((issue) => issue.path.join('.'))
+    .filter((path) => path.length > 0);
+  throw new ToolFailure(TOOL_ERROR.invalidArguments, [...new Set(fields)]);
+}
 
 const firstName = (fullName: string): string =>
   fullName.trim().split(/\s+/)[0] ?? '';
@@ -174,7 +208,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     try {
       return text(maskJson(await run()));
     } catch (error) {
-      if (error instanceof ToolFailure) return failure(error.code);
+      if (error instanceof ToolFailure) {
+        return failure(error.code, error.fields);
+      }
       if (error instanceof CoreUnavailableError) {
         ctx.log({ event: 'core_unavailable', tool, run_id: claims.run_id });
         return failure(TOOL_ERROR.upstream);
@@ -238,13 +274,14 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     LIST_TRANSACTIONS,
     {
       description: `The case customer’s transactions, newest first, as compact rows. Filter by type, status, an inclusive date range (from/to, ISO 8601 datetimes with offset such as 2026-10-02T00:00:00-06:00), amount range or a text query on the merchant or counterparty; page with limit (max ${MAX_LIST_LIMIT}) and cursor. \`total\` says how many match.`,
-      inputSchema: ListTransactionsInputSchema,
+      inputSchema: advertised(ListTransactionsInputSchema),
       annotations: READ_ONLY,
     },
     (args) =>
       guarded(LIST_TRANSACTIONS, async (): Promise<TransactionPage> => {
+        const input = parse(ListTransactionsInputSchema, args);
         const query = new URLSearchParams();
-        for (const [key, value] of Object.entries(args)) {
+        for (const [key, value] of Object.entries(input)) {
           if (value !== undefined) query.set(key, String(value));
         }
         const page = await core.transactions(claims.sub, query);
@@ -263,11 +300,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     {
       description:
         'State of one SPEI transfer of the case customer: timestamps, last four of the tracking key, return, hold or reject reason, the reversal credit of a returned outgoing transfer, and whether a CEP is available.',
-      inputSchema: TransactionLookupInputSchema,
+      inputSchema: advertised(TransactionLookupInputSchema),
       annotations: READ_ONLY,
     },
-    ({ transaction_id }) =>
+    (args) =>
       guarded(GET_SPEI_STATUS, async (): Promise<SpeiStatus> => {
+        const { transaction_id } = parse(TransactionLookupInputSchema, args);
         const tx = await ownTransaction(transaction_id);
         if (!isSpei(tx)) throw new ToolFailure(TOOL_ERROR.wrongType);
         return toSpeiStatus(tx);
@@ -279,11 +317,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     {
       description:
         'Authorization of one card purchase of the case customer: decision, decline reason, merchant descriptor and brand, channel and the number of independent authentication factors (3DS counts here).',
-      inputSchema: TransactionLookupInputSchema,
+      inputSchema: advertised(TransactionLookupInputSchema),
       annotations: READ_ONLY,
     },
-    ({ transaction_id }) =>
+    (args) =>
       guarded(GET_CARD_AUTHORIZATION, async (): Promise<CardAuthorization> => {
+        const { transaction_id } = parse(TransactionLookupInputSchema, args);
         const tx = await ownTransaction(transaction_id);
         if (isSpei(tx)) throw new ToolFailure(TOOL_ERROR.wrongType);
         return toCardAuthorization(tx);
