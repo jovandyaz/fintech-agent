@@ -5,6 +5,7 @@ import type {
   SpeiTx,
   Transaction,
   TxStatus,
+  WebhookEvent,
 } from '@fintech-agent/contracts';
 
 import {
@@ -12,7 +13,6 @@ import {
   type CustomerLookup,
   type ScenarioId,
 } from './scenarios.js';
-import type { WebhookFixture } from './types.js';
 
 export const DATASET_SEED = 20261005;
 
@@ -359,7 +359,7 @@ function fillerFor(context: FillerContext, index: number): Transaction[] {
 
 export interface GeneratedFixture {
   scenario_id: ScenarioId;
-  event: WebhookFixture;
+  event: WebhookEvent;
 }
 
 export interface Dataset {

@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
-export const TX_TYPES = ['spei_in', 'spei_out', 'card_purchase'] as const;
+export const SPEI_TYPES = ['spei_in', 'spei_out'] as const;
+export const CARD_TYPES = ['card_purchase'] as const;
+export const TX_TYPES = [...SPEI_TYPES, ...CARD_TYPES] as const;
 export type TxType = (typeof TX_TYPES)[number];
 
 export const TX_STATUSES = [
@@ -41,7 +43,6 @@ export type KycLevel = (typeof KYC_LEVELS)[number];
 export const CARD_STATUSES = ['active', 'blocked_fraud'] as const;
 export type CardStatus = (typeof CARD_STATUSES)[number];
 
-export const SPEI_TYPES = ['spei_in', 'spei_out'] as const;
 export const ACCOUNT_STATUSES = ['active'] as const;
 
 /** Core banking customer with full values. Only core-mock serves it; the MCP server masks it before anything leaves. */
@@ -89,7 +90,7 @@ export type SpeiTx = z.infer<typeof SpeiTxRecordSchema>;
 
 export const CardTxRecordSchema = z.object({
   ...txBase,
-  type: z.literal('card_purchase'),
+  type: z.enum(CARD_TYPES),
   merchant_descriptor: z.string(),
   merchant_brand: z.string(),
   channel: z.enum(CARD_CHANNELS),

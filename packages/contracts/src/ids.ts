@@ -14,6 +14,10 @@ const REGISTRY_ID = new RegExp(
   String.raw`^(?:${ID_PREFIXES.join('|')})_${ID_PAYLOAD_PATTERN}$`,
 );
 
+/** Whole-string pattern for a registry id with the given prefix, e.g. `tx_so02a`. */
+export const registryIdPattern = (prefix: IdPrefix): RegExp =>
+  new RegExp(String.raw`^${prefix}_${ID_PAYLOAD_PATTERN}$`);
+
 const CROCKFORD_DIGITS = '0123456789';
 const CROCKFORD_LETTERS = 'ABCDEFGHJKMNPQRSTVWXYZ';
 const CROCKFORD = CROCKFORD_DIGITS + CROCKFORD_LETTERS;

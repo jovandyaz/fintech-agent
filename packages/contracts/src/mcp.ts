@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
 import {
+  ACCOUNT_STATUSES,
   CARD_CHANNELS,
   CARD_STATUSES,
+  CARD_TYPES,
   DECLINE_REASONS,
   HOLD_REASONS,
   KYC_LEVELS,
@@ -12,7 +14,7 @@ import {
   TX_STATUSES,
   TX_TYPES,
 } from './core.js';
-import { ID_PAYLOAD_PATTERN } from './ids.js';
+import { registryIdPattern } from './ids.js';
 
 export const CASE_TOKEN_ISSUER = 'case-copilot-api';
 export const CASE_TOKEN_SCOPE = 'case:read';
@@ -62,7 +64,7 @@ const isoInstant = z.iso.datetime({ offset: true });
 const transactionId = z
   .string()
   .max(MAX_QUERY_CHARS)
-  .regex(new RegExp(String.raw`^tx_${ID_PAYLOAD_PATTERN}$`));
+  .regex(registryIdPattern('tx'));
 
 export const ListTransactionsInputSchema = z.strictObject({
   type: z.enum(TX_TYPES).optional(),
@@ -87,7 +89,7 @@ export const TransactionLookupInputSchema = z.strictObject({
 
 export const CustomerViewSchema = z.strictObject({
   first_name: z.string(),
-  account_status: z.string(),
+  account_status: z.enum(ACCOUNT_STATUSES),
   kyc_level: z.enum(KYC_LEVELS),
   clabe: z.string(),
   card_last4: z.string(),
@@ -105,7 +107,7 @@ const rowBase = {
 export const TransactionRowSchema = z.discriminatedUnion('type', [
   z.strictObject({
     ...rowBase,
-    type: z.literal('card_purchase'),
+    type: z.enum(CARD_TYPES),
     merchant_descriptor: z.string(),
     channel: z.enum(CARD_CHANNELS),
     auth_factors: z.number().int(),
