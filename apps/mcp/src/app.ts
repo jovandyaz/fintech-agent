@@ -1,7 +1,13 @@
 import { createServer, type Server } from 'node:http';
 
 import { CaseTokenClaimsSchema } from '@fintech-agent/contracts';
-import { createMcpHandler, McpServer } from '@modelcontextprotocol/server';
+import {
+  createMcpHandler,
+  hostHeaderValidationResponse,
+  localhostAllowedHostnames,
+  McpServer,
+  originValidationResponse,
+} from '@modelcontextprotocol/server';
 import {
   toNodeHandler,
   type NodeIncomingMessageLike,
@@ -67,6 +73,11 @@ export function createMcpApp(options: McpAppOptions): McpApp {
     fetch: options.fetch ?? fetch,
   });
   const calls = createCallBudget();
+  // DNS-rebinding guard: the SDK handler validates neither header.
+  const allowedHosts = [
+    new URL(options.audience).hostname,
+    ...localhostAllowedHostnames(),
+  ];
 
   const handler = createMcpHandler(
     ({ authInfo }) => {
@@ -88,6 +99,10 @@ export function createMcpApp(options: McpAppOptions): McpApp {
   );
 
   async function serve(request: Request): Promise<Response> {
+    const rejected =
+      hostHeaderValidationResponse(request, allowedHosts) ??
+      originValidationResponse(request, allowedHosts);
+    if (rejected) return rejected;
     const { pathname } = new URL(request.url);
     if (pathname === HEALTH_PATH && request.method === 'GET') {
       return json(STATUS.ok, { status: 'ok' });

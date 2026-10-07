@@ -1,3 +1,4 @@
+import { request as httpRequest } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import {
@@ -245,6 +246,63 @@ afterEach(async () => {
   await close(app.server);
   await close(core.server);
   core.close();
+});
+
+interface RawAnswer {
+  status: number;
+  body: string;
+}
+
+function rawRequest(
+  headers: Record<string, string>,
+  path = '/mcp',
+): Promise<RawAnswer> {
+  const { port } = new URL(mcpUrl);
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(
+      { host: '127.0.0.1', port, path, method: 'POST', headers },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk: Buffer) => (body += chunk.toString()));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body }));
+      },
+    );
+    req.on('error', reject);
+    req.end(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
+  });
+}
+
+describe('MCP DNS-rebinding protection', () => {
+  const FORBIDDEN = 403;
+  const json = {
+    'content-type': 'application/json',
+    accept: 'application/json, text/event-stream',
+  };
+
+  it('refuses a Host that is neither the audience host nor loopback, before any token check', async () => {
+    const answer = await rawRequest({
+      ...json,
+      host: 'evil.example:3020',
+      authorization: `Bearer ${await mint()}`,
+    });
+    expect(answer.status).toBe(FORBIDDEN);
+  });
+
+  it('refuses a browser Origin from another site', async () => {
+    const answer = await rawRequest({
+      ...json,
+      origin: 'http://evil.example',
+      authorization: `Bearer ${await mint()}`,
+    });
+    expect(answer.status).toBe(FORBIDDEN);
+  });
+
+  it('lets the audience host and loopback through to authentication', async () => {
+    for (const host of [new URL(AUDIENCE).host, 'localhost:3020']) {
+      const answer = await rawRequest({ ...json, host });
+      expect(answer.status, host).toBe(401);
+    }
+  });
 });
 
 describe('MCP authentication (02 G4)', () => {
