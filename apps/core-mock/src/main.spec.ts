@@ -10,7 +10,8 @@ describe('core-mock boot', () => {
       ['--import', 'tsx', resolve(import.meta.dirname, 'main.ts')],
       {
         cwd: resolve(import.meta.dirname, '..'),
-        env: { PATH: process.env.PATH },
+        // Node 22 flags node:sqlite as experimental on stderr; the image runs 24.
+        env: { PATH: process.env.PATH, NODE_NO_WARNINGS: '1' },
         encoding: 'utf8',
       },
     );
