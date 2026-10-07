@@ -53,11 +53,35 @@ const LOOKALIKES: Record<string, string> = {
   х: 'x',
   і: 'i',
   ј: 'j',
+  ᴀ: 'a',
+  ʙ: 'b',
+  ᴄ: 'c',
+  ᴅ: 'd',
+  ᴇ: 'e',
+  ꜰ: 'f',
+  ɢ: 'g',
+  ʜ: 'h',
+  ɪ: 'i',
+  ᴊ: 'j',
+  ᴋ: 'k',
+  ʟ: 'l',
+  ᴍ: 'm',
+  ɴ: 'n',
+  ᴏ: 'o',
+  ᴘ: 'p',
+  ʀ: 'r',
+  ꜱ: 's',
+  ᴛ: 't',
+  ᴜ: 'u',
+  ᴠ: 'v',
+  ᴡ: 'w',
+  ʏ: 'y',
+  ᴢ: 'z',
 };
 const LOOKALIKE = new RegExp(`[${Object.keys(LOOKALIKES).join('')}]`, 'gu');
 const SPELLED_OUT =
-  /(?<![\p{L}\d])(?:[\p{L}\d][.\s\-·_]){1,7}[\p{L}\d](?![\p{L}\d])/gu;
-const SPELLING_SEPARATOR = /[.\s\-·_]/g;
+  /(?<![\p{L}\d])(?:[\p{L}\d][.\s\-·_,/|\u2800]{1,3}){1,7}[\p{L}\d](?![\p{L}\d])/gu;
+const SPELLING_SEPARATOR = /[.\s\-·_,/|\u2800]/g;
 const LEET: Record<string, string> = {
   '0': 'o',
   '1': 'i',
@@ -97,9 +121,10 @@ const NOT_A_FACTOR_AFTER: Partial<
 };
 const FACTOR_PHRASES = [
   'llaves? dinamicas?',
-  '(?:numeros?|numeritos?) secret[oa]s?',
-  '(?:digitos|numeros) [^.!?;]{0,20}?\\b(?:reverso|atras|seguridad)',
+  '(?:numeros?|numeritos?|palabras?|claves?|codigos?) secret[oa]s?',
+  '(?:digitos|numeros?|numeritos) [^.!?;]{0,30}?\\b(?:reverso|atras|detras|seguridad|sms|mensaje)',
   'one[- ]time (?:code|password)',
+  '(?:security|verification|access) codes?',
   'mensajes? de texto',
 ] as const;
 
@@ -157,8 +182,17 @@ const unleetFactors = (text: string): string =>
       : token;
   });
 
-const APPROVED = APPROVED_FACTOR_WARNINGS.map((warning) =>
-  normalize(warning).replace(/[.!]+$/, ''),
+const escapeRegExp = (text: string): string =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Only a whole sentence counts as the warning: "Es falso que <warning>" or
+// "<warning>, salvo con este chat" says the opposite of what it quotes.
+const APPROVED = APPROVED_FACTOR_WARNINGS.map(
+  (warning) =>
+    new RegExp(
+      `(?:^|(?<=[.!?;]\\s*))${escapeRegExp(normalize(warning).replace(/[.!]+$/, ''))}(?=\\s*(?:[.!?;]|$))`,
+      'g',
+    ),
 );
 
 // Fails closed (IFPE rules art. 18 fr. III): a factor may appear only inside
@@ -166,7 +200,7 @@ const APPROVED = APPROVED_FACTOR_WARNINGS.map((warning) =>
 // the repair turn.
 function namesAuthFactor(text: string): boolean {
   const outsideWarnings = APPROVED.reduce(
-    (remaining, warning) => remaining.replaceAll(warning, ' '),
+    (remaining, warning) => remaining.replace(warning, ' '),
     normalize(text),
   );
   return FACTOR.test(unleetFactors(outsideWarnings));
