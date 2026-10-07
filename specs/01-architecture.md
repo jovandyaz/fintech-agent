@@ -22,7 +22,7 @@ ticket system (simulated)
 
 | Unit | Tech | Responsibility |
 | --- | --- | --- |
-| `apps/api` | NestJS 11, Drizzle, Postgres 16 | Webhook, queue worker, agent harness, retrieval, approvals, traces, REST for the console. Postgres role `copilot_api`; refuses to start if `CORE_EXECUTOR_KEY` is set |
+| `apps/api` | NestJS 11, Drizzle, Postgres 16 | Webhook, queue worker, agent harness, retrieval, approvals, traces, REST for the console. Postgres role `copilot_api`; refuses to start if `CORE_EXECUTOR_KEY` is set; holds the core-mock read key only to check an operator's override (02 G3) |
 | `executor` | Same image as `api`, entrypoint `apps/api/src/executor/main.ts`, plain TS | Drains `approved` actions, re-validates, calls core-mock writes with an idempotency key, sweeps stale `started` rows. Only holder of `CORE_EXECUTOR_KEY`; Postgres role `copilot_executor` (02 G1) |
 | `apps/mcp` | `@modelcontextprotocol/server` + `@modelcontextprotocol/node` (v2), plain TS | MCP server exposing four read-only tools; binds every call to the customer in the case token; masks PII at the boundary; records `cross_customer_lookup` in `security_events` through the insert-only `copilot_mcp` role |
 | `apps/core-mock` | Small Node HTTP service | Serves the synthetic dataset; exposes the three write endpoints used only by the executor, each requiring the executor key and an `Idempotency-Key` stored under a unique constraint (a repeat returns the first result) |

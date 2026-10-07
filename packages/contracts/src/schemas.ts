@@ -63,6 +63,16 @@ export const REPLY_CHECK_CODES = [
 ] as const;
 export type ReplyCheckCode = (typeof REPLY_CHECK_CODES)[number];
 
+/**
+ * The only sentences in which a reply may name an authentication factor
+ * (02 G5 AUTH_FACTOR_REQUEST), matched after case, accent and spacing are
+ * normalized; the console offers them for insertion.
+ */
+export const APPROVED_FACTOR_WARNINGS = [
+  'Nunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.',
+  'No compartas tu NIP, tu CVV, tus contraseñas ni tus códigos con nadie, ni siquiera con nosotros.',
+] as const;
+
 const MAX_QUOTE_CHARS = 200;
 
 /** `quote` is verbatim from the chunk; the validator checks it (CITATION_QUOTE_MISMATCH). */
