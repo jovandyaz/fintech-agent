@@ -27,6 +27,8 @@ const FAILURE_CATEGORY_BY_CODE = new Map<unknown, FailureCategory>([
   ['23505', 'unique_violation'],
   ['08006', 'connection_failure'],
   ['ECONNREFUSED', 'connection_failure'],
+  ['40P01', 'transaction_conflict'],
+  ['40001', 'transaction_conflict'],
   ['55P03', 'transaction_conflict'],
 ]);
 

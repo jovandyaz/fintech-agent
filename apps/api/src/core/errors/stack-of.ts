@@ -20,7 +20,8 @@ export function stackOf(error: unknown): string {
       return reasonOf(error);
     }
     if (!isDatabaseError(error)) {
-      return error.stack ?? error.message;
+      const stack: unknown = error.stack;
+      return typeof stack === 'string' ? stack : reasonOf(error);
     }
     return `${reasonOf(error)}${framesOf(error)}`;
   } catch {
