@@ -24,7 +24,9 @@ describe('isRegistryId', () => {
     'pol_0412',
     'TX_0412',
     'tx_',
-    'tx_04-12', 'tx_5512a3456a78', 'tx_1a2b3c4d5e',
+    'tx_04-12',
+    'tx_5512a3456a78',
+    'tx_1a2b3c4d5e',
   ])('rejects %s', (id) => {
     expect(isRegistryId(id)).toBe(false);
   });
