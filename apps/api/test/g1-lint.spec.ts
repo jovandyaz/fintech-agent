@@ -107,6 +107,51 @@ describe('G1 lint boundary between agent/ and executor/ (02 Process boundary)', 
       `export const load = () => process.getBuiltinModule('node:module').createRequire(import.meta.url)('../../executor/run.js');\n`,
     ],
     [
+      'a dynamic node:module import in agent/',
+      AGENT_FILE,
+      `export const load = async () => (await import('node:module')).createRequire(import.meta.url)('../../executor/run.js');\n`,
+    ],
+    [
+      'a dynamic module import in executor/',
+      EXECUTOR_FILE,
+      `export const load = async () => (await import('module')).createRequire(import.meta.url)('../agent/core/harness.js');\n`,
+    ],
+    [
+      'a bracketed getBuiltinModule in agent/',
+      AGENT_FILE,
+      `export const load = () => process['getBuiltinModule']('node:module');\n`,
+    ],
+    [
+      'a destructured getBuiltinModule in agent/',
+      AGENT_FILE,
+      `const { getBuiltinModule } = process;\nexport const load = () => getBuiltinModule('node:module');\n`,
+    ],
+    [
+      'module.require in a .cts agent file',
+      'apps/api/src/agent/core/planted.cts',
+      `export const load = () => module.require('../../executor/run.js');\n`,
+    ],
+    [
+      'require in a .cjs executor file',
+      'apps/api/src/executor/planted.cjs',
+      `module.exports = require('../agent/core/harness.js');\n`,
+    ],
+    [
+      'eval in agent/',
+      AGENT_FILE,
+      `export const load = () => eval("import('../../executor/run.js')");\n`,
+    ],
+    [
+      'new Function in agent/',
+      AGENT_FILE,
+      `export const load = new Function("return import('../../executor/run.js')");\n`,
+    ],
+    [
+      'a .mjs agent file',
+      'apps/api/src/agent/core/planted.mjs',
+      `import { run } from '../../executor/run.js';\nexport { run };\n`,
+    ],
+    [
       'an inline disable in agent/',
       AGENT_FILE,
       `// eslint-disable-next-line no-restricted-imports\nimport { run } from '../../executor/run.js';\nexport { run };\n`,

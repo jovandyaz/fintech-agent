@@ -25,15 +25,21 @@ const COMPUTED_DYNAMIC_IMPORT = {
 const LOAD_THROUGH_IMPORT =
   'G1: load modules through import, so the boundary rules can check them (specs/02-security.md).';
 
-// createRequire and getBuiltinModule load a module no import rule sees.
+// Ways to load a module that no import rule sees.
 const MODULE_LOADERS = ['module', 'node:module'].map((name) => ({
   name,
   message: LOAD_THROUGH_IMPORT,
 }));
-const BUILTIN_MODULE_LOOKUP = {
-  selector: "MemberExpression[property.name='getBuiltinModule']",
-  message: LOAD_THROUGH_IMPORT,
-};
+const LOADER_SYNTAX = [
+  'ImportExpression[source.value=/^(node:)?module$/]',
+  "Identifier[name='getBuiltinModule']",
+  "Literal[value='getBuiltinModule']",
+  "CallExpression[callee.name='require']",
+  "MemberExpression[object.name='module'][property.name='require']",
+  "CallExpression[callee.name='eval']",
+  "CallExpression[callee.name='Function']",
+  "NewExpression[callee.name='Function']",
+].map((selector) => ({ selector, message: LOAD_THROUGH_IMPORT }));
 
 export default defineConfig(
   {
@@ -46,7 +52,7 @@ export default defineConfig(
     ],
   },
   {
-    files: ['**/*.{js,mjs}'],
+    files: ['**/*.{js,mjs,cjs}'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },
@@ -63,7 +69,7 @@ export default defineConfig(
   {
     // 02 G1: the process running the model has no write path. Nothing under
     // the agent module may import the executor or the core-mock write client.
-    files: ['apps/api/src/agent/**/*.{ts,tsx,mts,cts}'],
+    files: ['apps/api/src/agent/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
     linterOptions: { noInlineConfig: true },
     rules: {
       'no-restricted-imports': [
@@ -91,13 +97,13 @@ export default defineConfig(
         dynamicImportOf('executor', AGENT_TO_EXECUTOR),
         dynamicImportOf('core-write-client', AGENT_TO_WRITE_CLIENT),
         COMPUTED_DYNAMIC_IMPORT,
-        BUILTIN_MODULE_LOOKUP,
+        ...LOADER_SYNTAX,
       ],
     },
   },
   {
     // 02 G1, the other direction: the executor never imports the agent module.
-    files: ['apps/api/src/executor/**/*.{ts,tsx,mts,cts}'],
+    files: ['apps/api/src/executor/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
     linterOptions: { noInlineConfig: true },
     rules: {
       'no-restricted-imports': [
@@ -116,7 +122,7 @@ export default defineConfig(
         'error',
         dynamicImportOf('agent', EXECUTOR_TO_AGENT),
         COMPUTED_DYNAMIC_IMPORT,
-        BUILTIN_MODULE_LOOKUP,
+        ...LOADER_SYNTAX,
       ],
     },
   },
