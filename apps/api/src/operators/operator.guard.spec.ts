@@ -17,6 +17,14 @@ import { parseOperatorTokens, type Operator } from './operator-tokens.js';
 const ANA = 'dev-operator-ana-token-0123456789';
 const UNAUTHORIZED = 401;
 
+@Controller('unguarded')
+class UnguardedController {
+  @Get()
+  who(@CurrentOperator() operator: Operator): Operator {
+    return operator;
+  }
+}
+
 @Controller('probe')
 @UseGuards(OperatorGuard)
 class ProbeController {
@@ -31,7 +39,7 @@ let base: string;
 
 beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
-    controllers: [ProbeController],
+    controllers: [ProbeController, UnguardedController],
     providers: [
       OperatorGuard,
       {
@@ -79,4 +87,9 @@ describe('OperatorGuard (02 G3 operator identity)', () => {
       });
     },
   );
+
+  it('refuses a route that reads the operator without the guard', async () => {
+    const response = await fetch(`${base}/unguarded`);
+    expect(response.status).toBe(UNAUTHORIZED);
+  });
 });

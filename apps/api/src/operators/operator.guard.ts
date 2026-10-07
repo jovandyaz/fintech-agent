@@ -14,7 +14,7 @@ import {
   resolveOperator,
 } from './operator-tokens.js';
 
-export const OPERATOR_CREDENTIALS = Symbol('OPERATOR_CREDENTIALS');
+export const OPERATOR_CREDENTIALS = 'OPERATOR_CREDENTIALS';
 
 const BEARER = /^Bearer (\S+)$/i;
 const CHALLENGE = 'Bearer';
@@ -43,8 +43,11 @@ export class OperatorGuard implements CanActivate {
   }
 }
 
-/** The operator `OperatorGuard` resolved for this request. */
+/** The operator `OperatorGuard` resolved for this request; 401 on a route without the guard. */
 export const CurrentOperator = createParamDecorator(
-  (_: unknown, context: ExecutionContext): Operator | undefined =>
-    context.switchToHttp().getRequest<OperatorRequest>().operator,
+  (_: unknown, context: ExecutionContext): Operator => {
+    const { operator } = context.switchToHttp().getRequest<OperatorRequest>();
+    if (!operator) throw new UnauthorizedException();
+    return operator;
+  },
 );

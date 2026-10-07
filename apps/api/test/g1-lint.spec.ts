@@ -17,14 +17,17 @@ const eslint = new ESLint({
   overrideConfig: tseslint.configs.disableTypeChecked,
 });
 
-async function g1Errors(filePath: string, code: string): Promise<string[]> {
+async function boundaryErrors(
+  filePath: string,
+  code: string,
+): Promise<string[]> {
   const [result] = await eslint.lintText(code, { filePath });
   return (result?.messages ?? [])
     .filter((m) => m.severity === 2 && BOUNDARY_MESSAGE.test(m.message))
     .map((m) => m.message);
 }
 
-describe('G1 lint boundary between agent/ and executor/ (02 Process boundary)', () => {
+describe('G1/G4 lint boundary around agent/ and executor/ (02 Process boundary)', () => {
   it.each([
     [
       'a static executor import',
@@ -50,7 +53,7 @@ describe('G1 lint boundary between agent/ and executor/ (02 Process boundary)', 
   ])(
     'fails on %s planted in agent/',
     async (_, code) => {
-      expect(await g1Errors(AGENT_FILE, code)).not.toEqual([]);
+      expect(await boundaryErrors(AGENT_FILE, code)).not.toEqual([]);
     },
     LINT_MS,
   );
@@ -71,7 +74,7 @@ describe('G1 lint boundary between agent/ and executor/ (02 Process boundary)', 
   ])(
     'fails on %s planted in executor/',
     async (_, code) => {
-      expect(await g1Errors(EXECUTOR_FILE, code)).not.toEqual([]);
+      expect(await boundaryErrors(EXECUTOR_FILE, code)).not.toEqual([]);
     },
     LINT_MS,
   );
@@ -183,6 +186,26 @@ describe('G1 lint boundary between agent/ and executor/ (02 Process boundary)', 
       `import { CORE_CLIENT } from '../../approvals/approvals.module.js';\nexport { CORE_CLIENT };\n`,
     ],
     [
+      'the approvals module loaded dynamically from agent/',
+      AGENT_FILE,
+      `export const load = () => import('../../approvals/decide.js');\n`,
+    ],
+    [
+      'the core client provider looked up by its token in agent/',
+      AGENT_FILE,
+      `export const token = 'CORE_CLIENT';\n`,
+    ],
+    [
+      'the decide dependencies looked up by their token in agent/',
+      AGENT_FILE,
+      `export const token = 'DECIDE_DEPS';\n`,
+    ],
+    [
+      'the core key header written as a template literal in agent/',
+      AGENT_FILE,
+      'export const header = `x-core-key`;\n',
+    ],
+    [
       'an inline disable in agent/',
       AGENT_FILE,
       `// eslint-disable-next-line no-restricted-imports\nimport { run } from '../../executor/run.js';\nexport { run };\n`,
@@ -195,7 +218,7 @@ describe('G1 lint boundary between agent/ and executor/ (02 Process boundary)', 
   ])(
     'fails on %s',
     async (_, file, code) => {
-      expect(await g1Errors(file, code)).not.toEqual([]);
+      expect(await boundaryErrors(file, code)).not.toEqual([]);
     },
     LINT_MS,
   );
@@ -204,7 +227,7 @@ describe('G1 lint boundary between agent/ and executor/ (02 Process boundary)', 
     'passes an agent file that imports only the contracts',
     async () => {
       expect(
-        await g1Errors(
+        await boundaryErrors(
           AGENT_FILE,
           `import { maskPii } from '@fintech-agent/contracts';\nexport const mask = maskPii;\n`,
         ),

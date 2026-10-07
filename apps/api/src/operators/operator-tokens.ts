@@ -5,6 +5,9 @@ const FIELD_SEPARATOR = ':';
 const ENTRY_FIELDS = 3;
 const MIN_TOKEN_CHARS = 24;
 const NAME_PATTERN = /^[a-z0-9_-]+$/;
+// The guard reads a bearer token as one run of visible ASCII, so any other
+// character would parse here and never authenticate.
+const TOKEN_PATTERN = /^[\x21-\x7E]+$/;
 
 /** One operator key, held only as the SHA-256 of its token. */
 export interface OperatorCredential {
@@ -44,6 +47,9 @@ export function parseOperatorTokens(raw: string): OperatorCredential[] {
     }
     if (token.length < MIN_TOKEN_CHARS) {
       refuse(index, `has a token shorter than ${MIN_TOKEN_CHARS} characters`);
+    }
+    if (!TOKEN_PATTERN.test(token)) {
+      refuse(index, 'has a token with a character outside visible ASCII');
     }
     const digest = digestOf(token);
     const key = `${operatorId}${FIELD_SEPARATOR}${keyId}`;

@@ -48,6 +48,17 @@ describe('canary templates (02 G3)', () => {
     },
   );
 
+  it('gives every canary its own customer text', () => {
+    const texts = CANARY_TEMPLATES.map(({ seed }) => seed.text);
+    expect(new Set(texts).size).toBe(texts.length);
+  });
+
+  it('keeps digits out of every draft, as the validator would demand', () => {
+    for (const { seed } of CANARY_TEMPLATES) {
+      expect(seed.draftReply).not.toMatch(/\d/);
+    }
+  });
+
   it('never names itself', () => {
     const seeds = CANARY_TEMPLATES.map(({ seed }) => seed);
     expect(JSON.stringify(seeds).toLowerCase()).not.toMatch(

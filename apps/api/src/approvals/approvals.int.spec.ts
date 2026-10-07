@@ -56,13 +56,16 @@ const CORE: Record<string, Transaction> = {
 };
 
 let coreDown = false;
+let coreCalls = 0;
 const fakeCore: CoreClient = {
   customer: () => Promise.resolve(null),
   transactions: () => Promise.resolve(null),
-  transaction: (id) =>
-    coreDown
+  transaction: (id) => {
+    coreCalls += 1;
+    return coreDown
       ? Promise.reject(new CoreUnavailableError('down'))
-      : Promise.resolve(CORE[id] ?? null),
+      : Promise.resolve(CORE[id] ?? null);
+  },
 };
 
 let db: TestDatabase;
@@ -408,6 +411,33 @@ describe('override and forcing function (02 G3)', () => {
     ).toBe(STATUS.ok);
   });
 
+  it('requires the check-off when Persist left no tier', async () => {
+    const id = await proposal({ tier: null });
+    expect((await decide(id, approve())).status).toBe(STATUS.badRequest);
+    expect(
+      (await decide(id, approve({ reviewed_transaction_ids: ['tx_c1'] })))
+        .status,
+    ).toBe(STATUS.ok);
+  });
+
+  it('refuses reviewed ids the action does not name, even with no check-off due', async () => {
+    const id = await proposal();
+    const response = await decide(
+      id,
+      approve({ reviewed_transaction_ids: ['012180001234567891'] }),
+    );
+    expect(response.status).toBe(STATUS.badRequest);
+  });
+
+  it('refuses an override naming more transactions than G2 allows, before reading core', async () => {
+    coreCalls = 0;
+    const id = await proposal();
+    const ids = ['tx_c1', 'tx_c2', 'tx_c3', 'tx_c4', 'tx_c5', 'tx_c6'];
+    const response = await decide(id, approve(override('escalate_fraud', ids)));
+    expect(response.status).toBe(STATUS.badRequest);
+    expect(coreCalls).toBe(0);
+  });
+
   it('answers 503 and leaves the proposal open when core-mock is down', async () => {
     coreDown = true;
     const id = await proposal();
@@ -467,6 +497,29 @@ describe('canaries (02 G3)', () => {
     const [row] = await owner<{ count: string }[]>`
       select count(*) from action_executions where action_id in (${missed}, ${caught})`;
     expect(row?.count).toBe('0');
+  });
+
+  it('counts an override on a canary as a catch: the operator corrected it', async () => {
+    const id = await proposal({
+      canary: true,
+      type: 'none',
+      transactionIds: [],
+    });
+    const response = await decide(
+      id,
+      approve({
+        override: {
+          type: 'open_dispute',
+          transaction_ids: ['tx_c1'],
+          reason_code: 'unrecognized_charge',
+        },
+        reviewed_transaction_ids: ['tx_c1'],
+      }),
+    );
+    expect(await response.json()).toEqual({
+      action_id: id,
+      status: 'canary_caught',
+    });
   });
 
   it('exposes is_canary in no contracts schema', () => {

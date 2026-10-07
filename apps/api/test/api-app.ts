@@ -3,6 +3,7 @@ import type {
   CaseFlag,
   CaseStatus,
   CoreClient,
+  ReviewTier,
 } from '@fintech-agent/contracts';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -43,7 +44,7 @@ export async function startApiApp(
 
 export interface ProposalFixture {
   flags?: CaseFlag[];
-  tier?: 'standard' | 'high';
+  tier?: ReviewTier | null;
   canary?: boolean;
   type?: ActionType;
   transactionIds?: string[];
@@ -67,7 +68,7 @@ export async function seedProposal(
   await owner`
     insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked, status, flags, review_tier, category)
     values (${caseId}, ${`T-${caseId}`}, ${`AC-${key.toUpperCase().padStart(4, '0')}-TEST`}, now(), 'webhook', 'cus_01', 'hola',
-      ${fixture.caseStatus ?? 'needs_review'}, ${owner.json(fixture.flags ?? [])}, ${fixture.tier ?? 'standard'}, 'unrecognized_card_charge')`;
+      ${fixture.caseStatus ?? 'needs_review'}, ${owner.json(fixture.flags ?? [])}, ${fixture.tier === undefined ? 'standard' : fixture.tier}, 'unrecognized_card_charge')`;
   await owner`
     insert into agent_runs (id, case_id, variant, model, prompt_version)
     values (${runId}, ${caseId}, 'v1', 'model', 'p1')`;
