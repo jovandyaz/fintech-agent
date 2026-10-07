@@ -55,6 +55,14 @@ export const REJECT_CODES = [
 ] as const;
 export type RejectCode = (typeof REJECT_CODES)[number];
 
+/** The validator codes a reply fails on, the draft and the operator's final reply alike (02 G3, G5). */
+export const REPLY_CHECK_CODES = [
+  'PII_IN_REPLY',
+  'LINK_IN_REPLY',
+  'AUTH_FACTOR_REQUEST',
+] as const;
+export type ReplyCheckCode = (typeof REPLY_CHECK_CODES)[number];
+
 const MAX_QUOTE_CHARS = 200;
 
 /** `quote` is verbatim from the chunk; the validator checks it (CITATION_QUOTE_MISMATCH). */
