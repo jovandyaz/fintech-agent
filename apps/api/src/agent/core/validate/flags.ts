@@ -49,12 +49,19 @@ function actionFactMismatch(
   );
 }
 
+/**
+ * The velocity half of `first_party_signal` (02 G3): it rests on the
+ * database count alone, so it holds even when the run saw nothing.
+ */
+export const velocitySignal = (priorOpenDisputes: number): boolean =>
+  priorOpenDisputes >= FIRST_PARTY_PRIOR_DISPUTES;
+
 function firstPartySignal(
   subject: FlagSubject,
   evidence: RunEvidence,
   priorOpenDisputes: number,
 ): boolean {
-  if (priorOpenDisputes >= FIRST_PARTY_PRIOR_DISPUTES) return true;
+  if (velocitySignal(priorOpenDisputes)) return true;
   const action = subject.proposed_action;
   if (action.type !== 'open_dispute') return false;
   return action.transaction_ids.some((id) => {
