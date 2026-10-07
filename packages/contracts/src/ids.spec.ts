@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { isFolio, isRegistryId, newFolio } from './ids.js';
+import {
+  ID_PREFIXES,
+  isFolio,
+  isRegistryId,
+  newFolio,
+  newRegistryId,
+  registryIdPattern,
+} from './ids.js';
 import { maskPii } from './mask.js';
 
 const FOLIO_SAMPLES = 2_000;
@@ -50,5 +57,26 @@ describe('newFolio', () => {
     expect(isFolio('AC-4111-1111')).toBe(false);
     expect(isFolio('AC-K7Q3-1111')).toBe(false);
     expect(isFolio('AC-K7Q3-M9X2')).toBe(true);
+  });
+});
+
+describe('newRegistryId', () => {
+  it.each(ID_PREFIXES)(
+    'mints a %s id the registry and the masker accept',
+    (prefix) => {
+      for (let i = 0; i < 50; i += 1) {
+        const id = newRegistryId(prefix);
+        expect(id).toMatch(registryIdPattern(prefix));
+        expect(isRegistryId(id)).toBe(true);
+        expect(maskPii(id)).toBe(id);
+      }
+    },
+  );
+
+  it('does not repeat across many draws', () => {
+    const ids = new Set(
+      Array.from({ length: 1000 }, () => newRegistryId('case')),
+    );
+    expect(ids.size).toBe(1000);
   });
 });
