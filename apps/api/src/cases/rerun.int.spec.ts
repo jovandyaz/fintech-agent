@@ -12,6 +12,7 @@ import {
 
 const STATUS = {
   ok: 200,
+  badRequest: 400,
   unauthorized: 401,
   notFound: 404,
   conflict: 409,
@@ -155,6 +156,10 @@ describe('manual re-runs (02 G3)', () => {
       (responses) => responses.map(({ status }) => status).sort(),
     );
     expect(statuses).toEqual([STATUS.ok, STATUS.conflict]);
+  });
+
+  it('answers 400 for a case id outside the registry format', async () => {
+    expect((await rerun('Case-X1')).status).toBe(STATUS.badRequest);
   });
 
   it('answers 404 for an unknown case and 401 without a token', async () => {

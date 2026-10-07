@@ -226,6 +226,11 @@ describe('approval gate (02 G3)', () => {
     expect(await auditRows(id)).toHaveLength(1);
   });
 
+  it('answers 400 for an action id outside the registry format', async () => {
+    const response = await decide('not-an-action', approve());
+    expect(response.status).toBe(STATUS.badRequest);
+  });
+
   it('answers 404 for an unknown action', async () => {
     expect((await decide('act_nope', approve())).status).toBe(STATUS.notFound);
   });
