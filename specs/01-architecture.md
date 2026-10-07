@@ -150,7 +150,7 @@ A customer with 200 movements cannot overflow the window: the list tool is pagin
 | --- | --- |
 | Provider timeout | `timeout.stepMs` / `totalMs`; counts as a retryable error |
 | 429 / 529 / 5xx | SDK retries, max 2, honoring `retry-after`; then job-level retry with backoff |
-| Provider spend limit (`429` `enforced_spend_limit_reached`, or `400` "specified API usage limits") | Not retryable, like `no_api_key`: `error_code = provider_spend_limit`. A dedicated Anthropic workspace with its own spend limit backs `RUN_COST_CEILING_USD` (README) |
+| Provider spend limit (`429` `enforced_spend_limit_reached`, or `400` "specified API usage limits" or "specified workspace API usage limits") | Not retryable, like `no_api_key`: `error_code = provider_spend_limit`. A dedicated Anthropic workspace with its own spend limit backs `RUN_COST_CEILING_USD` (README) |
 | Provider outage (5 consecutive `429`/`529`/`5xx` after SDK retries) | Worker circuit breaker: stops claiming for 60 s, then half-open with one case; attempts are not consumed while open, so an outage does not turn every case `failed` |
 | Redactor error or timeout | Continue on `text_masked`; `redaction` guard step marked `degraded`; counted for the alert |
 | Agent turned off (`AGENT_MODE=off`) | No model call; case → `needs_review`, `action = none`, `stop_reason = agent_disabled`; console banner |

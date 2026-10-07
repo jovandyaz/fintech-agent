@@ -1,5 +1,10 @@
+import { CLOCK_CUE, LAST_HOUR, MINUTES_PER_HOUR } from './clock.js';
+
 const THOUSAND = 1000;
 const LONE_THOUSAND = 'mil';
+// "Un 100%": an article before a written figure is no figure of its own.
+const ARTICLES: ReadonlySet<string> = new Set(['un', 'una', 'uno']);
+const DIGIT_NEXT = /^\s\d/;
 // "¡Mil gracias!" is courtesy, not a figure. Denied by the noun that follows,
 // so a lone "mil" in any other slot ("recibirás mil") still reads as 1,000.
 const COURTESY_NEXT =
@@ -77,6 +82,14 @@ const RUN = new RegExp(
   String.raw`(?<!\d\s?|\bpor\s)\b(?:${WORD})(?:\s+(?:y\s+)?(?:${WORD}))*\b`,
   'g',
 );
+const AND = /\s+y\s+/;
+const THOUSAND_WORD = /\bmil\b/;
+// After "a la(s)", an hour "y" minutes is never one sum, as with digits:
+// "a las diez y cinco del 6" must not read as 15:00. Any other "y" there
+// joins as usual ("a las mil y quinientos"). Sticky, so the cue is checked
+// right before a run instead of searched for in all the text before it.
+const AFTER_CLOCK_CUE = new RegExp(`(?<=${CLOCK_CUE})`, 'y');
+const DECIMAL_BASE = 10;
 const WHITESPACE = /\s+/;
 // Grouped like a written figure, so "cinco mil" reads as the amount "5,000".
 const THOUSANDS_GROUP = /\B(?=(\d{3})+(?!\d))/g;
@@ -97,18 +110,68 @@ function valueOf(run: string): number {
   return total + group;
 }
 
+// The largest power of ten that divides the figure: 100 for "ciento", 10
+// for "veinte", 1 for "treinta y cinco".
+function lowestPlace(value: number): number {
+  if (value === 0) return 0;
+  let place = 1;
+  while (value % (place * DECIMAL_BASE) === 0) place *= DECIMAL_BASE;
+  return place;
+}
+
+// "y" joins when the next word is below the lowest place of what precedes
+// it ("ciento y cinco", "treinta y cinco mil"); otherwise it separates two
+// figures ("dos y tres días", "treinta y cinco y cuarenta", "dos mil y tres
+// mil": a figure under a million has one "mil").
+function figuresOf(run: string, afterClock: boolean): number[] {
+  const groups: string[] = [];
+  for (const part of run.split(AND)) {
+    const previous = groups.at(-1);
+    const next = WORD_VALUES[part.split(WHITESPACE)[0]!] ?? 0;
+    const previousIsHour = afterClock && groups.length === 1;
+    if (
+      previous !== undefined &&
+      next < lowestPlace(valueOf(previous)) &&
+      !(THOUSAND_WORD.test(previous) && THOUSAND_WORD.test(part)) &&
+      !(
+        previousIsHour &&
+        valueOf(previous) <= LAST_HOUR &&
+        valueOf(part) < MINUTES_PER_HOUR
+      )
+    ) {
+      groups[groups.length - 1] = `${previous} ${part}`;
+    } else {
+      groups.push(part);
+    }
+  }
+  return groups.map(valueOf);
+}
+
+const isAfterClockCue = (text: string, offset: number): boolean => {
+  AFTER_CLOCK_CUE.lastIndex = offset;
+  return AFTER_CLOCK_CUE.test(text);
+};
+
+const keepsWord = (run: string, rest: string): boolean =>
+  (run === LONE_THOUSAND && COURTESY_NEXT.test(rest)) ||
+  (ARTICLES.has(run) && DIGIT_NEXT.test(rest));
+
 /**
  * Rewrites Spanish number words as digits ("cuarenta y cinco días" → "45
  * días", "cinco mil" → "5,000") so a figure spelled out is read like one
- * written in digits. Takes text already lowercased and stripped of accents. "y" joins words only
- * between two number words; articles ("un", "una") become 1, which only
- * matters before a unit or a currency. A lone "mil" before a courtesy noun
- * ("mil gracias") stays a word.
+ * written in digits. Takes text already lowercased and stripped of accents.
+ * "y" joins by place value, never two parts that each carry "mil", and
+ * after "a la(s)" never an hour and its minutes. An article ("un", "una", "uno")
+ * becomes 1 unless a written figure follows it ("un 100%"); a lone "mil"
+ * before a courtesy noun ("mil gracias") stays a word.
  */
 export function foldNumberWords(text: string): string {
-  return text.replace(RUN, (run: string, offset: number) =>
-    run === LONE_THOUSAND && COURTESY_NEXT.test(text.slice(offset + run.length))
+  return text.replace(RUN, (run: string, offset: number) => {
+    const rest = text.slice(offset + run.length);
+    return keepsWord(run, rest)
       ? run
-      : String(valueOf(run)).replace(THOUSANDS_GROUP, ','),
-  );
+      : figuresOf(run, isAfterClockCue(text, offset))
+          .map((figure) => String(figure).replace(THOUSANDS_GROUP, ','))
+          .join(' y ');
+  });
 }

@@ -54,13 +54,13 @@ function firstPartySignal(
   evidence: RunEvidence,
   priorOpenDisputes: number,
 ): boolean {
+  if (priorOpenDisputes >= FIRST_PARTY_PRIOR_DISPUTES) return true;
   const action = subject.proposed_action;
   if (action.type !== 'open_dispute') return false;
-  const twoFactorPurchase = action.transaction_ids.some((id) => {
+  return action.transaction_ids.some((id) => {
     const factors = evidence.transactions.get(id)?.auth_factors;
     return factors !== null && factors !== undefined && factors >= TWO_FACTORS;
   });
-  return twoFactorPurchase || priorOpenDisputes >= FIRST_PARTY_PRIOR_DISPUTES;
 }
 
 /**

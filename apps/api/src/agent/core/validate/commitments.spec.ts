@@ -153,3 +153,48 @@ describe('hasCommitment, the forms 02 G5 names', () => {
     }
   });
 });
+
+describe('hasCommitment, any person of the listed verbs', () => {
+  it('finds a promise in the singular, the third person or with "ir a"', () => {
+    for (const text of [
+      'Hola, te reembolsarán el cargo mañana.',
+      'Se te devolverá tu dinero.',
+      'Te reembolsaré el cargo.',
+      'Le abonarán el importe hoy.',
+      'Te lo depositarán el lunes.',
+      'Te garantizo una respuesta.',
+      'Te van a reembolsar el cargo.',
+      'Mañana te devuelven el dinero.',
+      'El banco te abona el monto.',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+    expect(hasCommitment('No te reembolsarán ese cargo.')).toBe(false);
+  });
+
+  it('reads through letters from another script that look Latin', () => {
+    expect(hasCommitment('te rеembolsaremos')).toBe(true);
+  });
+});
+
+describe('hasCommitment, deadlines given as a range', () => {
+  it.each([
+    'En 2-3 días hábiles te llega tu reembolso.',
+    'Entre 2 y 3 días te llega el abono.',
+    'En 2 a 3 días tendrás tu dinero.',
+    'Dentro de 2–3 días recibirás tu dinero.',
+  ])('finds "%s"', (text) => {
+    expect(hasCommitment(text)).toBe(true);
+  });
+});
+
+describe('hasCommitment, deadlines with decimals or thousands', () => {
+  it.each([
+    'En 1,5 días te llega el abono.',
+    'En 1.5 días tendrás tu dinero.',
+    'En 1.000 días tendrás tu dinero.',
+    'En mil días te llega el abono.',
+  ])('finds "%s"', (text) => {
+    expect(hasCommitment(text)).toBe(true);
+  });
+});

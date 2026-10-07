@@ -107,7 +107,8 @@ const LAST_FOUR = new RegExp(
   String.raw`(?:termina(?:da)?\s+en|terminaci[oó]n|[uú]ltimos?\s+(?:4|cuatro)(?:\s+d[ií]gitos)?)\s*:?\s*\d{4}(?!\d)${NOT_JOINED_AFTER}`,
   'gi',
 );
-const REGISTRY_ID = new RegExp(
+/** A registry id (`tx_…`, `case_…`) anywhere in a text, never inside a word. */
+export const REGISTRY_ID_IN_TEXT = new RegExp(
   String.raw`(?<![\p{L}\d_])(?:${ID_PREFIXES.join('|')})_${ID_PAYLOAD_PATTERN}(?![0-9a-z_])`,
   'gu',
 );
@@ -143,7 +144,7 @@ const EXEMPTIONS: readonly Exemption[] = [
   { pattern: LAST_FOUR, maxDigits: LAST_FOUR_DIGITS_CAP },
   { pattern: POSTAL_CODE, maxDigits: POSTAL_DIGITS_CAP },
   { pattern: YEAR, maxDigits: YEAR_DIGITS_CAP },
-  { pattern: REGISTRY_ID, maxDigits: REGISTRY_DIGITS_CAP },
+  { pattern: REGISTRY_ID_IN_TEXT, maxDigits: REGISTRY_DIGITS_CAP },
   { pattern: FOLIO, maxDigits: FOLIO_DIGITS_CAP },
 ];
 
@@ -645,16 +646,26 @@ const foldMixedScript = (token: string): string =>
     ? token.replace(HOMOGLYPH, (c) => HOMOGLYPHS[c] ?? c)
     : token;
 
-function fold(text: string): string {
-  const normalized = text
-    .normalize('NFKC')
-    .replace(INVISIBLE, '')
-    .replace(COMBINING, '')
-    .replace(CONTROL, '')
-    .replace(ENCODED_AT, '@')
+/**
+ * Latin look-alikes from Cyrillic or Greek inside a Latin word become Latin,
+ * and decimal digits of any script (and CJK numerals) become ASCII, so a
+ * check that reads letters or digits cannot be passed by swapping scripts.
+ */
+export const foldLookalikes = (text: string): string =>
+  text
     .replace(MIXED_SCRIPT_TOKEN, foldMixedScript)
     .replace(CJK_DIGIT, (c) => CJK_DIGITS[c] ?? '0')
-    .replace(ND_DIGIT, toAsciiDigit)
+    .replace(ND_DIGIT, toAsciiDigit);
+
+function fold(text: string): string {
+  const normalized = foldLookalikes(
+    text
+      .normalize('NFKC')
+      .replace(INVISIBLE, '')
+      .replace(COMBINING, '')
+      .replace(CONTROL, '')
+      .replace(ENCODED_AT, '@'),
+  )
     .replace(OTHER_NUMERIC, '0')
     .replace(CONFUSABLE_TOKEN, (token) =>
       token.replace(ZERO_LOOKALIKE, '0').replace(ONE_LOOKALIKE, '1'),
@@ -729,6 +740,16 @@ function classifyWindow(groups: string[]): DigitKind | null {
   }
   const phone = contiguous ? isContiguousPhone(digits) : isGroupedPhone(groups);
   return phone ? 'phone' : null;
+}
+
+const VISIBLE_TAIL = new RegExp(String.raw`${MASK}(\d{${VISIBLE_DIGITS}})$`);
+
+/**
+ * The last digits a value masked by `maskPii` still shows ("CLABE ••••7781"
+ * → "7781"), or `undefined` when it shows none.
+ */
+export function visibleTailOf(masked: string): string | undefined {
+  return VISIBLE_TAIL.exec(masked)?.[1];
 }
 
 const render = (label: string, tail: string): string =>

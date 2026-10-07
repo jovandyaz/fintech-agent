@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasPii, maskJson, maskPii } from './mask.js';
+import { hasPii, maskJson, maskPii, visibleTailOf } from './mask.js';
 
 const CLABE = '012180001234567899';
 const CLABE_PASSING_LUHN = '012180001234500267';
@@ -12,7 +12,7 @@ const VISA_BASE64 = 'NDExMTExMTExMTExMTExMQ==';
 const AMEX = '378282246310005';
 const NBSP = ' ';
 const NARROW_NBSP = ' ';
-const ZWSP = '​';
+const ZWSP = '\u200b';
 const MAX_MASK_MS_FOR_32KB = 250;
 const TIMED_RUNS = 3;
 const SEPARATORS = /[^\d\p{L}•]/gu;
@@ -960,7 +960,7 @@ describe('maskJson — attack review, round 4', () => {
 describe('hasPii (02 G5 PII_IN_REPLY)', () => {
   it.each([
     ['an ellipsis', 'Gracias… te escribimos pronto.'],
-    ['a no-break space', 'Hola Ana, ya quedó.'],
+    ['a no-break space', 'Hola\u00a0Ana, ya quedó.'],
     ['an ordinal sign', 'Tu aclaración Nº 5 sigue abierta.'],
     ['an emoji with a variation selector', 'Gracias ❤️'],
     ['decomposed accents', 'aclaración'.normalize('NFD')],
@@ -979,5 +979,16 @@ describe('hasPii (02 G5 PII_IN_REPLY)', () => {
     ],
   ])('finds %s', (_, text) => {
     expect(hasPii(text)).toBe(true);
+  });
+});
+
+describe('visibleTailOf', () => {
+  it('returns the last digits a masked value shows', () => {
+    expect(visibleTailOf(maskPii(CLABE))).toBe('7899');
+  });
+
+  it('returns nothing for a value masked with no tail or not masked', () => {
+    expect(visibleTailOf(maskPii('1234 5678'))).toBeUndefined();
+    expect(visibleTailOf('7899')).toBeUndefined();
   });
 });
