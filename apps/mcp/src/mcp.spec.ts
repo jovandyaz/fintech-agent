@@ -5,6 +5,11 @@ import {
   CASE_TOKEN_ISSUER,
   CASE_TOKEN_MAX_CALLS,
   CASE_TOKEN_SCOPE,
+  CardAuthorizationSchema,
+  CustomerViewSchema,
+  MCP_TOOL_NAMES,
+  SpeiStatusSchema,
+  TransactionPageSchema,
   type CardTx,
   type Customer,
   type SpeiTx,
@@ -452,6 +457,30 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
     for (const tool of tools) {
       expect(tool.annotations).toMatchObject(READ_ONLY);
       expect(JSON.stringify(tool.inputSchema)).not.toContain('customer_id');
+    }
+    await client.close();
+  });
+
+  it('returns outputs that parse with their contract schemas, in the contract order', async () => {
+    expect(TOOL_ORDER).toEqual([...MCP_TOOL_NAMES]);
+    const client = await connect(await mint());
+    const outputs = [
+      [CustomerViewSchema, await call(client, 'get_customer')],
+      [TransactionPageSchema, await call(client, 'list_transactions')],
+      [
+        SpeiStatusSchema,
+        await call(client, 'get_spei_status', { transaction_id: speiOut.id }),
+      ],
+      [
+        CardAuthorizationSchema,
+        await call(client, 'get_card_authorization', {
+          transaction_id: cardCharge.id,
+        }),
+      ],
+    ] as const;
+    for (const [schema, { isError, body }] of outputs) {
+      expect(isError).toBe(false);
+      expect(schema.safeParse(body).success).toBe(true);
     }
     await client.close();
   });

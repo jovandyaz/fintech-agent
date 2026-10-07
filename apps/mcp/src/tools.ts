@@ -4,6 +4,8 @@ import {
   MAX_LIST_LIMIT,
   maskJson,
   maskPii,
+  MCP_TOOL_NAMES,
+  SPEI_TYPES,
   TransactionLookupInputSchema,
   type CardAuthorization,
   type CaseTokenClaims,
@@ -21,9 +23,19 @@ import type { CallToolResult, McpServer } from '@modelcontextprotocol/server';
 
 import { READ_ONLY } from './annotations.js';
 import { CoreUnavailableError, type CoreClient } from './core-client.js';
-import type { SecurityEventSink } from './security-events.js';
+import {
+  SECURITY_EVENT_KINDS,
+  type SecurityEventSink,
+} from './security-events.js';
 
 const LAST_FOUR = 4;
+const [
+  GET_CUSTOMER,
+  LIST_TRANSACTIONS,
+  GET_SPEI_STATUS,
+  GET_CARD_AUTHORIZATION,
+] = MCP_TOOL_NAMES;
+const [CROSS_CUSTOMER_LOOKUP] = SECURITY_EVENT_KINDS;
 const MS_PER_SECOND = 1000;
 const TOOL_ERROR = {
   notFound: 'NOT_FOUND',
@@ -83,7 +95,8 @@ const failure = (code: McpToolError): CallToolResult => ({
 const firstName = (fullName: string): string =>
   fullName.trim().split(/\s+/)[0] ?? '';
 
-const isSpei = (tx: Transaction): tx is SpeiTx => tx.type !== 'card_purchase';
+const isSpei = (tx: Transaction): tx is SpeiTx =>
+  (SPEI_TYPES as readonly string[]).includes(tx.type);
 
 function toRow(tx: Transaction): TransactionRow {
   const base = {
@@ -182,7 +195,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     if (tx === null) throw new ToolFailure(TOOL_ERROR.notFound);
     if (tx.customer_id !== claims.sub) {
       const event = {
-        kind: 'cross_customer_lookup',
+        kind: CROSS_CUSTOMER_LOOKUP,
         case_id: claims.case_id,
         run_id: claims.run_id,
         ref_masked: maskPii(id),
@@ -200,14 +213,14 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   }
 
   server.registerTool(
-    'get_customer',
+    GET_CUSTOMER,
     {
       description:
         'The case customer: first name, account status, KYC level, masked CLABE, card last four and card status.',
       annotations: READ_ONLY,
     },
     () =>
-      guarded('get_customer', async (): Promise<CustomerView> => {
+      guarded(GET_CUSTOMER, async (): Promise<CustomerView> => {
         const customer = await core.customer(claims.sub);
         if (customer === null) throw new ToolFailure(TOOL_ERROR.notFound);
         return {
@@ -222,14 +235,14 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   );
 
   server.registerTool(
-    'list_transactions',
+    LIST_TRANSACTIONS,
     {
       description: `The case customer’s transactions, newest first, as compact rows. Filter by type, status, an inclusive date range (from/to, ISO 8601 datetimes with offset such as 2026-10-02T00:00:00-06:00), amount range or a text query on the merchant or counterparty; page with limit (max ${MAX_LIST_LIMIT}) and cursor. \`total\` says how many match.`,
       inputSchema: ListTransactionsInputSchema,
       annotations: READ_ONLY,
     },
     (args) =>
-      guarded('list_transactions', async (): Promise<TransactionPage> => {
+      guarded(LIST_TRANSACTIONS, async (): Promise<TransactionPage> => {
         const query = new URLSearchParams();
         for (const [key, value] of Object.entries(args)) {
           if (value !== undefined) query.set(key, String(value));
@@ -246,7 +259,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   );
 
   server.registerTool(
-    'get_spei_status',
+    GET_SPEI_STATUS,
     {
       description:
         'State of one SPEI transfer of the case customer: timestamps, last four of the tracking key, return, hold or reject reason, the reversal credit of a returned outgoing transfer, and whether a CEP is available.',
@@ -254,7 +267,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       annotations: READ_ONLY,
     },
     ({ transaction_id }) =>
-      guarded('get_spei_status', async (): Promise<SpeiStatus> => {
+      guarded(GET_SPEI_STATUS, async (): Promise<SpeiStatus> => {
         const tx = await ownTransaction(transaction_id);
         if (!isSpei(tx)) throw new ToolFailure(TOOL_ERROR.wrongType);
         return toSpeiStatus(tx);
@@ -262,7 +275,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   );
 
   server.registerTool(
-    'get_card_authorization',
+    GET_CARD_AUTHORIZATION,
     {
       description:
         'Authorization of one card purchase of the case customer: decision, decline reason, merchant descriptor and brand, channel and the number of independent authentication factors (3DS counts here).',
@@ -270,13 +283,10 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       annotations: READ_ONLY,
     },
     ({ transaction_id }) =>
-      guarded(
-        'get_card_authorization',
-        async (): Promise<CardAuthorization> => {
-          const tx = await ownTransaction(transaction_id);
-          if (isSpei(tx)) throw new ToolFailure(TOOL_ERROR.wrongType);
-          return toCardAuthorization(tx);
-        },
-      ),
+      guarded(GET_CARD_AUTHORIZATION, async (): Promise<CardAuthorization> => {
+        const tx = await ownTransaction(transaction_id);
+        if (isSpei(tx)) throw new ToolFailure(TOOL_ERROR.wrongType);
+        return toCardAuthorization(tx);
+      }),
   );
 }

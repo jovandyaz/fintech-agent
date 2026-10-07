@@ -9,7 +9,7 @@ export interface SecurityEvent {
   ref_masked: string;
 }
 
-/** Where the MCP server records security events: a log line in this step, the insert-only `copilot_mcp` role from step 4. */
+/** Where the MCP server records security events, one `security_events` row each. */
 export interface SecurityEventSink {
   record: (event: SecurityEvent) => Promise<void>;
 }

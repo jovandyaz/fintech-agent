@@ -13,7 +13,6 @@ const log = (line: Record<string, unknown>): void => {
   console.log(JSON.stringify(line));
 };
 
-// Until step 4 wires the Postgres sink (copilot_mcp role), events are logged.
 const securityEvents: SecurityEventSink = {
   record: (event) => {
     log({ event: 'security_event', ...event });

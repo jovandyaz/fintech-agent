@@ -54,6 +54,7 @@ export type McpToolError = (typeof MCP_TOOL_ERRORS)[number];
 export const MAX_LIST_LIMIT = 25;
 export const DEFAULT_LIST_LIMIT = 10;
 const MAX_QUERY_CHARS = 64;
+const DIGITS_ONLY = /^\d+$/;
 
 // A bare date would be read as UTC midnight and drop most of a Mexico City day.
 const isoInstant = z.iso.datetime({ offset: true });
@@ -76,7 +77,7 @@ export const ListTransactionsInputSchema = z.strictObject({
     .min(1)
     .max(MAX_LIST_LIMIT)
     .default(DEFAULT_LIST_LIMIT),
-  cursor: z.string().regex(/^\d+$/).optional(),
+  cursor: z.string().regex(DIGITS_ONLY).optional(),
 });
 
 export const TransactionLookupInputSchema = z.strictObject({

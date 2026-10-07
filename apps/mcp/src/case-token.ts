@@ -11,7 +11,7 @@ const REQUIRED_CLAIMS = ['sub', 'jti', 'iat', 'exp'];
 
 /**
  * Verifies a case token per RFC 8725: HS256 only, issuer and audience pinned,
- * at most ten minutes of life. Returns null for any token that fails; the
+ * lifetime capped at `CASE_TOKEN_MAX_TTL_S`. Returns null for any token that fails; the
  * caller answers 401 without saying why.
  */
 export async function verifyCaseToken(
