@@ -4,10 +4,9 @@ Snapshot of where the build stands against `specs/04-build-plan.md`, for resumin
 
 ## Where things are
 
-| Branch                | Holds                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main`                | Steps 0–3 done; Step 4 done through 4e Task 7. Every commit passed `pnpm verify` on Node 24 and 22, plus the integration suite on G-path commits. |
-| `wip/step-4e-persist` | Step 4e Task 8 (Persist), unfinished: two integration tests fail on purpose until the canary audit rows exist (see below).                        |
+All work is on `main`. Steps 0–3 are done, and Step 4 is done through 4e Task 8 (Persist). Every commit passed `pnpm verify` on Node 24 and 22, plus the integration suite on G-path commits.
+
+The remote branch `wip/step-4e-persist` (8f013a1) is a superseded snapshot of Task 8 with two failing tests. The reviewed version landed on `main` as c7c1b9b and 9afd6a5. Delete that branch when convenient.
 
 `build-log/progress.md` is a copy of the ledger (`.superpowers/sdd/04-build-plan/progress.md`, git-ignored). Its `Ruling:` and `Owner:` lines are binding decisions and carried obligations. `build-log/step-4*-plan.md` are the per-substep plans. To resume on another machine, copy `build-log/*` into `.superpowers/sdd/04-build-plan/`.
 
@@ -15,24 +14,10 @@ Snapshot of where the build stands against `specs/04-build-plan.md`, for resumin
 
 ### Step 4e: Agent loop, Intake, Persist and the worker (`build-log/step-4e-plan.md`)
 
-1. **Task 8, Persist (in progress, on `wip/step-4e-persist`).**
-   - Done:
-     - `apps/api/src/agent/core/persist.ts`:
-       - `settle()` is pure. It fills the draft, re-runs `replyViolations` on the filled reply and computes the flags and the tier.
-       - `persistRun()` runs in one transaction, fenced by the claim.
-     - `apps/api/src/cases/proposal-audit.ts`: the audit row of a proposal.
-     - 15 unit and 15 integration tests; 30 mutants killed.
-   - To do:
-     - `injectCanaries` and `cloneCanary` (`apps/api/src/canaries/inject.ts`) must write `proposalAudit(...)` with the mirrored run's variant and `prompt_version`, and the case's flags and tier. The failing tests are in `inject.int.spec.ts` and `rerun.int.spec.ts`.
-     - Ledger the rulings below.
-     - Run `reviewing-pr` + `invariant-reviewer`, a fresh verifier, then commit.
-   - Rulings to record:
-     - A fallback writes no `resolutions` row: 01 calls that table "validated agent output", its `category` is NOT NULL, and `decide()` already reads a missing draft as empty.
-     - The 120-day window counts on `decided_at`.
-     - No code marks a proposal on a canary case `is_canary`: the claim never takes such a case, so the path is unreachable.
-     - A stopped run's `policy_data_conflict` comes from `policyConflicts(evidence, stateRules)`.
-2. **Task 9, `runCase()` and the worker.**
-   - Intake: kill switch → `settle(AGENT_DISABLED)`; redactor; injection scan; store `text_redacted`.
+1. **Task 9, `runCase()` and the worker.**
+   - Intake: kill switch → `persistRun` with `agentDisabled(injectionSignal)`; redactor; injection scan; store `text_redacted`.
+   - Insert the run row `running` with `started_at` = the worker's `now`; `persistRun` needs that row, the kill switch included.
+   - Pass the validator's `stateRules` and a masking logger to `persistRun`.
    - Commit the run row before minting the case token.
    - `runAgent` → `persistRun`.
    - Map provider errors to the run status and the case retry (`releaseForRetry`). Put the run `error_code` values in one `as const` set.
@@ -40,10 +25,10 @@ Snapshot of where the build stands against `specs/04-build-plan.md`, for resumin
    - Close the MCP client in `finally`.
    - Nest wiring and compose env.
    - Add the 02 "Agent loop" rows for timeout, 429, spend limit, breaker, no key and kill switch to `agent.spec.ts`.
-3. **Task 10, masking at sinks e2e.**
+2. **Task 10, masking at sinks e2e.**
    - `apps/api/test/pii-sinks.e2e.spec.ts`: scan `run_steps`, `audit_log`, logger output and an in-memory OTel exporter. Include the telemetry `recordInputs/recordOutputs: false` check.
    - Mint a token against the real MCP server.
-4. **Close-out.**
+3. **Close-out.**
    - Spec docs for anything the code made untrue.
    - A fresh verifier, including `docker compose up` (seed → api → executor).
    - A live probe with `ANTHROPIC_API_KEY` for ruling I5: `activeTools: []` with `tool_use` blocks in history. If the API rejects it, change the last-step strategy in a `docs:` commit.
