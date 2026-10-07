@@ -23,6 +23,7 @@ import {
   toolCallResponse,
   usage,
 } from '../../test/mock-model.js';
+import { captureSpans } from '../../test/spans.js';
 import {
   CARD_TX,
   NOW,
@@ -185,6 +186,20 @@ describe('runAgent (01 §The agentic node)', () => {
       kind: 'validation',
       outputMasked: { outcome: 'passed', codes: [] },
     });
+  });
+
+  it('traces its calls with no case text, tool data or reply in any span (02 G6, Traces)', async () => {
+    const capture = captureSpans({ masked: false });
+    const model = inOrder(...investigation, () =>
+      objectResponse(resolutionOf()),
+    );
+    await run(inputOf(model, { telemetry: capture.telemetry }));
+    expect(capture.spans().length).toBeGreaterThan(investigation.length);
+    const text = capture.text();
+    expect(text).not.toContain('AMZN');
+    expect(text).not.toContain(CARD_TX);
+    expect(text).not.toContain('cargo no reconocido');
+    expect(text).not.toContain(resolutionOf().draft_reply);
   });
 
   it('repairs a refund action, which the schema refuses, with the SCHEMA code as a new user turn', async () => {

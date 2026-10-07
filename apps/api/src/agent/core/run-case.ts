@@ -6,7 +6,7 @@ import {
   type SecurityEventKind,
   type StepKind,
 } from '@fintech-agent/contracts';
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, Telemetry } from 'ai';
 import { and, eq } from 'drizzle-orm';
 
 import type { ApiConfig } from '../../config.js';
@@ -97,6 +97,8 @@ export interface RunCaseDeps {
   random: () => number;
   /** Receives events whose free text `runCase` has already masked (02 G6). */
   log: (event: Record<string, unknown>) => void;
+  /** Traces the redactor and agent calls; its span processor must be wrapped in `maskingSpanProcessor`. */
+  telemetry?: Telemetry;
 }
 
 /**
@@ -280,6 +282,7 @@ export async function runCase(
         REDACTOR_TIMEOUT_MS,
         (deadlineMs - deps.clock()) * REDACTOR_SHARE_OF_ATTEMPT,
       ),
+      telemetry: deps.telemetry,
     });
     if (redaction.step) {
       trace.push(redactionRecord(redaction.step, config.redactorModelId));
@@ -327,6 +330,7 @@ export async function runCase(
       clock: deps.clock,
       log: deps.log,
       trace,
+      telemetry: deps.telemetry,
     });
     return await persist({ outcome, stateRules });
   } catch (error) {
