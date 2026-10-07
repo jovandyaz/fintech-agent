@@ -4,7 +4,7 @@ import type {
   Customer,
   SpeiTx,
   TxStatus,
-} from './types.js';
+} from '@fintech-agent/contracts';
 
 export const SCENARIO_IDS = [
   'SPEI-OUT-01',

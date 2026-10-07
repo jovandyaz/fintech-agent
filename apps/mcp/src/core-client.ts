@@ -1,4 +1,12 @@
-import type { Customer, Transaction } from '@fintech-agent/data';
+import {
+  CorePageSchema,
+  CustomerRecordSchema,
+  TransactionRecordSchema,
+  type CorePage,
+  type Customer,
+  type Transaction,
+} from '@fintech-agent/contracts';
+import type { z } from 'zod';
 
 const CORE_TIMEOUT_MS = 5_000;
 const NOT_FOUND = 404;
@@ -8,13 +16,7 @@ export type FetchLike = (
   init?: RequestInit,
 ) => Promise<Response>;
 
-export interface CorePage {
-  items: Transaction[];
-  total: number;
-  next_cursor: string | null;
-}
-
-/** Thrown when core-mock is unreachable or answers an error other than 404. */
+/** Thrown when core-mock is unreachable, answers an error other than 404, or answers something outside its contract. */
 export class CoreUnavailableError extends Error {}
 
 export interface CoreClient {
@@ -28,15 +30,15 @@ export interface CoreClient {
 
 /**
  * Read-only client for core-mock. It authenticates with the MCP server's own
- * read key; the case token never leaves this process (02 G4). A missing record
- * resolves to null.
+ * read key; the case token never leaves this process (02 G4). Every answer is
+ * parsed against its contract schema; a missing record resolves to null.
  */
 export function createCoreClient(options: {
   baseUrl: string;
   readKey: string;
   fetch: FetchLike;
 }): CoreClient {
-  async function get<T>(path: string): Promise<T | null> {
+  async function get<T>(path: string, schema: z.ZodType<T>): Promise<T | null> {
     let response: Response;
     try {
       response = await options.fetch(new URL(path, options.baseUrl), {
@@ -50,20 +52,28 @@ export function createCoreClient(options: {
     if (!response.ok) {
       throw new CoreUnavailableError(`core answered ${response.status}`);
     }
+    let body: unknown;
     try {
-      return (await response.json()) as T;
+      body = await response.json();
     } catch {
       throw new CoreUnavailableError('core answered a body that is not JSON');
     }
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      throw new CoreUnavailableError('core answered outside its contract');
+    }
+    return parsed.data;
   }
 
   const segment = encodeURIComponent;
   return {
-    customer: (id) => get<Customer>(`/customers/${segment(id)}`),
-    transaction: (id) => get<Transaction>(`/transactions/${segment(id)}`),
+    customer: (id) => get(`/customers/${segment(id)}`, CustomerRecordSchema),
+    transaction: (id) =>
+      get(`/transactions/${segment(id)}`, TransactionRecordSchema),
     transactions: (customerId, query) =>
-      get<CorePage>(
+      get(
         `/customers/${segment(customerId)}/transactions?${query.toString()}`,
+        CorePageSchema,
       ),
   };
 }

@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@fintech-agent/data": "workspace:*",
+    "@fintech-agent/contracts": "workspace:*",
     "tsx": "4.23.15",
     "zod": "^4.6.5"
   }

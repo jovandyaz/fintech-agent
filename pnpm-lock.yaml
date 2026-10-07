@@ -196,9 +196,9 @@ importers:
 
   apps/core-mock:
     dependencies:
-      '@fintech-agent/data':
+      '@fintech-agent/contracts':
         specifier: workspace:*
-        version: link:../../data
+        version: link:../../packages/contracts
       tsx:
         specifier: 4.23.15
         version: 4.23.15
@@ -211,9 +211,6 @@ importers:
       '@fintech-agent/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@fintech-agent/data':
-        specifier: workspace:*
-        version: link:../../data
       '@modelcontextprotocol/node':
         specifier: 2.1.1
         version: 2.1.1(@modelcontextprotocol/server@2.3.1)

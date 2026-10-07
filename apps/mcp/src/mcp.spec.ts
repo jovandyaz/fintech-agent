@@ -7,18 +7,20 @@ import {
   CASE_TOKEN_SCOPE,
 } from '@fintech-agent/contracts';
 import { createCoreMock, type CoreMock } from '@fintech-agent/core-mock';
-import type { CardTx, Customer, SpeiTx } from '@fintech-agent/data';
+import type { CardTx, Customer, SpeiTx } from '@fintech-agent/contracts';
 import {
   Client,
+  InMemoryTransport,
   StreamableHTTPClientTransport,
 } from '@modelcontextprotocol/client';
+import { McpServer } from '@modelcontextprotocol/server';
 import { SignJWT, UnsecuredJWT } from 'jose';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { READ_ONLY } from './annotations.js';
 import { createMcpApp, type McpApp } from './app.js';
 import type { SecurityEvent } from './security-events.js';
-import { createCallBudget } from './tools.js';
+import { createCallBudget, registerTools } from './tools.js';
 
 const CASE_TOKEN_KEY = 'test-case-token-key-with-at-least-32-bytes';
 const WEBHOOK_SECRET = 'test-webhook-secret-with-at-least-32-bytes';
@@ -681,18 +683,29 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
     await client.close();
   });
 
-  it('answers an unexpected failure with INTERNAL, never the raw error', async () => {
+  it('answers a core record that breaks the contract with UPSTREAM_UNAVAILABLE', async () => {
     const client = await connect(await mint());
     stubbed = () =>
       Promise.resolve(Response.json({ first_name: PLANTED_PHONE }));
-    const outcome = await client.callTool({
-      name: 'get_customer',
-      arguments: {},
+    expect(await call(client, 'get_customer')).toEqual({
+      isError: true,
+      body: { error: 'UPSTREAM_UNAVAILABLE' },
     });
-    expect(outcome.isError).toBe(true);
-    expect(outcome.content).toEqual([
-      { type: 'text', text: JSON.stringify({ error: 'INTERNAL' }) },
-    ]);
+    await client.close();
+  });
+
+  it('never turns an ownerless core record into a fraud signal', async () => {
+    const client = await connect(await mint());
+    const ownerless = Object.fromEntries(
+      Object.entries(foreignCharge).filter(([key]) => key !== 'customer_id'),
+    );
+    stubbed = () => Promise.resolve(Response.json(ownerless));
+    expect(
+      await call(client, 'get_card_authorization', {
+        transaction_id: foreignCharge.id,
+      }),
+    ).toEqual({ isError: true, body: { error: 'UPSTREAM_UNAVAILABLE' } });
+    expect(events).toEqual([]);
     await client.close();
   });
 
@@ -718,5 +731,45 @@ describe('per-token call budget (02 G4)', () => {
     clock = EXPIRES_AT + 1;
     expect(budget.take('jti_a', EXPIRES_AT)).toBe(false);
     expect(budget.take('jti_b', EXPIRES_AT)).toBe(false);
+  });
+});
+
+describe('tool failures nobody planned for (02 G6)', () => {
+  it('answer INTERNAL with no raw message and log it masked', async () => {
+    const failing = new Error(`boom for card ${PLANTED_PAN}`);
+    const lines: Record<string, unknown>[] = [];
+    const server = new McpServer({ name: 'failing', version: '0.0.0' });
+    registerTools(server, {
+      claims: {
+        iss: CASE_TOKEN_ISSUER,
+        aud: AUDIENCE,
+        sub: OWNER,
+        case_id: CASE_ID,
+        run_id: RUN_ID,
+        jti: 'jti_failing',
+        scope: CASE_TOKEN_SCOPE,
+        iat: now(),
+        exp: now() + TOKEN_TTL_S,
+      },
+      core: {
+        customer: () => Promise.reject(failing),
+        transaction: () => Promise.reject(failing),
+        transactions: () => Promise.reject(failing),
+      },
+      securityEvents: { record: () => Promise.resolve() },
+      calls: createCallBudget(),
+      log: (line) => lines.push(line),
+    });
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverSide);
+    const client = new Client({ name: 'mcp-spec', version: '0.0.0' });
+    await client.connect(clientSide);
+    expect(await call(client, 'get_customer')).toEqual({
+      isError: true,
+      body: { error: 'INTERNAL' },
+    });
+    expect(lines).toHaveLength(1);
+    expect(JSON.stringify(lines)).not.toMatch(/\d{8}/);
+    await client.close();
   });
 });

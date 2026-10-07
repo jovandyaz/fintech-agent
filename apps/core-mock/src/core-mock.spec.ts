@@ -1,6 +1,6 @@
 import type { AddressInfo } from 'node:net';
 
-import type { CardTx, Customer, SpeiTx } from '@fintech-agent/data';
+import type { CardTx, Customer, SpeiTx } from '@fintech-agent/contracts';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createCoreMock, type CoreMock } from './server.js';

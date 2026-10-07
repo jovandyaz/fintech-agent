@@ -7,7 +7,7 @@ import {
 } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 
-import type { Customer, Transaction } from '@fintech-agent/data';
+import type { Customer, Transaction } from '@fintech-agent/contracts';
 import { z } from 'zod';
 
 const MAX_BODY_BYTES = 64 * 1024;

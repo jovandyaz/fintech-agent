@@ -8,6 +8,7 @@ import {
   KYC_LEVELS,
   SPEI_REJECT_REASONS,
   SPEI_RETURN_REASONS,
+  SPEI_TYPES,
   TX_STATUSES,
   TX_TYPES,
 } from './core.js';
@@ -105,7 +106,7 @@ export const TransactionRowSchema = z.discriminatedUnion('type', [
   }),
   z.strictObject({
     ...rowBase,
-    type: z.enum(['spei_in', 'spei_out']),
+    type: z.enum(SPEI_TYPES),
     counterparty_first_name: z.string(),
     counterparty_clabe: z.string(),
   }),
@@ -123,7 +124,7 @@ export type TransactionPage = z.infer<typeof TransactionPageSchema>;
 /** Only the last four of the SPEI tracking key leave the MCP server: no action needs it whole. */
 export const SpeiStatusSchema = z.strictObject({
   ...rowBase,
-  type: z.enum(['spei_in', 'spei_out']),
+  type: z.enum(SPEI_TYPES),
   settled_at: z.string().nullable(),
   returned_at: z.string().nullable(),
   tracking_key_last4: z.string(),

@@ -1,8 +1,3 @@
-import {
-  SCENARIOS,
-  type CustomerLookup,
-  type ScenarioId,
-} from './scenarios.js';
 import type {
   CardTx,
   Customer,
@@ -10,8 +5,14 @@ import type {
   SpeiTx,
   Transaction,
   TxStatus,
-  WebhookFixture,
-} from './types.js';
+} from '@fintech-agent/contracts';
+
+import {
+  SCENARIOS,
+  type CustomerLookup,
+  type ScenarioId,
+} from './scenarios.js';
+import type { WebhookFixture } from './types.js';
 
 export const DATASET_SEED = 20261005;
 

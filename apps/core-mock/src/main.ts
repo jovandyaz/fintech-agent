@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Customer, Transaction } from '@fintech-agent/data';
+import type { Customer, Transaction } from '@fintech-agent/contracts';
 
 import { createCoreMock } from './server.js';
 

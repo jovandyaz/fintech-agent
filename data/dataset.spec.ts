@@ -4,18 +4,16 @@ import { join } from 'node:path';
 import {
   isRegistryId,
   maskPii,
+  TX_STATUSES,
+  TX_TYPES,
   WebhookEventSchema,
+  type CardTx,
+  type Transaction,
 } from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { DATASET_SEED, generateDataset } from './generate.js';
 import { SCENARIO_IDS, SCENARIOS } from './scenarios.js';
-import {
-  TX_STATUSES,
-  TX_TYPES,
-  type CardTx,
-  type Transaction,
-} from './types.js';
 
 const DATA_DIR = import.meta.dirname;
 const CUSTOMERS = 20;

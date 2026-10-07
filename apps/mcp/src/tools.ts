@@ -12,8 +12,10 @@ import {
   type SpeiStatus,
   type TransactionPage,
   type TransactionRow,
+  type CardTx,
+  type SpeiTx,
+  type Transaction,
 } from '@fintech-agent/contracts';
-import type { CardTx, SpeiTx, Transaction } from '@fintech-agent/data';
 import type { CallToolResult, McpServer } from '@modelcontextprotocol/server';
 
 import { READ_ONLY } from './annotations.js';
