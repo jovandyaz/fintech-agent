@@ -1,7 +1,7 @@
 import {
   CoreUnavailableError,
+  hasPii,
   maskJson,
-  maskPii,
   type ActionParams,
   type ActionStatus,
   type ActionType,
@@ -195,10 +195,7 @@ export async function decide(
     };
   } else {
     // The reason is never sent to the customer, but it is persisted (G6).
-    if (
-      decision.reject_reason &&
-      maskPii(decision.reject_reason) !== decision.reject_reason
-    ) {
+    if (decision.reject_reason && hasPii(decision.reject_reason)) {
       throw new DecisionError(DECISION_FAILURE.piiInRejectReason);
     }
     decided = {

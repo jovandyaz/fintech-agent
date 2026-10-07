@@ -35,6 +35,14 @@ describe('replyViolations (02 G5, the checks a final reply shares with the draft
     expect(replyViolations(`${CLEAN} ${text}`)).toContain('LINK_IN_REPLY');
   });
 
+  it.each([
+    'Gracias… te escribimos pronto.',
+    'Hola\u00A0Ana, ya quedó.',
+    'Tu aclaración Nº 5 sigue abierta.',
+  ])('passes text that only folding changes: %s', (text) => {
+    expect(replyViolations(text)).toEqual([]);
+  });
+
   it('passes a link to albo', () => {
     expect(
       replyViolations(`${CLEAN} Más información en https://albo.mx/ayuda.`),

@@ -1,6 +1,6 @@
 import {
   APPROVED_FACTOR_WARNINGS,
-  maskPii,
+  hasPii,
   type ReplyCheckCode,
 } from '@fintech-agent/contracts';
 
@@ -182,7 +182,7 @@ function namesAuthFactor(text: string): boolean {
  */
 export function replyViolations(text: string): ReplyCheckCode[] {
   const codes: ReplyCheckCode[] = [];
-  if (maskPii(text) !== text) codes.push('PII_IN_REPLY');
+  if (hasPii(text)) codes.push('PII_IN_REPLY');
   if (hasLinkOutsideAllowList(text, ALLOWED_REPLY_HOSTS)) {
     codes.push('LINK_IN_REPLY');
   }

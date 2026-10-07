@@ -270,6 +270,17 @@ describe('reject reason (02 G6)', () => {
   });
 });
 
+describe('reject reason without PII', () => {
+  it('accepts a reason that only folding would change', async () => {
+    const id = await proposal();
+    const response = await decide(
+      id,
+      reject({ reject_reason: 'El tono no es el adecuado… revisar.' }),
+    );
+    expect(response.status).toBe(STATUS.ok);
+  });
+});
+
 describe('operator identity (02 G3)', () => {
   it.each([
     ['no token', null],
