@@ -1,7 +1,11 @@
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { startTestDatabase, type TestDatabase } from '../../test/database.js';
+import {
+  insertCase,
+  startTestDatabase,
+  type TestDatabase,
+} from '../../test/database.js';
 import { migrateDatabase } from './migrate.js';
 
 const TABLES = [
@@ -23,7 +27,6 @@ let sql: postgres.Sql;
 
 beforeAll(async () => {
   db = await startTestDatabase();
-  await migrateDatabase(db.ownerUrl);
   sql = postgres(db.ownerUrl, { max: 1 });
 }, CONTAINER_START_MS);
 
@@ -63,8 +66,7 @@ describe('migrations (01 Data model)', () => {
   });
 
   it('keeps one open proposal per case', async () => {
-    await sql`insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked)
-      values ('case_one', 'T-1', 'AC-KMQX-PDRT', now(), 'webhook', 'cus_01', 'hola')`;
+    await insertCase(sql, 'case_one');
     const proposal = (id: string) => sql`
       insert into proposed_actions (id, case_id, agent_type, agent_params, type, params, justification)
       values (${id}, 'case_one', 'none', '{}', 'none', '{}', 'x')`;

@@ -39,7 +39,7 @@ const tsvector = customType<{ data: string }>({
   dataType: () => 'tsvector',
 });
 
-const at = (name: string) => timestamp(name, { withTimezone: true });
+const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 const usd = (name: string) =>
   numeric(name, { precision: USD_PRECISION, scale: USD_SCALE });
 const caseIdRef = () =>
@@ -72,7 +72,7 @@ export const cases = pgTable(
     id: text().primaryKey(),
     ticketId: text('ticket_id').notNull().unique(),
     folio: text().notNull().unique(),
-    receivedAt: at('received_at').notNull(),
+    receivedAt: timestamptz('received_at').notNull(),
     source: caseSource().notNull(),
     customerId: text('customer_id').notNull(),
     textMasked: text('text_masked').notNull(),
@@ -80,9 +80,9 @@ export const cases = pgTable(
     status: caseStatus().notNull().default('queued'),
     attempts: integer().notNull().default(0),
     manualReruns: integer('manual_reruns').notNull().default(0),
-    lockedUntil: at('locked_until'),
+    lockedUntil: timestamptz('locked_until'),
     claimToken: uuid('claim_token'),
-    nextAttemptAt: at('next_attempt_at').notNull().defaultNow(),
+    nextAttemptAt: timestamptz('next_attempt_at').notNull().defaultNow(),
     category: caseCategory(),
     flags: jsonb().notNull().default([]),
     reviewTier: reviewTier('review_tier'),
@@ -94,7 +94,7 @@ export const webhookEvents = pgTable('webhook_events', {
   eventId: text('event_id').primaryKey(),
   payloadHash: text('payload_hash').notNull(),
   caseId: caseIdRef(),
-  receivedAt: at('received_at').notNull().defaultNow(),
+  receivedAt: timestamptz('received_at').notNull().defaultNow(),
 });
 
 export const agentRuns = pgTable('agent_runs', {
@@ -111,8 +111,8 @@ export const agentRuns = pgTable('agent_runs', {
   costUsd: usd('cost_usd').notNull().default('0'),
   latencyMs: integer('latency_ms'),
   errorCode: text('error_code'),
-  startedAt: at('started_at').notNull().defaultNow(),
-  finishedAt: at('finished_at'),
+  startedAt: timestamptz('started_at').notNull().defaultNow(),
+  finishedAt: timestamptz('finished_at'),
 });
 
 export const runSteps = pgTable(
@@ -156,9 +156,9 @@ export const proposedActions = pgTable(
     params: jsonb().notNull(),
     justification: text().notNull(),
     status: actionStatus().notNull().default('proposed'),
-    proposedAt: at('proposed_at').notNull().defaultNow(),
+    proposedAt: timestamptz('proposed_at').notNull().defaultNow(),
     decidedBy: text('decided_by'),
-    decidedAt: at('decided_at'),
+    decidedAt: timestamptz('decided_at'),
     finalReply: text('final_reply'),
     rejectCode: rejectCode('reject_code'),
     rejectReason: text('reject_reason'),
@@ -181,14 +181,14 @@ export const actionExecutions = pgTable('action_executions', {
     .references(() => proposedActions.id),
   status: executionStatus().notNull(),
   attempts: integer().notNull().default(1),
-  startedAt: at('started_at').notNull().defaultNow(),
-  finishedAt: at('finished_at'),
+  startedAt: timestamptz('started_at').notNull().defaultNow(),
+  finishedAt: timestamptz('finished_at'),
   result: jsonb(),
 });
 
 export const auditLog = pgTable('audit_log', {
   id: uuid().primaryKey().defaultRandom(),
-  at: at('at').notNull().defaultNow(),
+  at: timestamptz('at').notNull().defaultNow(),
   actor: text().notNull(),
   event: text().notNull(),
   ref: text().notNull(),
@@ -200,7 +200,7 @@ export const auditLog = pgTable('audit_log', {
 
 export const securityEvents = pgTable('security_events', {
   id: uuid().primaryKey().defaultRandom(),
-  at: at('at').notNull().defaultNow(),
+  at: timestamptz('at').notNull().defaultNow(),
   kind: securityEventKind().notNull(),
   caseId: caseIdRef(),
   runId: runIdRef().notNull(),

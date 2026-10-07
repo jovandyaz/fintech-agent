@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { failedQuery, postgresError } from '../../../test/database-errors.js';
 import { reasonOf } from './reason-of.js';
 
-const SECRET_PARAM = '$argon2id$v=19$m=65536,t=3,p=4$sentinel-hash';
+const SECRET_PARAM = 'sentinel-customer-secret';
 
 describe('reasonOf', () => {
   it('reads the message of an Error', () => {
@@ -50,10 +50,10 @@ describe('reasonOf', () => {
       ['someone@example.com', SECRET_PARAM],
       postgresError({
         message:
-          'duplicate key value violates unique constraint "users_email_unique"',
+          'duplicate key value violates unique constraint "cases_ticket_id_unique"',
         code: '23505',
-        table_name: 'users',
-        constraint_name: 'users_email_unique',
+        table_name: 'cases',
+        constraint_name: 'cases_ticket_id_unique',
         detail: `Key (email)=(someone@example.com) already exists.`,
       }),
     );
@@ -61,7 +61,7 @@ describe('reasonOf', () => {
     const reason = reasonOf(rejected);
 
     expect(reason).toBe(
-      'DrizzleQueryError (failureCategory=unique_violation, sqlState=23505, table=users, constraint=users_email_unique)',
+      'DrizzleQueryError (failureCategory=unique_violation, sqlState=23505, table=cases, constraint=cases_ticket_id_unique)',
     );
     expect(reason).not.toContain(SECRET_PARAM);
     expect(reason).not.toContain('someone@example.com');
@@ -84,7 +84,7 @@ describe('reasonOf', () => {
     });
 
     expect(reasonOf(wrapped)).toBe(
-      'Error (failureCategory=unclassified, sqlState=40P01)',
+      'Error (failureCategory=transaction_conflict, sqlState=40P01)',
     );
   });
 });

@@ -6,17 +6,17 @@ import {
   isDatabaseError,
 } from './database-diagnostics.js';
 
-const SECRET_PARAM = '$argon2id$v=19$m=65536,t=3,p=4$sentinel-hash';
+const SECRET_PARAM = 'sentinel-customer-secret';
 
 const QUOTED_PARAMS = ['someone@example.com', SECRET_PARAM];
 
 const uniqueViolation = postgresError({
   message:
-    'duplicate key value violates unique constraint "users_email_unique"',
+    'duplicate key value violates unique constraint "cases_ticket_id_unique"',
   code: '23505',
   schema_name: 'public',
-  table_name: 'users',
-  constraint_name: 'users_email_unique',
+  table_name: 'cases',
+  constraint_name: 'cases_ticket_id_unique',
   detail: `Key (email)=(${SECRET_PARAM}) already exists.`,
 });
 
@@ -30,8 +30,8 @@ describe('databaseDiagnostics', () => {
       errorName: 'DrizzleQueryError',
       failureCategory: 'unique_violation',
       sqlState: '23505',
-      table: 'users',
-      constraint: 'users_email_unique',
+      table: 'cases',
+      constraint: 'cases_ticket_id_unique',
     });
     expect(JSON.stringify(diagnostics)).not.toContain(SECRET_PARAM);
   });
@@ -47,8 +47,8 @@ describe('databaseDiagnostics', () => {
       errorName: 'Error',
       failureCategory: 'unique_violation',
       sqlState: '23505',
-      table: 'users',
-      constraint: 'users_email_unique',
+      table: 'cases',
+      constraint: 'cases_ticket_id_unique',
     });
     expect(JSON.stringify(diagnostics)).not.toContain(SECRET_PARAM);
   });
@@ -56,9 +56,9 @@ describe('databaseDiagnostics', () => {
   it('names the column of a raw Postgres error that reports one', () => {
     const notNull = postgresError({
       message:
-        'null value in column "password_hash" of relation "users" violates not-null constraint',
+        'null value in column "text_masked" of relation "cases" violates not-null constraint',
       code: '23502',
-      table_name: 'users',
+      table_name: 'cases',
       column_name: 'password_hash',
     });
 
@@ -66,7 +66,7 @@ describe('databaseDiagnostics', () => {
       errorName: 'PostgresError',
       failureCategory: 'unclassified',
       sqlState: '23502',
-      table: 'users',
+      table: 'cases',
       column: 'password_hash',
     });
   });
@@ -76,6 +76,8 @@ describe('databaseDiagnostics', () => {
     ['08006', 'connection_failure', '08006'],
     ['ECONNREFUSED', 'connection_failure', null],
     ['55P03', 'transaction_conflict', '55P03'],
+    ['40P01', 'transaction_conflict', '40P01'],
+    ['40001', 'transaction_conflict', '40001'],
     [SECRET_PARAM, 'unclassified', null],
   ])(
     'classifies the driver code %s without echoing it unless it is a SQLSTATE',

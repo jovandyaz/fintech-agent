@@ -9,7 +9,6 @@ import postgres, { type Sql } from 'postgres';
 
 import * as schema from './schema.js';
 
-export const DATABASE_URL = 'DATABASE_URL';
 export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
 /** Raw postgres-js client. Inject only to pin work to one connection; everything else uses `DATABASE_CONNECTION`. */
 export const DATABASE_CLIENT = 'DATABASE_CLIENT';
@@ -30,17 +29,15 @@ export class DatabaseModule implements OnApplicationShutdown {
       module: DatabaseModule,
       global: true,
       providers: [
-        { provide: DATABASE_URL, useValue: url },
         {
           provide: DATABASE_CLIENT,
-          useFactory: (databaseUrl: string): Sql =>
-            postgres(databaseUrl, {
+          useFactory: (): Sql =>
+            postgres(url, {
               max: POOL_SIZE,
               idle_timeout: IDLE_TIMEOUT_S,
               connect_timeout: CONNECT_TIMEOUT_S,
               onnotice: () => undefined,
             }),
-          inject: [DATABASE_URL],
         },
         {
           provide: DATABASE_CONNECTION,

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { failedQuery, postgresError } from '../../../test/database-errors.js';
 import { stackOf } from './stack-of.js';
 
-const SECRET_PARAM = '$argon2id$v=19$m=65536,t=3,p=4$sentinel-hash';
+const SECRET_PARAM = 'sentinel-customer-secret';
 
 function throwFromHere(error: Error): Error {
   Error.captureStackTrace(error, throwFromHere);
@@ -34,7 +34,7 @@ describe('stackOf', () => {
     expect(stack).not.toContain(SECRET_PARAM);
     expect(stack).not.toContain('injected');
     expect(stack.split('\n')[0]).toBe(
-      'DrizzleQueryError (failureCategory=unclassified, sqlState=40P01)',
+      'DrizzleQueryError (failureCategory=transaction_conflict, sqlState=40P01)',
     );
     expect(stack).toContain('stack-of.spec.ts');
   });
@@ -61,7 +61,7 @@ describe('stackOf', () => {
     rejected.stack = `Error: rewritten ${SECRET_PARAM}\n    at somewhere (x.ts:1:1)`;
 
     expect(stackOf(rejected)).toBe(
-      'DrizzleQueryError (failureCategory=unclassified, sqlState=40P01)',
+      'DrizzleQueryError (failureCategory=transaction_conflict, sqlState=40P01)',
     );
   });
 
@@ -74,7 +74,7 @@ describe('stackOf', () => {
 
     expect(stack).not.toContain(SECRET_PARAM);
     expect(stack.split('\n')[0]).toBe(
-      'Error (failureCategory=unclassified, sqlState=40P01)',
+      'Error (failureCategory=transaction_conflict, sqlState=40P01)',
     );
     expect(stack).toContain('stack-of.spec.ts');
   });
@@ -85,8 +85,15 @@ describe('stackOf', () => {
     const lines = stackOf(wrapped).split('\n');
 
     expect(lines[0]).toBe(
-      'Error (failureCategory=unclassified, sqlState=40P01)',
+      'Error (failureCategory=transaction_conflict, sqlState=40P01)',
     );
     expect(lines[1]).toMatch(/^\s+at /);
+  });
+
+  it('describes an error whose stack is not text by its reason', () => {
+    const odd = new Error('odd failure');
+    odd.stack = 42 as unknown as string;
+
+    expect(stackOf(odd)).toBe('odd failure');
   });
 });

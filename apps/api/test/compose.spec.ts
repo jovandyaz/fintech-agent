@@ -26,12 +26,11 @@ const env = (service: string): Record<string, string> =>
 
 describe('compose process boundary (02 G1)', () => {
   it('gives CORE_EXECUTOR_KEY only to the executor and core-mock', () => {
-    expect(
-      holders('CORE_EXECUTOR_KEY').every((name) =>
-        ['core-mock', 'executor'].includes(name),
-      ),
-    ).toBe(true);
-    expect(holders('CORE_EXECUTOR_KEY')).not.toContain('api');
+    const executorKeyHolders = holders('CORE_EXECUTOR_KEY');
+    expect(executorKeyHolders).toContain('core-mock');
+    expect(['core-mock', 'executor']).toEqual(
+      expect.arrayContaining(executorKeyHolders),
+    );
   });
 
   it('gives the owner database URL only to seed', () => {

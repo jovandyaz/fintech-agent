@@ -1,9 +1,18 @@
-import { DB_ROLES, type DbRole } from '@fintech-agent/contracts';
+import {
+  ACTION_STATUSES,
+  DB_ROLES,
+  type ActionStatus,
+  type DbRole,
+} from '@fintech-agent/contracts';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { setRolePasswords } from '../src/database/roles.js';
-import { startTestDatabase, type TestDatabase } from './database.js';
+import {
+  insertCase,
+  startTestDatabase,
+  type TestDatabase,
+} from './database.js';
 
 const CONTAINER_START_MS = 120_000;
 const OK = 'ok';
@@ -61,9 +70,7 @@ beforeAll(async () => {
     'case_r5',
     'case_r6',
   ]) {
-    await owner`
-      insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked)
-      values (${id}, ${`T-${id}`}, ${`AC-KMQX-${id.slice(-2).toUpperCase()}AB`}, now(), 'webhook', 'cus_01', 'hola')`;
+    await insertCase(owner, id);
   }
   await owner`
     insert into agent_runs (id, case_id, variant, model, prompt_version)
@@ -283,6 +290,58 @@ describe('database roles (02 G1)', () => {
     ]),
   ];
 
+  denied.push(
+    [
+      'copilot_api approves without recording who decided',
+      'copilot_api',
+      (s) =>
+        s`update proposed_actions set status = 'approved', final_reply = 'listo' where id = 'act_real'`,
+      TRANSITION_REFUSED,
+    ],
+    [
+      'copilot_api approves without a final reply',
+      'copilot_api',
+      (s) =>
+        s`update proposed_actions set status = 'approved', decided_by = 'operator:ana', decided_at = now() where id = 'act_real'`,
+      TRANSITION_REFUSED,
+    ],
+    [
+      'copilot_api rejects without a reject code',
+      'copilot_api',
+      (s) =>
+        s`update proposed_actions set status = 'rejected', decided_by = 'operator:ana', decided_at = now(), final_reply = 'listo' where id = 'act_real'`,
+      TRANSITION_REFUSED,
+    ],
+    [
+      'copilot_api changes the action without marking an override',
+      'copilot_api',
+      (s) =>
+        s`update proposed_actions set status = 'approved', decided_by = 'operator:ana', decided_at = now(), final_reply = 'listo',
+            type = 'escalate_fraud' where id = 'act_real'`,
+      TRANSITION_REFUSED,
+    ],
+    [
+      'copilot_api marks an override that changes nothing',
+      'copilot_api',
+      (s) =>
+        s`update proposed_actions set status = 'approved', decided_by = 'operator:ana', decided_at = now(), final_reply = 'listo',
+            operator_override = true where id = 'act_real'`,
+      TRANSITION_REFUSED,
+    ],
+    ...(
+      [
+        ['webhook_events', 'payload_hash'],
+        ['resolutions', 'draft_reply'],
+        ['run_steps', 'name'],
+      ] as const
+    ).map(([table, column]): [string, DbRole, Query, string] => [
+      `copilot_api updates the append-only ${table}`,
+      'copilot_api',
+      (s) => s`update ${s(table)} set ${s(column)} = ${s(column)}`,
+      PERMISSION_DENIED,
+    ]),
+  );
+
   it.each(denied)('refuses: %s', async (_, role, query, expected) => {
     await resetProposals();
     expect(await outcome(query(as(role)))).toBe(expected);
@@ -298,13 +357,13 @@ describe('database roles (02 G1)', () => {
       'copilot_api approves a real proposal',
       'copilot_api',
       (s) =>
-        s`update proposed_actions set status = 'approved', decided_by = 'operator:ana' where id = 'act_real'`,
+        s`update proposed_actions set status = 'approved', decided_by = 'operator:ana', decided_at = now(), final_reply = 'listo' where id = 'act_real'`,
     ],
     [
       'copilot_api marks a missed canary',
       'copilot_api',
       (s) =>
-        s`update proposed_actions set status = 'canary_missed' where id = 'act_canary'`,
+        s`update proposed_actions set status = 'canary_missed', decided_by = 'operator:ana', decided_at = now(), final_reply = 'listo' where id = 'act_canary'`,
     ],
     [
       'copilot_api writes an audit row',
@@ -350,6 +409,33 @@ describe('database roles (02 G1)', () => {
     expect(await outcome(query(as(role)))).toBe(OK);
   });
 
+  it('approves an override that records it', async () => {
+    await resetProposals();
+    expect(
+      await outcome(
+        as(
+          'copilot_api',
+        )`update proposed_actions set status = 'approved', decided_by = 'operator:ana', decided_at = now(),
+          final_reply = 'listo', type = 'escalate_fraud', operator_override = true where id = 'act_real'`,
+      ),
+    ).toBe(OK);
+  });
+
+  it('grants copilot_mcp INSERT on security_events and nothing else', async () => {
+    const tables = await owner<
+      { table_name: string; privilege_type: string }[]
+    >`
+      select table_name, privilege_type from information_schema.role_table_grants
+      where grantee = 'copilot_mcp' order by table_name, privilege_type`;
+    const columns = await owner<{ table_name: string }[]>`
+      select distinct table_name from information_schema.column_privileges
+      where grantee = 'copilot_mcp' and privilege_type <> 'INSERT'`;
+    expect(tables).toEqual([
+      { table_name: 'security_events', privilege_type: 'INSERT' },
+    ]);
+    expect(columns).toEqual([]);
+  });
+
   it('sets a password with quotes and percent signs verbatim, and again', async () => {
     const password = `it's 100% "quoted"`;
     const passwords = {
@@ -357,16 +443,108 @@ describe('database roles (02 G1)', () => {
       copilot_executor: db.passwordFor('copilot_executor'),
       copilot_mcp: db.passwordFor('copilot_mcp'),
     };
-    await setRolePasswords(db.ownerUrl, passwords);
-    await setRolePasswords(db.ownerUrl, passwords);
-    const url = new URL(db.urlFor('copilot_api'));
-    url.password = encodeURIComponent(password);
-    const sql = postgres(url.toString(), { max: 1 });
-    expect(await outcome(sql`select 1`)).toBe(OK);
-    await sql.end();
-    await setRolePasswords(db.ownerUrl, {
-      ...passwords,
-      copilot_api: db.passwordFor('copilot_api'),
-    });
+    let sql: postgres.Sql | undefined;
+    try {
+      await setRolePasswords(db.ownerUrl, passwords);
+      await setRolePasswords(db.ownerUrl, passwords);
+      const url = new URL(db.urlFor('copilot_api'));
+      url.password = encodeURIComponent(password);
+      sql = postgres(url.toString(), { max: 1 });
+      expect(await outcome(sql`select 1`)).toBe(OK);
+    } finally {
+      await sql?.end();
+      await setRolePasswords(db.ownerUrl, {
+        ...passwords,
+        copilot_api: db.passwordFor('copilot_api'),
+      });
+    }
   });
+});
+
+describe('webhook intake order (01 Webhook and queue)', () => {
+  const intake = (sql: postgres.Sql, eventId: string, caseId: string) =>
+    sql.begin(async (tx) => {
+      const recorded = await tx`
+        insert into webhook_events (event_id, payload_hash, case_id)
+        values (${eventId}, 'hash', ${caseId})
+        on conflict (event_id) do nothing
+        returning event_id`;
+      if (recorded.length === 0) return false;
+      await tx`
+        insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked)
+        values (${caseId}, ${`T-${caseId}`}, 'AC-WHKA-0001', now(), 'webhook', 'cus_01', 'hola')`;
+      return true;
+    });
+
+  it('records the event before its case in one transaction, as copilot_api', async () => {
+    const api = as('copilot_api');
+    expect(await intake(api, 'evt_w1', 'case_w1')).toBe(true);
+    expect(await intake(api, 'evt_w1', 'case_w1')).toBe(false);
+    const [row] = await owner<{ count: string }[]>`
+      select count(*) from cases where id = 'case_w1'`;
+    expect(row?.count).toBe('1');
+  });
+});
+
+describe('transition matrix (02 G1, G3)', () => {
+  const DECISIONS = new Set<ActionStatus>([
+    'approved',
+    'rejected',
+    'canary_caught',
+    'canary_missed',
+  ]);
+  const REJECTIONS = new Set<ActionStatus>(['rejected', 'canary_caught']);
+  const allowed = (
+    role: DbRole,
+    from: ActionStatus,
+    to: ActionStatus,
+    canary: boolean,
+  ): boolean =>
+    (role === 'copilot_api' &&
+      from === 'proposed' &&
+      (canary
+        ? ['canary_caught', 'canary_missed', 'superseded'].includes(to)
+        : ['approved', 'rejected', 'superseded'].includes(to))) ||
+    (role === 'copilot_executor' &&
+      from === 'approved' &&
+      !canary &&
+      ['executed', 'failed'].includes(to));
+
+  const cases = (['copilot_api', 'copilot_executor'] as const).flatMap((role) =>
+    ACTION_STATUSES.flatMap((from) =>
+      ACTION_STATUSES.filter((to) => to !== from).flatMap((to) =>
+        [false, true].map((canary) => ({ role, from, to, canary })),
+      ),
+    ),
+  );
+
+  beforeAll(async () => {
+    await insertCase(owner, 'case_mx');
+  });
+
+  it.each(cases)(
+    '$role moves $from → $to (canary: $canary)',
+    async ({ role, from, to, canary }) => {
+      await owner`alter table proposed_actions disable trigger enforce_transition_role`;
+      await owner`delete from action_executions`;
+      await owner`delete from proposed_actions`;
+      await owner`
+        insert into proposed_actions (id, case_id, run_id, agent_type, agent_params, type, params, justification, status, is_canary)
+        values ('act_mx', 'case_mx', 'run_r1', 'none', '{}', 'none', '{}', 'x', ${from}, ${canary})`;
+      await owner`alter table proposed_actions enable trigger enforce_transition_role`;
+      const sql = as(role);
+      const update =
+        role === 'copilot_executor'
+          ? sql`update proposed_actions set status = ${to} where id = 'act_mx'`
+          : sql`update proposed_actions set status = ${to},
+              decided_by = ${DECISIONS.has(to) ? 'operator:ana' : null},
+              decided_at = ${DECISIONS.has(to) ? new Date() : null},
+              final_reply = ${DECISIONS.has(to) ? 'listo' : null},
+              reject_code = ${REJECTIONS.has(to) ? 'other' : null}
+            where id = 'act_mx'`;
+      expect((await outcome(update)) === OK).toBe(
+        allowed(role, from, to, canary),
+      );
+    },
+  );
 });

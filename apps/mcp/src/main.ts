@@ -1,42 +1,33 @@
+import postgres from 'postgres';
+
 import { createMcpApp } from './app.js';
-import type { SecurityEventSink } from './security-events.js';
+import { loadMcpConfig } from './config.js';
+import { createPostgresSecurityEventSink } from './security-events.js';
 
-const DEFAULT_PORT = 3020;
-
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required`);
-  return value;
-}
+const DB_CONNECT_TIMEOUT_S = 2;
 
 const log = (line: Record<string, unknown>): void => {
   console.log(JSON.stringify(line));
 };
 
-// Logged, not stored: this process holds no database role to insert with.
-const securityEvents: SecurityEventSink = {
-  record: (event) => {
-    log({ event: 'security_event', ...event });
-    return Promise.resolve();
-  },
-};
-
+const config = loadMcpConfig(process.env);
 const app = createMcpApp({
-  coreUrl: required('CORE_MOCK_URL'),
-  coreReadKey: required('CORE_READ_KEY'),
-  caseTokenKey: required('CASE_TOKEN_KEY'),
-  audience: required('MCP_AUDIENCE'),
-  allowedHosts: (process.env.MCP_ALLOWED_HOSTS ?? '')
-    .split(',')
-    .map((host) => host.trim())
-    .filter(Boolean),
-  securityEvents,
+  coreUrl: config.CORE_MOCK_URL,
+  coreReadKey: config.CORE_READ_KEY,
+  caseTokenKey: config.CASE_TOKEN_KEY,
+  audience: config.MCP_AUDIENCE,
+  allowedHosts: config.MCP_ALLOWED_HOSTS,
+  securityEvents: createPostgresSecurityEventSink(
+    postgres(config.MCP_DATABASE_URL, {
+      connect_timeout: DB_CONNECT_TIMEOUT_S,
+      onnotice: () => undefined,
+    }),
+  ),
   log,
 });
 
-const port = Number(process.env.MCP_PORT ?? DEFAULT_PORT);
-app.server.listen(port, () => {
-  log({ event: 'mcp_listening', port });
+app.server.listen(config.MCP_PORT, () => {
+  log({ event: 'mcp_listening', port: config.MCP_PORT });
 });
 
 const shutdown = (): void => {

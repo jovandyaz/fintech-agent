@@ -1,4 +1,4 @@
-import { maskJson, maskPii } from '@fintech-agent/contracts';
+import { maskJson, maskPii, redactCredentials } from '@fintech-agent/contracts';
 import { ConsoleLogger, type LogLevel } from '@nestjs/common';
 
 import { isDatabaseError } from '../errors/database-diagnostics.js';
@@ -45,12 +45,28 @@ const SECRET_KEY_PARTS = [
   'jwt',
   'apikey',
 ];
-const SECRET_KEY_ENDINGS = ['key', 'keys'];
+const SECRET_KEY_ENDINGS = [
+  'apikey',
+  'privatekey',
+  'signingkey',
+  'secretkey',
+  'executorkey',
+  'readkey',
+  'tokenkey',
+  'accesskey',
+  'sessionkey',
+];
 const SECRET_KEY_NAMES = new Set(['auth']);
 const PAIR_NAME_FIELDS = ['name', 'key', 'field', 'header'] as const;
-const CREDENTIAL_IN_TEXT = /\b(Bearer|Basic|Token)\s+[^\s"',;]+/gi;
-const CREDENTIAL_ASSIGNMENT =
-  /\b([a-z_]*(?:token|password|passwd|secret|jwt|api_?key)|auth|key)(\s*[:=]\s*)[^\s&#,;"']+/gi;
+const PAIR_RECORD_KEYS = new Set<string>([
+  ...PAIR_NAME_FIELDS,
+  'type',
+  'kind',
+  'value',
+  'val',
+  'values',
+  'data',
+]);
 const UNLOGGABLE = '[unloggable log call]';
 
 type WriteStream = 'stdout' | 'stderr';
@@ -93,7 +109,10 @@ function isSecretKey(key: unknown): boolean {
   return (
     SECRET_KEY_NAMES.has(normalized) ||
     SECRET_KEY_PARTS.some((part) => normalized.includes(part)) ||
-    SECRET_KEY_ENDINGS.some((ending) => normalized.endsWith(ending))
+    SECRET_KEY_ENDINGS.some(
+      (ending) =>
+        normalized.endsWith(ending) || normalized.endsWith(`${ending}s`),
+    )
   );
 }
 
@@ -132,17 +151,12 @@ function toPlainData(
   }
 }
 
-const redactText = (text: string): string =>
-  text
-    .replace(CREDENTIAL_IN_TEXT, `$1 ${MARKER.redacted}`)
-    .replace(CREDENTIAL_ASSIGNMENT, `$1$2${MARKER.redacted}`);
-
 // Runs before maskJson, which could split a token apart, and again after it,
 // which labels a keyed token `[factor]` and keeps the tail of a long opaque
 // value; credentials are dropped whole, whether keyed, paired
 // (`['authorization', …]`, rawHeaders, `{name: 'authorization', …}`) or in text.
 function redactSecrets(value: unknown): unknown {
-  if (typeof value === 'string') return redactText(value);
+  if (typeof value === 'string') return redactCredentials(value);
   if (Array.isArray(value)) {
     return value.map((item, index) =>
       index > 0 && isSecretKey(value[index - 1])
@@ -151,7 +165,14 @@ function redactSecrets(value: unknown): unknown {
     );
   }
   if (!isPlainObject(value)) return value;
-  const naming = PAIR_NAME_FIELDS.find((field) => isSecretKey(value[field]));
+  // Only a bare name/value record is a pair; an event or an error that merely
+  // has a `name` field keeps its other fields.
+  const isPairRecord = Object.keys(value).every((key) =>
+    PAIR_RECORD_KEYS.has(key),
+  );
+  const naming = isPairRecord
+    ? PAIR_NAME_FIELDS.find((field) => isSecretKey(value[field]))
+    : undefined;
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => {
       const pairValue = naming !== undefined && key !== naming;
@@ -163,13 +184,9 @@ function redactSecrets(value: unknown): unknown {
 
 // The whole stack is one message to the masker: its digit budget then spans
 // every frame, a "Caused by" tail and any text a message left behind, at the
-// cost of line numbers in logs.
-function maskedStack(error: Error): string {
-  const stack: unknown = stackOf(error);
-  return maskPii(
-    redactText(typeof stack === 'string' ? stack : reasonOf(error)),
-  );
-}
+// cost of line numbers in logs. Credentials go first so masking cannot split them.
+const maskStackText = (stack: string): string =>
+  maskPii(redactCredentials(stack));
 
 /**
  * Writes each log call as one JSON line: a non-empty string `message`, a
@@ -201,7 +218,8 @@ export class JsonConsoleLogger extends ConsoleLogger {
         level: SEVERITY_BY_LEVEL[logLevel],
         message: UNLOGGABLE,
         timestamp: new Date().toISOString(),
-        context: redactText(maskPii(redactText(context))) || undefined,
+        context:
+          redactCredentials(maskPii(redactCredentials(context))) || undefined,
       });
     }
     process[writeStreamType ?? 'stdout'].write(`${line}\n`);
@@ -243,14 +261,10 @@ export class JsonConsoleLogger extends ConsoleLogger {
     };
     const stack =
       errorStack !== undefined
-        ? maskPii(
-            redactText(
-              typeof errorStack === 'string'
-                ? errorStack
-                : reasonOf(errorStack),
-            ),
+        ? maskStackText(
+            typeof errorStack === 'string' ? errorStack : reasonOf(errorStack),
           )
-        : error && maskedStack(error);
+        : error && maskStackText(stackOf(error));
     const extras = details.length > 0 ? { details } : {};
     const entry = toPlainData(
       { ...fields, ...extras, ...envelope },

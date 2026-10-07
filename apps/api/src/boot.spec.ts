@@ -1,3 +1,6 @@
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { assertApiEnv } from './boot.js';
@@ -14,5 +17,20 @@ describe('api boot (02 G1 process boundary)', () => {
 
   it('starts without it', () => {
     expect(() => assertApiEnv({})).not.toThrow();
+  });
+
+  it('stops the real entrypoint before anything starts', () => {
+    const run = spawnSync(
+      process.execPath,
+      ['--import', 'tsx', resolve(import.meta.dirname, 'main.ts')],
+      {
+        cwd: resolve(import.meta.dirname, '..'),
+        env: { PATH: process.env.PATH, CORE_EXECUTOR_KEY: 'x' },
+        encoding: 'utf8',
+      },
+    );
+
+    expect(run.status).not.toBe(0);
+    expect(run.stderr).toMatch(/CORE_EXECUTOR_KEY/);
   });
 });
