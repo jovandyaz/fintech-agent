@@ -116,7 +116,7 @@ The model never computes dates, deadlines or regulatory promises. The draft may 
 | --- | --- |
 | Customer text at intake | Webhook handler stores only `text_masked` plus the payload hash; the raw text is never persisted. The worker's Intake node adds `text_redacted` (Step 7), the only text the agent sees |
 | Tool outputs | MCP server, before the response leaves the process (core-mock holds full values) |
-| Persistence | `run_steps.input_masked` / `output_masked`, `audit_log.detail_masked` |
+| Persistence | `run_steps.input_masked` / `output_masked` (masked again by the writer), `audit_log.detail_masked`, and the model text ops reads that no G5 code checks: `resolutions.reasoning_summary`, `proposed_actions.justification` |
 | Logs | Logger serializer; the `authorization` header, operator tokens and case tokens are redacted |
 | Traces | AI SDK telemetry with `recordInputs: false, recordOutputs: false` by default; when content is recorded, the span processor masks every attribute with `maskJson` (`LangfuseSpanProcessor({ mask })` when Langfuse is on) |
 

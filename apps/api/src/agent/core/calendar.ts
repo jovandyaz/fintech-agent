@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { z } from 'zod';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const MS_PER_DAY = 86_400_000;
+export const MS_PER_DAY = 86_400_000;
 const SATURDAY = 6;
 const SUNDAY = 0;
 const BANK_HOLIDAYS_PATH = resolve(

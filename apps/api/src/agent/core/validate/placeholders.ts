@@ -19,6 +19,9 @@ const DICTAMEN_NATURAL_DAYS = 45;
 const ABONO_BUSINESS_DAYS = 2;
 
 const PLACEHOLDER = /\{\{([^{}]*)\}\}/g;
+// The name is filled after validation, so a figure or a promise inside it
+// would reach the reply unread by UNGROUNDED_NUMBER and COMMITMENT_IN_REPLY.
+const PERSON_NAME = /^\p{L}[\p{L} '’.-]*$/u;
 
 // Approved wording, rendered only when its predicate held at validation.
 // Neither holds a phone number or a link, so a filled reply still passes
@@ -34,6 +37,18 @@ const spanishDate = (day: string): string => {
   const [year, month, dayOfMonth] = day.split('-').map(Number);
   return `${dayOfMonth} de ${SPANISH_MONTHS[month! - 1]} de ${year}`;
 };
+
+function personName(firstName: string | null): string {
+  if (firstName === null) {
+    throw new Error('{{nombre}} without a customer the run saw');
+  }
+  // NFC first: a decomposed accent is a letter plus a mark, not \p{L}.
+  const name = firstName.normalize('NFC');
+  if (!PERSON_NAME.test(name)) {
+    throw new Error('{{nombre}} from a customer name that is not a name');
+  }
+  return name;
+}
 
 /** Whether a name is one of the approved placeholders. */
 export const isPlaceholder = (name: string): name is Placeholder =>
@@ -54,7 +69,8 @@ export interface FillContext {
 /**
  * Fills every placeholder from `cases.received_at` with the bank calendar
  * (02 G5: the model never computes a date or a promise). Throws on a
- * placeholder it cannot fill, which validation rules out beforehand, and
+ * placeholder it cannot fill, which validation rules out beforehand, on a
+ * customer name with anything but letters, spaces and `'.-`, and
  * `CalendarRangeError` past the listed years.
  */
 export function fillPlaceholders(text: string, context: FillContext): string {
@@ -62,10 +78,7 @@ export function fillPlaceholders(text: string, context: FillContext): string {
   const values = (name: Placeholder): string => {
     switch (name) {
       case 'nombre':
-        if (context.firstName === null) {
-          throw new Error('{{nombre}} without a customer the run saw');
-        }
-        return context.firstName;
+        return personName(context.firstName);
       case 'folio':
         return context.folio;
       case 'fecha_recepcion':

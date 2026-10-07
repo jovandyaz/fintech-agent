@@ -1,0 +1,85 @@
+# Build handoff
+
+Snapshot of where the build stands against `specs/04-build-plan.md`, for resuming in a new session. Written 2026-10-07.
+
+## Where things are
+
+| Branch                | Holds                                                                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main`                | Steps 0–3 done; Step 4 done through 4e Task 7. Every commit passed `pnpm verify` on Node 24 and 22, plus the integration suite on G-path commits. |
+| `wip/step-4e-persist` | Step 4e Task 8 (Persist), unfinished: two integration tests fail on purpose until the canary audit rows exist (see below).                        |
+
+`build-log/progress.md` is a copy of the ledger (`.superpowers/sdd/04-build-plan/progress.md`, git-ignored). Its `Ruling:` and `Owner:` lines are binding decisions and carried obligations. `build-log/step-4*-plan.md` are the per-substep plans. To resume on another machine, copy `build-log/*` into `.superpowers/sdd/04-build-plan/`.
+
+## Remaining work
+
+### Step 4e: Agent loop, Intake, Persist and the worker (`build-log/step-4e-plan.md`)
+
+1. **Task 8, Persist (in progress, on `wip/step-4e-persist`).**
+   - Done:
+     - `apps/api/src/agent/core/persist.ts`:
+       - `settle()` is pure. It fills the draft, re-runs `replyViolations` on the filled reply and computes the flags and the tier.
+       - `persistRun()` runs in one transaction, fenced by the claim.
+     - `apps/api/src/cases/proposal-audit.ts`: the audit row of a proposal.
+     - 15 unit and 15 integration tests; 30 mutants killed.
+   - To do:
+     - `injectCanaries` and `cloneCanary` (`apps/api/src/canaries/inject.ts`) must write `proposalAudit(...)` with the mirrored run's variant and `prompt_version`, and the case's flags and tier. The failing tests are in `inject.int.spec.ts` and `rerun.int.spec.ts`.
+     - Ledger the rulings below.
+     - Run `reviewing-pr` + `invariant-reviewer`, a fresh verifier, then commit.
+   - Rulings to record:
+     - A fallback writes no `resolutions` row: 01 calls that table "validated agent output", its `category` is NOT NULL, and `decide()` already reads a missing draft as empty.
+     - The 120-day window counts on `decided_at`.
+     - No code marks a proposal on a canary case `is_canary`: the claim never takes such a case, so the path is unreachable.
+     - A stopped run's `policy_data_conflict` comes from `policyConflicts(evidence, stateRules)`.
+2. **Task 9, `runCase()` and the worker.**
+   - Intake: kill switch → `settle(AGENT_DISABLED)`; redactor; injection scan; store `text_redacted`.
+   - Commit the run row before minting the case token.
+   - `runAgent` → `persistRun`.
+   - Map provider errors to the run status and the case retry (`releaseForRetry`). Put the run `error_code` values in one `as const` set.
+   - Circuit breaker: 5 failures → open 60 s; half-open runs one case; attempts are not consumed while open.
+   - Close the MCP client in `finally`.
+   - Nest wiring and compose env.
+   - Add the 02 "Agent loop" rows for timeout, 429, spend limit, breaker, no key and kill switch to `agent.spec.ts`.
+3. **Task 10, masking at sinks e2e.**
+   - `apps/api/test/pii-sinks.e2e.spec.ts`: scan `run_steps`, `audit_log`, logger output and an in-memory OTel exporter. Include the telemetry `recordInputs/recordOutputs: false` check.
+   - Mint a token against the real MCP server.
+4. **Close-out.**
+   - Spec docs for anything the code made untrue.
+   - A fresh verifier, including `docker compose up` (seed → api → executor).
+   - A live probe with `ANTHROPIC_API_KEY` for ruling I5: `activeTools: []` with `tool_use` blocks in history. If the API rejects it, change the last-step strategy in a `docs:` commit.
+   - Update `AI_NOTES`.
+
+### Then, in the order the user chose (4e → 5 → 7, then 6 → 8 → 9)
+
+| Step                               | Plan estimate | Outcome                                                                                                              |
+| ---------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 5 Policies and retrieval           | 60 min        | 10 policy docs, ingestion with the ported guard and quarantine, full-text search, `retrieval.spec.ts` recall@4 ≥ 0.9 |
+| 7 Webhook, queue, console          | 135 min       | Webhook, `POST /cases`, `demo:post`, React console; **first end-to-end test through the UI**                         |
+| 6 Evals                            | 130 min       | Labels before the first run, runner, judge calibration, first run of both variants                                   |
+| 8 Traces, alerts, variant decision | 45 min        | `ops/alerts.sql`, `ops/scan-logs.mjs`, the 03 decision rule                                                          |
+| 9 Docs                             | 70 min        | README, DESIGN, compliance appendix, EVALS, PLAYBOOK (Spanish), AI_NOTES                                             |
+| 10 Rehearsal                       | 15 min        | Outside the budget                                                                                                   |
+
+Each step gets its own plan in `.superpowers/sdd/04-build-plan/step-N-plan.md` before work starts.
+
+### Carried owners (from the ledger)
+
+- **Step 5:** canary templates cite real policy chunks; the corpus query returns `ChunkStateRules` parsed with `StateRuleSchema`.
+- **Step 6:** measure the `UNGROUNDED_NUMBER` repair rate on clean cases.
+- **Step 7:**
+  - The console must not tell canaries apart: empty trace, ticket format, missing `webhook_events` row, a clone without the investigating pause.
+  - `trust proxy` for `request.ip`.
+  - Offer `APPROVED_FACTOR_WARNINGS` for insertion.
+  - Return a status code for a duplicate `ticket_id` under a new `event_id`.
+- **Step 8:** quality metrics count `operator_override` as `wrong_action` and exclude canaries.
+
+## Working rules that are easy to lose
+
+- Every behavior change follows the AGENTS.md sequence: `developing-feature` → `reviewing-pr` + `invariant-reviewer` (read-only) → `verifying-change` with a fresh verifier → `committing-change`.
+- Commits:
+  - one line, ≤ 72 chars, Conventional Commits, no trailers;
+  - never squash, amend or force push;
+  - a spec change is its own `docs:` commit.
+- Commit through `docs/handoff/commit-gate.sh "<subject>" [--int] <paths>`. It stashes everything else, so verify sees only what is committed.
+- Node: run through `fnm exec --using=24 -- …`; the machine default is 22, and both must pass.
+- Never read `.env` or `.env.*.local`; no secret literals.

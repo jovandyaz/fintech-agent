@@ -7,10 +7,12 @@ import {
 } from '@fintech-agent/contracts';
 import { desc, eq } from 'drizzle-orm';
 
+import { proposalAudit } from '../cases/proposal-audit.js';
 import { reviewTierOf } from '../cases/review-tier.js';
 import type { Database, DbTransaction } from '../database/index.js';
 import {
   agentRuns,
+  auditLog,
   cases,
   proposedActions,
   resolutions,
@@ -56,6 +58,7 @@ export async function injectCanaries(
         transaction_ids: seed.action.transaction_ids,
         reason_code: seed.action.reason_code,
       };
+      const reviewTier = reviewTierOf(seed.action.type, seed.flags);
       await tx.insert(cases).values({
         id: caseId,
         ticketId: `${TICKET_ID_PREFIX}${newIdPayload()}`,
@@ -67,7 +70,7 @@ export async function injectCanaries(
         status: 'needs_review',
         category: seed.category,
         flags: seed.flags,
-        reviewTier: reviewTierOf(seed.action.type, seed.flags),
+        reviewTier,
       });
       await tx.insert(agentRuns).values({
         id: runId,
@@ -105,6 +108,18 @@ export async function injectCanaries(
         isCanary: true,
         proposedAt: now,
       });
+      await tx.insert(auditLog).values(
+        proposalAudit({
+          at: now,
+          variant: mirror.variant,
+          promptVersion: mirror.promptVersion,
+          actionId,
+          runId,
+          type: seed.action.type,
+          flags: seed.flags,
+          reviewTier,
+        }),
+      );
       actionIds.push(actionId);
     }
     return actionIds;
@@ -134,7 +149,11 @@ export async function cloneCanary(
     .select()
     .from(proposedActions)
     .where(eq(proposedActions.runId, canary.runId));
-  if (!run || !resolution || !proposal) {
+  const [held] = await tx
+    .select({ flags: cases.flags, reviewTier: cases.reviewTier })
+    .from(cases)
+    .where(eq(cases.id, canary.caseId));
+  if (!run || !resolution || !proposal || !held?.reviewTier) {
     throw new Error(`canary run ${canary.runId} is incomplete`);
   }
   const runId = newRegistryId('run');
@@ -158,5 +177,17 @@ export async function cloneCanary(
     isCanary: true,
     proposedAt: now,
   });
+  await tx.insert(auditLog).values(
+    proposalAudit({
+      at: now,
+      variant: run.variant,
+      promptVersion: run.promptVersion,
+      actionId,
+      runId,
+      type: proposal.agentType,
+      flags: held.flags,
+      reviewTier: held.reviewTier,
+    }),
+  );
   return actionId;
 }

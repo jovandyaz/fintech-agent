@@ -74,4 +74,23 @@ describe('fillPlaceholders', () => {
       }),
     ).toThrow();
   });
+
+  // The name comes from core data, after validation: a figure or a promise in
+  // it would reach the reply unchecked by UNGROUNDED_NUMBER and COMMITMENT.
+  it('fills only a name made of letters, spaces and name punctuation', () => {
+    const at = '2026-10-07T15:00:00Z';
+    for (const name of [
+      'María José',
+      "O'Neil",
+      'O’Neil',
+      'Ana-Lucía',
+      'J. Pérez',
+    ]) {
+      expect(filled('Hola {{nombre}}', at, name)).toBe(`Hola ${name}`);
+    }
+    expect(filled('Hola {{nombre}}', at, 'Jose\u0301')).toBe('Hola José');
+    for (const name of ['Ana 500', 'Ana, te reembolsaremos', 'Ana\nhola', '']) {
+      expect(() => filled('Hola {{nombre}}', at, name)).toThrow();
+    }
+  });
 });

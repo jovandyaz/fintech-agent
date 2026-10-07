@@ -134,6 +134,36 @@ describe('canary:inject (02 G3)', () => {
     }
   });
 
+  it('writes the audit row Persist writes for a real proposal, naming the mirrored agent version', async () => {
+    const actionIds = await inject();
+    const rows = await owner<
+      {
+        run_id: string;
+        type: string;
+        flags: unknown;
+        review_tier: string;
+      }[]
+    >`
+      select a.actor, a.event, a.detail_masked, p.run_id, p.type, c.flags, c.review_tier
+      from audit_log a
+      join proposed_actions p on p.id = a.ref
+      join cases c on c.id = p.case_id
+      where a.ref in ${owner(actionIds)}`;
+    expect(rows).toHaveLength(actionIds.length);
+    for (const row of rows) {
+      expect(row).toMatchObject({
+        actor: 'agent:case-copilot/v1@p1',
+        event: 'proposal.create',
+        detail_masked: {
+          run_id: row.run_id,
+          type: row.type,
+          flags: row.flags,
+          review_tier: row.review_tier,
+        },
+      });
+    }
+  });
+
   it('injects all canaries or none', async () => {
     const [count] = await owner<{ n: string }[]>`
       select count(*) as n from proposed_actions where is_canary`;
