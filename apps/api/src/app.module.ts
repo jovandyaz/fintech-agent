@@ -1,6 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 
 import { ApprovalsModule } from './approvals/approvals.module.js';
+import { CasesModule } from './cases/cases.module.js';
 import type { ApiConfig } from './config.js';
 import { DatabaseModule } from './database/index.js';
 import { OperatorsModule } from './operators/operators.module.js';
@@ -15,6 +16,7 @@ export class AppModule {
         DatabaseModule.forRoot(config.API_DATABASE_URL),
         OperatorsModule.register(config.OPERATOR_TOKENS),
         ApprovalsModule.register(config),
+        CasesModule,
       ],
       controllers: [HealthController],
     };
