@@ -101,11 +101,9 @@ const failure = (code: McpToolError, fields?: string[]): CallToolResult => ({
   isError: true,
 });
 
-/**
- * Publishes the schema's JSON Schema in `tools/list` but lets every argument
- * through the SDK, which would otherwise answer bad input with free text outside
- * the closed error set and before the call budget; `parse` validates instead.
- */
+// Publishes the schema's JSON Schema in `tools/list` but lets every argument
+// through the SDK, which would otherwise answer bad input with free text outside
+// the closed error set and before the call budget; `parse` validates instead.
 function advertised<T>(schema: z.ZodType<T>): StandardSchemaWithJSON {
   return {
     '~standard': {
@@ -117,7 +115,7 @@ function advertised<T>(schema: z.ZodType<T>): StandardSchemaWithJSON {
   };
 }
 
-/** Field paths only, never values or unknown key names, so the reply cannot echo input. */
+// Field paths only, never values or unknown key names, so the reply cannot echo input.
 function parse<T>(schema: z.ZodType<T>, args: unknown): T {
   const result = schema.safeParse(args ?? {});
   if (result.success) return result.data;

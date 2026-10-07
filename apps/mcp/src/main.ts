@@ -13,8 +13,7 @@ const log = (line: Record<string, unknown>): void => {
   console.log(JSON.stringify(line));
 };
 
-// A log-line sink: durable rows need the insert-only database role, which the
-// MCP server does not have until the migrations create it.
+// Logged, not stored: this process holds no database role to insert with.
 const securityEvents: SecurityEventSink = {
   record: (event) => {
     log({ event: 'security_event', ...event });
