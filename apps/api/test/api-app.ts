@@ -11,6 +11,7 @@ import type { Sql } from 'postgres';
 
 import { CORE_CLIENT } from '../src/approvals/approvals.module.js';
 import { AppModule } from '../src/app.module.js';
+import { loadApiConfig } from '../src/config.js';
 import type { TestDatabase } from './database.js';
 
 export const ANA = 'dev-operator-ana-token-0123456789';
@@ -44,11 +45,16 @@ export async function startApiApp(
   const moduleRef = await Test.createTestingModule({
     imports: [
       AppModule.register({
-        API_DATABASE_URL: db.urlFor('copilot_api'),
+        ...loadApiConfig({
+          API_DATABASE_URL: db.urlFor('copilot_api'),
+          OPERATOR_TOKENS,
+          CORE_MOCK_URL: 'http://core-mock.invalid',
+          CORE_READ_KEY: 'unused-in-tests',
+          MCP_URL: 'http://mcp.invalid/mcp',
+          MCP_AUDIENCE: 'http://mcp:3020/mcp',
+          CASE_TOKEN_KEY: 'unused-in-tests-case-token-key-0123',
+        }),
         API_PORT: 0,
-        OPERATOR_TOKENS,
-        CORE_MOCK_URL: 'http://core-mock.invalid',
-        CORE_READ_KEY: 'unused-in-tests',
       }),
     ],
   })

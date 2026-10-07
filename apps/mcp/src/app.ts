@@ -6,6 +6,7 @@ import {
   maskPii,
   redactCredentials,
   type FetchLike,
+  CASE_TOKEN_MIN_KEY_BYTES,
 } from '@fintech-agent/contracts';
 import {
   createMcpHandler,
@@ -23,7 +24,6 @@ import { verifyCaseToken } from './case-token.js';
 import type { SecurityEventSink } from './security-events.js';
 import { createCallBudget, registerTools } from './tools.js';
 
-const MIN_KEY_BYTES = 32;
 const MAX_BODY_BYTES = 64 * 1024;
 const MCP_PATH = '/mcp';
 const HEALTH_PATH = '/health';
@@ -77,8 +77,10 @@ const unauthorized = (challenge: string): Response =>
  */
 export function createMcpApp(options: McpAppOptions): McpApp {
   const key = new TextEncoder().encode(options.caseTokenKey);
-  if (key.byteLength < MIN_KEY_BYTES) {
-    throw new Error(`CASE_TOKEN_KEY must be at least ${MIN_KEY_BYTES} bytes`);
+  if (key.byteLength < CASE_TOKEN_MIN_KEY_BYTES) {
+    throw new Error(
+      `CASE_TOKEN_KEY must be at least ${CASE_TOKEN_MIN_KEY_BYTES} bytes`,
+    );
   }
   const log = options.log ?? ((line) => console.log(JSON.stringify(line)));
   const core = createCoreClient({
