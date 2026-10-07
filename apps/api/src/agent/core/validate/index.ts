@@ -17,8 +17,6 @@ import {
   type PolicyConflict,
 } from './state-rules.js';
 
-export type { ChunkStateRules, PolicyConflict } from './state-rules.js';
-
 export interface ValidationContext {
   evidence: RunEvidence;
   /** The non-quarantined corpus's rules, cited or not; required so none is skipped. */

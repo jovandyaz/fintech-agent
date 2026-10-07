@@ -4,6 +4,7 @@ import {
   type TxType,
 } from '@fintech-agent/contracts';
 
+import { CARD_PURCHASE } from '../../../actions/allowed.js';
 import { businessDaysBetween, localDateOf } from '../calendar.js';
 import type { RunEvidence } from './evidence.js';
 
@@ -37,7 +38,7 @@ function statusOutputs(evidence: RunEvidence): StatusOutput[] {
     })),
     ...[...evidence.cardAuthorizations.values()].map((auth) => ({
       id: auth.id,
-      type: 'card_purchase' as const,
+      type: CARD_PURCHASE,
       fields: auth,
     })),
   ];

@@ -13,10 +13,10 @@ export const PLACEHOLDERS = [
 ] as const;
 export type Placeholder = (typeof PLACEHOLDERS)[number];
 
-/** LTOSF art. 23: the written answer to an aclaración, in natural days. */
-export const DICTAMEN_NATURAL_DAYS = 45;
-/** Banxico Circ. 12/2018 18.a: the credit of an unrecognized charge. */
-export const ABONO_BUSINESS_DAYS = 2;
+// LTOSF art. 23: the written answer to an aclaración, in natural days.
+const DICTAMEN_NATURAL_DAYS = 45;
+// Banxico Circ. 12/2018 18.a: the credit of an unrecognized charge.
+const ABONO_BUSINESS_DAYS = 2;
 
 const PLACEHOLDER = /\{\{([^{}]*)\}\}/g;
 
@@ -35,7 +35,8 @@ const spanishDate = (day: string): string => {
   return `${dayOfMonth} de ${SPANISH_MONTHS[month! - 1]} de ${year}`;
 };
 
-const isPlaceholder = (name: string): name is Placeholder =>
+/** Whether a name is one of the approved placeholders. */
+export const isPlaceholder = (name: string): name is Placeholder =>
   (PLACEHOLDERS as readonly string[]).includes(name);
 
 /** Every `{{…}}` name in a text, in order, known or not. */

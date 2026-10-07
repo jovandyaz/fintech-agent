@@ -99,8 +99,8 @@ function valueOf(run: string): number {
 
 /**
  * Rewrites Spanish number words as digits ("cuarenta y cinco días" → "45
- * días", "cinco mil" → "5,000") so a figure spelled out is read like one written in digits. Takes
- * text already lowercased and stripped of accents. "y" joins words only
+ * días", "cinco mil" → "5,000") so a figure spelled out is read like one
+ * written in digits. Takes text already lowercased and stripped of accents. "y" joins words only
  * between two number words; articles ("un", "una") become 1, which only
  * matters before a unit or a currency. A lone "mil" before a courtesy noun
  * ("mil gracias") stays a word.

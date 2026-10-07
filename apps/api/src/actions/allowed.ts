@@ -11,6 +11,20 @@ export const G2_VIOLATIONS = [
 ] as const;
 export type G2Violation = (typeof G2_VIOLATIONS)[number];
 
+/** The one card transaction type. */
+export const CARD_PURCHASE = 'card_purchase' as const;
+const SETTLED = 'settled';
+/** Card statuses a dispute may name (02 G2): the charge reached the account. */
+export const DISPUTABLE_CARD_STATUSES: ReadonlySet<string> = new Set([
+  SETTLED,
+  'pending',
+]);
+
+/** Whether a transaction or status output, if there is one, is settled. */
+export const isSettled = <T extends { status: string }>(
+  transaction: T | undefined,
+): transaction is T => transaction?.status === SETTLED;
+
 /** The fields of a transaction its G2 row reads, wherever it was read from. */
 export type TransactionShape = Pick<Transaction, 'id' | 'type' | 'status'>;
 
@@ -20,23 +34,20 @@ interface Row {
   allows: (transaction: TransactionShape) => boolean;
 }
 
-const isSettled = (transaction: TransactionShape): boolean =>
-  transaction.status === 'settled';
-
 const G2_TABLE: Record<ActionType, Row> = {
   open_dispute: {
     min: 1,
     max: 3,
     allows: (transaction) =>
-      transaction.type === 'card_purchase'
-        ? transaction.status === 'settled' || transaction.status === 'pending'
+      transaction.type === CARD_PURCHASE
+        ? DISPUTABLE_CARD_STATUSES.has(transaction.status)
         : transaction.type === 'spei_out' && isSettled(transaction),
   },
   resend_cep: {
     min: 1,
     max: 1,
     allows: (transaction) =>
-      transaction.type !== 'card_purchase' && isSettled(transaction),
+      transaction.type !== CARD_PURCHASE && isSettled(transaction),
   },
   escalate_fraud: { min: 0, max: MAX_ACTION_TRANSACTIONS, allows: () => true },
   none: { min: 0, max: 0, allows: () => true },

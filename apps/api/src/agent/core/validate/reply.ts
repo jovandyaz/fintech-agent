@@ -7,11 +7,13 @@ import type {
 import { replyViolations } from '../../../replies/reply-checks.js';
 import { hasCommitment } from './commitments.js';
 import type { RunEvidence } from './evidence.js';
-import { TWO_FACTORS } from './flags.js';
 import { groundingAtoms, ungroundedAtoms } from './numbers.js';
-import { PLACEHOLDERS, placeholdersIn } from './placeholders.js';
-
-const KNOWN_PLACEHOLDERS: ReadonlySet<string> = new Set(PLACEHOLDERS);
+import {
+  isPlaceholder,
+  placeholdersIn,
+  type Placeholder,
+} from './placeholders.js';
+import { TWO_FACTORS } from './predicates.js';
 // A filled value joined to a letter or digit becomes text nobody validated
 // ("1234567" + a date is an 8-digit run), so a placeholder stands apart.
 const GLUED_PLACEHOLDER = /[\p{L}\p{N}]\{\{|\}\}[\p{L}\p{N}]|\}\}\{\{/u;
@@ -27,16 +29,22 @@ const abonoHolds = (action: ProposedAction, evidence: RunEvidence): boolean =>
 
 // A bare deadline promises as much as its commitment does, so each date
 // placeholder is held to the predicate of the commitment it belongs to.
-const DICTAMEN_PLACEHOLDERS = ['compromiso_dictamen', 'fecha_limite_dictamen'];
-const ABONO_PLACEHOLDERS = ['compromiso_abono', 'fecha_limite_abono'];
+const DICTAMEN_PLACEHOLDERS: readonly Placeholder[] = [
+  'compromiso_dictamen',
+  'fecha_limite_dictamen',
+];
+const ABONO_PLACEHOLDERS: readonly Placeholder[] = [
+  'compromiso_abono',
+  'fecha_limite_abono',
+];
 
 function commitmentPlaceholdersHold(
   names: readonly string[],
   action: ProposedAction,
   evidence: RunEvidence,
 ): boolean {
-  const uses = (group: readonly string[]) =>
-    names.some((name) => group.includes(name));
+  const uses = (group: readonly Placeholder[]) =>
+    group.some((placeholder) => names.includes(placeholder));
   if (uses(DICTAMEN_PLACEHOLDERS) && action.type !== 'open_dispute') {
     return false;
   }
@@ -57,7 +65,7 @@ export function replyCodes(
   const codes: ValidationCode[] = [];
   const names = placeholdersIn(draft);
   if (
-    names.some((name) => !KNOWN_PLACEHOLDERS.has(name)) ||
+    names.some((name) => !isPlaceholder(name)) ||
     GLUED_PLACEHOLDER.test(draft)
   ) {
     codes.push('SCHEMA');

@@ -54,13 +54,17 @@ export function localDateOf(instant: Date): string {
   return LOCAL_DATE.format(instant);
 }
 
+const ISO_DAY_LENGTH = 'YYYY-MM-DD'.length;
+const YEAR_LENGTH = 'YYYY'.length;
+
 const toUtcMs = (day: string): number => Date.parse(`${day}T00:00:00Z`);
 const fromUtcMs = (ms: number): string =>
-  new Date(ms).toISOString().slice(0, 10);
+  new Date(ms).toISOString().slice(0, ISO_DAY_LENGTH);
 const nextDay = (day: string): string => fromUtcMs(toUtcMs(day) + MS_PER_DAY);
 
 function isBusinessDay(day: string): boolean {
-  if (!COVERED_YEARS.has(day.slice(0, 4))) throw new CalendarRangeError(day);
+  if (!COVERED_YEARS.has(day.slice(0, YEAR_LENGTH)))
+    throw new CalendarRangeError(day);
   const weekday = new Date(toUtcMs(day)).getUTCDay();
   return weekday !== SATURDAY && weekday !== SUNDAY && !HOLIDAYS.has(day);
 }

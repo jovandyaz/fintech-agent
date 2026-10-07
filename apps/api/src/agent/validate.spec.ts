@@ -50,9 +50,10 @@ const CARD_DISPUTE_RUN: ToolResult[] = [
 const codesOf = (
   raw: unknown,
   toolResults: ToolResult[] = CARD_DISPUTE_RUN,
+  facts: Partial<Omit<RunFacts, 'toolResults'>> = {},
 ): readonly string[] => {
   const outcome = validate(raw, {
-    evidence: buildEvidence(runOf(toolResults)),
+    evidence: buildEvidence(runOf(toolResults, facts)),
     stateRules: [],
   });
   return outcome.ok ? [] : outcome.codes;
@@ -261,14 +262,6 @@ const proposing = (
   draft_reply: NEUTRAL_REPLY,
 });
 
-const codesIn = (raw: unknown, run: RunFacts): readonly string[] => {
-  const outcome = validate(raw, {
-    evidence: buildEvidence(run),
-    stateRules: [],
-  });
-  return outcome.ok ? [] : outcome.codes;
-};
-
 const speiDisputeRun = (settledAt: string): ToolResult[] => [
   ...CARD_DISPUTE_RUN,
   {
@@ -476,13 +469,10 @@ describe('ACTION_UNSUPPORTED', () => {
 
     it('holds on the intake injection flag or a cross-customer lookup', () => {
       expect(
-        codesIn(escalate, runOf(CARD_DISPUTE_RUN, { injectionSignal: true })),
+        codesOf(escalate, CARD_DISPUTE_RUN, { injectionSignal: true }),
       ).toEqual([]);
       expect(
-        codesIn(
-          escalate,
-          runOf(CARD_DISPUTE_RUN, { crossCustomerLookup: true }),
-        ),
+        codesOf(escalate, CARD_DISPUTE_RUN, { crossCustomerLookup: true }),
       ).toEqual([]);
     });
   });
