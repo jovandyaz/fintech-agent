@@ -977,6 +977,16 @@ export function maskPii(text: string): string {
   return maskSegment(fold(text));
 }
 
+/**
+ * Whether `maskPii` would mask anything in `text`. Compares against the folded
+ * text, so folding alone (an ellipsis, a no-break space, accents, number
+ * words) is not PII; a reply check uses this, never `maskPii(x) !== x`.
+ */
+export function hasPii(text: string): boolean {
+  const folded = fold(text);
+  return maskSegment(folded) !== folded;
+}
+
 const snakeKey = (key: string): string =>
   key.replace(CAMEL_BOUNDARY, '$1_$2').toLowerCase().replace(NON_ALNUM, '_');
 
