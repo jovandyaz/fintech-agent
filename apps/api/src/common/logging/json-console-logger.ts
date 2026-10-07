@@ -222,7 +222,11 @@ export class JsonConsoleLogger extends ConsoleLogger {
           redactCredentials(maskPii(redactCredentials(context))) || undefined,
       });
     }
-    process[writeStreamType ?? 'stdout'].write(`${line}\n`);
+    // Nest's fatal() passes no stream, which would send it to stdout.
+    const stream =
+      writeStreamType ??
+      (SEVERITY_BY_LEVEL[logLevel] === SEVERITY.ERROR ? 'stderr' : 'stdout');
+    process[stream].write(`${line}\n`);
   }
 
   private render(

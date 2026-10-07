@@ -5,3 +5,4 @@ export * from './core.js';
 export * from './mcp.js';
 export * from './states.js';
 export * from './redact.js';
+export * from './boot-failure.js';
