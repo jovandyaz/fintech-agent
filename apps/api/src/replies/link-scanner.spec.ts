@@ -18,6 +18,8 @@ describe('hasLinkOutsideAllowList (02 G5 LINK_IN_REPLY)', () => {
     'El monto fue de $1,250.50 y la operación quedó liquidada.',
     'Por ej. una transferencia SPEI tarda segundos; S.A. de C.V.',
     'Listo. Saludos.',
+    'El cargo es de un comercio de EE.UU. y lo revisamos.',
+    'Lo canalizamos con RR.HH. de la empresa.',
   ])('passes a reply with no link outside albo: %s', (text) => {
     expect(scan(text)).toBe(false);
   });
