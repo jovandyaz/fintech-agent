@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http';
 
-import { CaseTokenClaimsSchema } from '@fintech-agent/contracts';
+import { CaseTokenClaimsSchema, maskPii } from '@fintech-agent/contracts';
 import {
   createMcpHandler,
   hostHeaderValidationResponse,
@@ -73,30 +73,30 @@ export function createMcpApp(options: McpAppOptions): McpApp {
     fetch: options.fetch ?? fetch,
   });
   const calls = createCallBudget();
+  const transportOptions = {
+    maxRequestBodySize: MAX_BODY_BYTES,
+    // SDK messages echo request values such as headers, so they are masked (G6).
+    onerror: (error: Error) =>
+      log({ event: 'mcp_error', message: maskPii(error.message) }),
+  };
   // DNS-rebinding guard: the SDK handler validates neither header.
   const allowedHosts = [
     new URL(options.audience).hostname,
     ...localhostAllowedHostnames(),
   ];
 
-  const handler = createMcpHandler(
-    ({ authInfo }) => {
-      const claims = CaseTokenClaimsSchema.parse(authInfo?.extra?.claims);
-      const server = new McpServer(SERVER_INFO);
-      registerTools(server, {
-        claims,
-        core,
-        securityEvents: options.securityEvents,
-        calls,
-        log,
-      });
-      return server;
-    },
-    {
-      maxRequestBodySize: MAX_BODY_BYTES,
-      onerror: (error) => log({ event: 'mcp_error', message: error.message }),
-    },
-  );
+  const handler = createMcpHandler(({ authInfo }) => {
+    const claims = CaseTokenClaimsSchema.parse(authInfo?.extra?.claims);
+    const server = new McpServer(SERVER_INFO);
+    registerTools(server, {
+      claims,
+      core,
+      securityEvents: options.securityEvents,
+      calls,
+      log,
+    });
+    return server;
+  }, transportOptions);
 
   async function serve(request: Request): Promise<Response> {
     const rejected =
@@ -125,13 +125,7 @@ export function createMcpApp(options: McpAppOptions): McpApp {
     });
   }
 
-  const node = toNodeHandler(
-    { fetch: serve },
-    {
-      maxRequestBodySize: MAX_BODY_BYTES,
-      onerror: (error) => log({ event: 'mcp_error', message: error.message }),
-    },
-  );
+  const node = toNodeHandler({ fetch: serve }, transportOptions);
   const server = createServer((req, res) => {
     // Node always sets `method` on a server request; the SDK's duck type only
     // rejects IncomingMessage under exactOptionalPropertyTypes.

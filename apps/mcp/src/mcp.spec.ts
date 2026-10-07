@@ -305,6 +305,19 @@ describe('MCP DNS-rebinding protection', () => {
   });
 });
 
+describe('MCP logs (02 G6)', () => {
+  it('masks personal data the SDK echoes from a request into its error logs', async () => {
+    await rawRequest({
+      'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
+      authorization: `Bearer ${await mint()}`,
+      'mcp-protocol-version': `${PLANTED_PHONE}-${PLANTED_PAN}`,
+    });
+    expect(logs.some((l) => l.event === 'mcp_error')).toBe(true);
+    expect(JSON.stringify(logs)).not.toMatch(/\d{8}/);
+  });
+});
+
 describe('MCP authentication (02 G4)', () => {
   it('answers health without a token', async () => {
     const response = await fetch(mcpUrl.replace('/mcp', '/health'));
