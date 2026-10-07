@@ -8,6 +8,7 @@ const REPO_ROOT = resolve(import.meta.dirname, '../../..');
 const AGENT_FILE = 'apps/api/src/agent/core/planted.ts';
 const EXECUTOR_FILE = 'apps/api/src/executor/planted.ts';
 const LINT_MS = 60_000;
+const BOUNDARY_MESSAGE = /\bG[14]:/;
 
 // The planted files are not on disk, so the project service cannot type them;
 // the G1 rules are syntactic and still come from the real eslint.config.mjs.
@@ -19,7 +20,7 @@ const eslint = new ESLint({
 async function g1Errors(filePath: string, code: string): Promise<string[]> {
   const [result] = await eslint.lintText(code, { filePath });
   return (result?.messages ?? [])
-    .filter((m) => m.severity === 2 && m.message.includes('G1:'))
+    .filter((m) => m.severity === 2 && BOUNDARY_MESSAGE.test(m.message))
     .map((m) => m.message);
 }
 
@@ -150,6 +151,21 @@ describe('G1 lint boundary between agent/ and executor/ (02 Process boundary)', 
       'a .mjs agent file',
       'apps/api/src/agent/core/planted.mjs',
       `import { run } from '../../executor/run.js';\nexport { run };\n`,
+    ],
+    [
+      'the core read client imported into agent/',
+      AGENT_FILE,
+      `import { createCoreClient } from '@fintech-agent/contracts';\nexport { createCoreClient };\n`,
+    ],
+    [
+      'the core read client reached through a dynamic import in agent/',
+      AGENT_FILE,
+      `export const load = async () => (await import('@fintech-agent/contracts')).createCoreClient;\n`,
+    ],
+    [
+      'the core read client reached by a computed key in agent/',
+      AGENT_FILE,
+      `import * as contracts from '@fintech-agent/contracts';\nexport const load = () => contracts['createCoreClient'];\n`,
     ],
     [
       'an inline disable in agent/',
