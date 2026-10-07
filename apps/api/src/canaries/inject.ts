@@ -3,6 +3,7 @@ import {
   newFolio,
   newIdPayload,
   newRegistryId,
+  TICKET_ID_PREFIX,
 } from '@fintech-agent/contracts';
 import { desc, eq } from 'drizzle-orm';
 
@@ -16,7 +17,6 @@ import {
 } from '../database/schema.js';
 import { CANARY_TEMPLATES, type CanaryTemplate } from './templates.js';
 
-const TICKET_PREFIX = 'tkt-';
 // A real case waits in the queue before its run starts.
 const QUEUE_WAIT_MS = 4_000;
 
@@ -58,7 +58,7 @@ export async function injectCanaries(
       };
       await tx.insert(cases).values({
         id: caseId,
-        ticketId: `${TICKET_PREFIX}${newIdPayload()}`,
+        ticketId: `${TICKET_ID_PREFIX}${newIdPayload()}`,
         folio: newFolio(),
         receivedAt: new Date(startedAt.getTime() - QUEUE_WAIT_MS),
         source: 'webhook',

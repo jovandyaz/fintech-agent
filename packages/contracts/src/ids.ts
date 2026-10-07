@@ -63,9 +63,11 @@ export function newFolio(random: RandomIndex = cryptoIndex): string {
 }
 
 const ID_LETTERS = 'abcdefghijkmnpqrstuvwxyz';
+/** The prefix of a ticket id from the ticketing system (`tkt-…`). */
+export const TICKET_ID_PREFIX = 'tkt-';
 const ID_PAYLOAD_CHARS = 12;
 
-/** Twelve random letters with no digit and no o or l, which the masker could read as digits. */
+/** Random letters with no digit and no o or l, which the masker could read as digits. */
 export function newIdPayload(random: RandomIndex = cryptoIndex): string {
   return Array.from(
     { length: ID_PAYLOAD_CHARS },
