@@ -1,4 +1,4 @@
-import { maskJson, maskPii } from '@fintech-agent/contracts';
+import { maskJson, maskPii, redactCredentials } from '@fintech-agent/contracts';
 import { ConsoleLogger, type LogLevel } from '@nestjs/common';
 
 import { isDatabaseError } from '../errors/database-diagnostics.js';
@@ -67,16 +67,6 @@ const PAIR_RECORD_KEYS = new Set<string>([
   'values',
   'data',
 ]);
-const MIN_SCHEME_CREDENTIAL_CHARS = 8;
-const SCHEME_CREDENTIAL = new RegExp(
-  String.raw`\b(Bearer|Basic)\s+[^\s"',;]{${MIN_SCHEME_CREDENTIAL_CHARS},}`,
-  'gi',
-);
-// "Token" is also an English word, so only a credential-shaped value counts.
-const TOKEN_SCHEME_CREDENTIAL =
-  /\b(Token)\s+(?=[^\s"',;]*[\d._-])[A-Za-z0-9._~+/=-]{12,}/g;
-const CREDENTIAL_ASSIGNMENT =
-  /\b([a-z_]*(?:token|password|passwd|secret|jwt|api_?key)|auth)(\s*[:=]\s*)[^\s&#,;"']+/gi;
 const UNLOGGABLE = '[unloggable log call]';
 
 type WriteStream = 'stdout' | 'stderr';
@@ -161,18 +151,12 @@ function toPlainData(
   }
 }
 
-const redactText = (text: string): string =>
-  text
-    .replace(SCHEME_CREDENTIAL, `$1 ${MARKER.redacted}`)
-    .replace(TOKEN_SCHEME_CREDENTIAL, `$1 ${MARKER.redacted}`)
-    .replace(CREDENTIAL_ASSIGNMENT, `$1$2${MARKER.redacted}`);
-
 // Runs before maskJson, which could split a token apart, and again after it,
 // which labels a keyed token `[factor]` and keeps the tail of a long opaque
 // value; credentials are dropped whole, whether keyed, paired
 // (`['authorization', …]`, rawHeaders, `{name: 'authorization', …}`) or in text.
 function redactSecrets(value: unknown): unknown {
-  if (typeof value === 'string') return redactText(value);
+  if (typeof value === 'string') return redactCredentials(value);
   if (Array.isArray(value)) {
     return value.map((item, index) =>
       index > 0 && isSecretKey(value[index - 1])
@@ -201,7 +185,8 @@ function redactSecrets(value: unknown): unknown {
 // The whole stack is one message to the masker: its digit budget then spans
 // every frame, a "Caused by" tail and any text a message left behind, at the
 // cost of line numbers in logs. Credentials go first so masking cannot split them.
-const maskStackText = (stack: string): string => maskPii(redactText(stack));
+const maskStackText = (stack: string): string =>
+  maskPii(redactCredentials(stack));
 
 /**
  * Writes each log call as one JSON line: a non-empty string `message`, a
@@ -233,7 +218,8 @@ export class JsonConsoleLogger extends ConsoleLogger {
         level: SEVERITY_BY_LEVEL[logLevel],
         message: UNLOGGABLE,
         timestamp: new Date().toISOString(),
-        context: redactText(maskPii(redactText(context))) || undefined,
+        context:
+          redactCredentials(maskPii(redactCredentials(context))) || undefined,
       });
     }
     process[writeStreamType ?? 'stdout'].write(`${line}\n`);

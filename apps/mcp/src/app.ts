@@ -1,6 +1,10 @@
 import { createServer, type Server } from 'node:http';
 
-import { CaseTokenClaimsSchema, maskPii } from '@fintech-agent/contracts';
+import {
+  CaseTokenClaimsSchema,
+  maskPii,
+  redactCredentials,
+} from '@fintech-agent/contracts';
 import {
   createMcpHandler,
   hostHeaderValidationResponse,
@@ -86,7 +90,10 @@ export function createMcpApp(options: McpAppOptions): McpApp {
     maxRequestBodySize: MAX_BODY_BYTES,
     // SDK messages echo request values such as headers, so they are masked (G6).
     onerror: (error: Error) =>
-      log({ event: 'mcp_error', message: maskPii(error.message) }),
+      log({
+        event: 'mcp_error',
+        message: maskPii(redactCredentials(error.message)),
+      }),
   };
   // DNS-rebinding guard: the SDK handler validates neither header.
   const allowedHosts = [

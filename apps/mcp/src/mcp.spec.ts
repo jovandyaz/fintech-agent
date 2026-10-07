@@ -290,6 +290,17 @@ describe('MCP logs (02 G6)', () => {
     expect(JSON.stringify(logs)).not.toMatch(/\d{8}/);
   });
 
+  it('redacts a credential the SDK echoes from a request into its error logs', async () => {
+    await rawRequest({
+      'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
+      authorization: `Bearer ${await mint()}`,
+      'mcp-protocol-version': 'Bearer ana-operator-dev-token-secret',
+    });
+    expect(logs.some((l) => l.event === 'mcp_error')).toBe(true);
+    expect(JSON.stringify(logs)).not.toContain('ana-operator-dev-token');
+  });
+
   it('logs every refused request with its reason and nothing the caller sent', async () => {
     const json = {
       'content-type': 'application/json',
