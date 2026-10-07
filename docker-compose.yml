@@ -42,6 +42,18 @@ services:
       OPERATOR_TOKENS: ${OPERATOR_TOKENS:-ana:k1:dev-operator-ana-token-0123456789,beto:k1:dev-operator-beto-token-0123456789}
       CORE_MOCK_URL: http://core-mock:3010
       CORE_READ_KEY: ${CORE_READ_KEY:-dev-core-read-key}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AGENT_MODE: ${AGENT_MODE:-on}
+      AGENT_VARIANT: ${AGENT_VARIANT:-A}
+      AGENT_MODEL_A: ${AGENT_MODEL_A:-claude-sonnet-5-5}
+      AGENT_MODEL_B: ${AGENT_MODEL_B:-claude-haiku-5-5}
+      REDACTOR_MODEL: ${REDACTOR_MODEL:-claude-haiku-5-5}
+      RUN_TIMEOUT_MS: ${RUN_TIMEOUT_MS:-180000}
+      RUN_COST_CEILING_USD: ${RUN_COST_CEILING_USD:-0.5}
+      RUN_INPUT_TOKEN_CEILING: ${RUN_INPUT_TOKEN_CEILING:-60000}
+      MCP_URL: http://mcp:3020/mcp
+      MCP_AUDIENCE: ${MCP_AUDIENCE:-http://mcp:3020/mcp}
+      CASE_TOKEN_KEY: ${CASE_TOKEN_KEY:-dev-case-token-key-0123456789abcdef}
     ports:
       - '${API_PORT:-3000}:3000'
     depends_on:

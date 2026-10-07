@@ -20,6 +20,8 @@ export const CASE_TOKEN_ISSUER = 'case-copilot-api';
 export const CASE_TOKEN_SCOPE = 'case:read';
 export const CASE_TOKEN_MAX_TTL_S = 600;
 export const CASE_TOKEN_MAX_CALLS = 12;
+/** HS256 key length floor for `CASE_TOKEN_KEY`, held by api and mcp (02 G4). */
+export const CASE_TOKEN_MIN_KEY_BYTES = 32;
 
 /** Claims of the case token the harness mints and the MCP server verifies (02 G4). `sub` is the customer id. */
 export const CaseTokenClaimsSchema = z.object({
