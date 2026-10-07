@@ -19,10 +19,12 @@ const URL_CANDIDATES =
   /\]\(\s*<?([^)\s>]+)|^ {0,3}\[[^\]]+\]:\s*<?(\S+?)>?$|<([a-z][a-z0-9+.-]*:[^\s>]+)>|(?:https?:)?\/\/[^\s)\]>"']+/gim;
 const WWW_HOST = /(?:^|[^\w.-])(www\.[^\s/)\]>"'?#]+)/gi;
 const EMAIL_HOST = /[\w.+-]+@([\w-]+(?:\.[\w-]+)+)/g;
-// Operators often drop the space after a period ("Listo.Saludos"); a bare
-// host must be lower case so a capitalized sentence never reads as a domain.
+// Mail and chat clients autolink a bare domain in any case ("EVIL.COM/x"),
+// so a missing space after a period ("Listo.Saludos") is flagged too.
 const BARE_HOST =
-  /(?<![\w@./-])([a-z0-9][a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})(?![\w-])/g;
+  /(?<![\w@./-])([a-z0-9][a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})(?![\w-])/gi;
+// NFKC leaves these as they are, and browsers read each one as a dot in a host.
+const DOT_LOOKALIKES = /[\u3002\uFF61\uFE52]/g;
 
 function fromCodePointOr(whole: string, code: number): string {
   return Number.isInteger(code) && code >= 0 && code <= MAX_CODE_POINT
@@ -78,7 +80,7 @@ export function hasLinkOutsideAllowList(
 ): boolean {
   const normalized = decodePercent(
     decodeCharacterReferences(text.normalize('NFKC')),
-  );
+  ).replace(DOT_LOOKALIKES, '.');
   if (RAW_HTML.test(normalized) || SCRIPTABLE_SCHEME.test(normalized)) {
     return true;
   }

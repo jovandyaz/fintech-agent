@@ -47,6 +47,20 @@ describe('replyViolations (02 G5, the checks a final reply shares with the draft
     'No te preocupes, envíanos tu NIP y lo revisamos.',
     'Nunca dudes en escribirnos; confírmanos tu CVV.',
     'No necesitamos tu NIP, pero confírmanos tu CVV.',
+    'Danos tu NIP.',
+    'Favor de enviar tu NIP.',
+    'Te pedimos que nos envíes tu CVV.',
+    'Debes enviarnos tu NIP.',
+    'Solicitamos tu contraseña.',
+    'Responde este correo con tu NIP.',
+    'Envíanos tu clave para validar.',
+    'Envíanos los 3 dígitos al reverso de tu tarjeta.',
+    'Mándanos el código que recibiste por SMS.',
+    'Tu NIP, compártelo con nosotros.',
+    'Envíanos ¿tu NIP? para continuar',
+    'Comparte con nosotros (¡por favor!) tu CVV',
+    'Envíanos\ntu NIP',
+    'No compartas esto con nadie, pero envíanos tu NIP.',
   ])('flags AUTH_FACTOR_REQUEST: %s', (sentence) => {
     expect(replyViolations(`${CLEAN} ${sentence}`)).toContain(
       'AUTH_FACTOR_REQUEST',
@@ -57,12 +71,30 @@ describe('replyViolations (02 G5, the checks a final reply shares with the draft
     'Nunca te pediremos tu NIP, tu CVV ni tus contraseñas.',
     'albo no te solicitará tu NIP por ningún medio.',
     'No compartas tu código de verificación con nadie.',
-    'Tu token de la app se renueva cada 30 segundos.',
     'Envíanos una captura del movimiento. Nunca compartas tu NIP.',
     'No necesitamos tu NIP para revisar el cargo.',
     'Jamás te pediremos que nos confirmes tu CVV.',
     'Nunca, por ningún motivo, necesitamos tu contraseña.',
   ])('passes a warning that only names a factor: %s', (sentence) => {
+    expect(replyViolations(`${CLEAN} ${sentence}`)).toEqual([]);
+  });
+
+  // Fails closed: a factor may be named only inside a warning not to share it.
+  it.each([
+    'Tu token de la app se renueva cada 30 segundos.',
+    'Ingresa a la app con tu contraseña.',
+    'Dime si recibiste el código de verificación.',
+  ])('flags a factor named outside a warning: %s', (sentence) => {
+    expect(replyViolations(`${CLEAN} ${sentence}`)).toContain(
+      'AUTH_FACTOR_REQUEST',
+    );
+  });
+
+  it.each([
+    'Tu clave de rastreo es la que aparece en el comprobante.',
+    'Confirma tu código postal en la app.',
+    'Te enviaremos el comprobante a tu correo registrado.',
+  ])('passes words that only look like factors: %s', (sentence) => {
     expect(replyViolations(`${CLEAN} ${sentence}`)).toEqual([]);
   });
 
