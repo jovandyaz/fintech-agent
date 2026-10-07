@@ -357,6 +357,28 @@ describe('MCP logs (02 G6)', () => {
     expect(logs.some((l) => l.event === 'mcp_error')).toBe(true);
     expect(JSON.stringify(logs)).not.toMatch(/\d{8}/);
   });
+
+  it('logs every refused request with its reason and nothing the caller sent', async () => {
+    const json = {
+      'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
+    };
+    const forged = await mint({ key: WEBHOOK_SECRET });
+    await rawRequest({ ...json, host: `evil-${PLANTED_PAN}.example` });
+    await rawRequest({ ...json, origin: 'http://evil.example' });
+    await rawRequest(json);
+    await rawRequest({ ...json, authorization: `Bearer ${forged}` });
+    const refused = logs.filter((line) => line.event === 'auth_rejected');
+    expect(refused).toEqual([
+      { event: 'auth_rejected', reason: 'host' },
+      { event: 'auth_rejected', reason: 'origin' },
+      { event: 'auth_rejected', reason: 'missing_token' },
+      { event: 'auth_rejected', reason: 'invalid_token' },
+    ]);
+    const logged = JSON.stringify(logs);
+    expect(logged).not.toContain(forged);
+    expect(logged).not.toContain('evil');
+  });
 });
 
 describe('MCP authentication (02 G4)', () => {

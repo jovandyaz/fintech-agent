@@ -29,6 +29,13 @@ const CHALLENGE = {
   missing: 'Bearer',
   invalid: 'Bearer error="invalid_token"',
 } as const;
+const REFUSAL = {
+  host: 'host',
+  origin: 'origin',
+  missingToken: 'missing_token',
+  invalidToken: 'invalid_token',
+} as const;
+type Refusal = (typeof REFUSAL)[keyof typeof REFUSAL];
 
 export interface McpAppOptions {
   coreUrl: string;
@@ -101,11 +108,17 @@ export function createMcpApp(options: McpAppOptions): McpApp {
     return server;
   }, transportOptions);
 
+  // The reason only: header values and tokens are caller-chosen (G6).
+  const refuse = (reason: Refusal, response: Response): Response => {
+    log({ event: 'auth_rejected', reason });
+    return response;
+  };
+
   async function serve(request: Request): Promise<Response> {
-    const rejected =
-      hostHeaderValidationResponse(request, allowedHosts) ??
-      originValidationResponse(request, allowedHosts);
-    if (rejected) return rejected;
+    const badHost = hostHeaderValidationResponse(request, allowedHosts);
+    if (badHost) return refuse(REFUSAL.host, badHost);
+    const badOrigin = originValidationResponse(request, allowedHosts);
+    if (badOrigin) return refuse(REFUSAL.origin, badOrigin);
     const { pathname } = new URL(request.url);
     if (pathname === HEALTH_PATH && request.method === 'GET') {
       return json(STATUS.ok, { status: 'ok' });
@@ -113,10 +126,14 @@ export function createMcpApp(options: McpAppOptions): McpApp {
     if (pathname !== MCP_PATH)
       return json(STATUS.notFound, { error: 'not_found' });
     const match = BEARER.exec(request.headers.get('authorization') ?? '');
-    if (!match?.[1]) return unauthorized(CHALLENGE.missing);
+    if (!match?.[1]) {
+      return refuse(REFUSAL.missingToken, unauthorized(CHALLENGE.missing));
+    }
     const token = match[1];
     const claims = await verifyCaseToken(token, key, options.audience);
-    if (claims === null) return unauthorized(CHALLENGE.invalid);
+    if (claims === null) {
+      return refuse(REFUSAL.invalidToken, unauthorized(CHALLENGE.invalid));
+    }
     return handler.fetch(request, {
       authInfo: {
         token,
