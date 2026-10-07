@@ -1,6 +1,12 @@
+import {
+  APPROVED_FACTOR_WARNINGS,
+  MAX_REPLY_CHARS,
+} from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { replyViolations } from './reply-checks.js';
+
+const CHECK_BUDGET_MS = 50;
 
 const CLEAN =
   'Hola Ana, registramos tu aclaración con folio AC-7KQ2-M9XD. Te responderemos por escrito a más tardar el 9 de octubre.';
@@ -85,34 +91,60 @@ describe('replyViolations (02 G5, the checks a final reply shares with the draft
     );
   });
 
-  it.each([
-    'Nunca te pediremos tu NIP, tu CVV ni tus contraseñas.',
-    'albo no te solicitará tu NIP por ningún medio.',
-    'No compartas tu código de verificación con nadie.',
-    'Envíanos una captura del movimiento. Nunca compartas tu NIP.',
-    'No necesitamos tu NIP para revisar el cargo.',
-    'Jamás te pediremos que nos confirmes tu CVV.',
-    'Nunca, por ningún motivo, necesitamos tu contraseña.',
-    'Albo no te solicitará jamás tu NIP.',
-    'Nunca compartas con nadie tu NIP.',
-    'Nadie de albo te pedirá tu NIP.',
-    'Ningún colaborador te pedirá tu NIP ni tu CVV.',
-    'Ni albo ni sus ejecutivos te pedirán tu NIP.',
-    'Nunca te pediremos por teléfono tu NIP.',
-    'Evita compartir tu NIP.',
-  ])('passes a warning that only names a factor: %s', (sentence) => {
-    expect(replyViolations(`${CLEAN} ${sentence}`)).toEqual([]);
+  it.each(APPROVED_FACTOR_WARNINGS)(
+    'passes the approved warning: %s',
+    (warning) => {
+      expect(replyViolations(`${CLEAN} ${warning}`)).toEqual([]);
+    },
+  );
+
+  it('passes an approved warning in any case, accents and spacing', () => {
+    const [warning = ''] = APPROVED_FACTOR_WARNINGS;
+    const variant = warning
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
+      .replaceAll(' ', '  ')
+      .replace(/\.$/, '');
+    expect(replyViolations(`${CLEAN} ${variant}`)).toEqual([]);
   });
 
-  // Fails closed: a factor may be named only inside a warning not to share it.
+  // Fails closed: free-form warnings leaked request after request, so only
+  // the approved sentences may name a factor.
   it.each([
+    'Nunca te pediremos tu NIP, tu CVV ni tus contraseñas.',
+    'Nunca compartas con nadie tu NIP.',
+    'Evita compartir tu NIP.',
+    'No dudes en enviar tu NIP por este chat.',
+    'Nunca olvides compartir tu CVV con nosotros.',
+    'No dejes de enviar tu NIP aquí.',
+    'Nunca compartas tu NIP con nadie que no sea albo.',
+    'No compartas tu NIP con nadie más que con nosotros.',
+    'Envíanos los 6 dígitos que te llegaron por SMS.',
+    'Envíanos el código de autorización que te llegó por SMS.',
     'Tu token de la app se renueva cada 30 segundos.',
     'Ingresa a la app con tu contraseña.',
     'Dime si recibiste el código de verificación.',
-  ])('flags a factor named outside a warning: %s', (sentence) => {
+    `${APPROVED_FACTOR_WARNINGS[0]} Ahora envíanos tu NIP.`,
+    'Envíanos tu N\u00ADI\u00ADP.',
+    'Envíanos tu N\u200BI\u200BP.',
+    'Envíanos tu N I P a la brevedad.',
+    'Mándanos tu c v v y tu n i p.',
+  ])('flags a factor outside an approved warning: %s', (sentence) => {
     expect(replyViolations(`${CLEAN} ${sentence}`)).toContain(
       'AUTH_FACTOR_REQUEST',
     );
+  });
+
+  it.each([
+    ['backtracking bait', 'no compartas ' + 'por a '.repeat(650) + '5 nip'],
+    ['repeated factors', 'nip '.repeat(1000)],
+    ['spelled-out runs', 'n i p '.repeat(660)],
+    ['digits before a back side', 'digitos '.repeat(500) + 'reverso'],
+  ])('checks %s at the reply cap within the time budget', (_, text) => {
+    const started = performance.now();
+    replyViolations(text.slice(0, MAX_REPLY_CHARS));
+    expect(performance.now() - started).toBeLessThan(CHECK_BUDGET_MS);
   });
 
   it.each([

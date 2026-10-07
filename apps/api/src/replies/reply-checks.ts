@@ -1,13 +1,17 @@
-import { maskPii, type ReplyCheckCode } from '@fintech-agent/contracts';
+import {
+  APPROVED_FACTOR_WARNINGS,
+  maskPii,
+  type ReplyCheckCode,
+} from '@fintech-agent/contracts';
 
 import {
   ALLOWED_REPLY_HOSTS,
   hasLinkOutsideAllowList,
 } from './link-scanner.js';
 
+const IGNORABLE = /\p{Default_Ignorable_Code_Point}/gu;
 const DIACRITICS = /\p{M}/gu;
-const SENTENCE_END = /[.!?;]+/;
-const FACTOR_MARK = '';
+const WHITESPACE = /\s+/g;
 
 const LOOKALIKES: Record<string, string> = {
   Α: 'a',
@@ -52,8 +56,8 @@ const LOOKALIKES: Record<string, string> = {
 };
 const LOOKALIKE = new RegExp(`[${Object.keys(LOOKALIKES).join('')}]`, 'gu');
 const SPELLED_OUT =
-  /(?<![\p{L}\d])(?:[\p{L}\d][.\s\-·_]+){1,7}[\p{L}\d](?![\p{L}\d])/gu;
-const SPELLING_SEPARATOR = /[.\s\-·_]+/g;
+  /(?<![\p{L}\d])(?:[\p{L}\d][.\s\-·_]){1,7}[\p{L}\d](?![\p{L}\d])/gu;
+const SPELLING_SEPARATOR = /[.\s\-·_]/g;
 const LEET: Record<string, string> = {
   '0': 'o',
   '1': 'i',
@@ -66,77 +70,110 @@ const LEET: Record<string, string> = {
   $: 's',
 };
 const LEET_CHARACTER = /[013457l@$]/g;
+const TOKEN = /[\p{L}\d@$]+/gu;
 
-const FACTOR =
-  /\b(?:nips?|pins?|cvv2?s?|cvc2?s?|otps?|contra[sc]en(?:a|ia)s?|passwords?|passcodes?|passwd|pwd|tokens?|claves?(?! (?:de (?:rastreo|aclaracion)|interbancaria))|llaves? dinamicas?|codigos?(?! (?:postal(?:es)?|de (?:rastreo|aclaracion|autorizacion|barras|promocion|referencia)))|(?:numeros?|numeritos?|codigos?|claves?) secret[oa]s?|(?:digitos|numeros) [^.!?;]{0,20}?\b(?:reverso|atras|seguridad)|one[- ]time (?:code|password))\b/g;
+const FACTOR_WORDS = [
+  'nips?',
+  'pins?',
+  'cvv2?s?',
+  'cvc2?s?',
+  'otps?',
+  'contra[sc]en(?:a|ia)s?',
+  'passwords?',
+  'passcodes?',
+  'passwd',
+  'pwd',
+  'tokens?',
+  'sms',
+  'claves?',
+  'codigos?',
+] as const;
+const NOT_A_FACTOR_AFTER: Partial<
+  Record<(typeof FACTOR_WORDS)[number], string>
+> = {
+  'claves?': '(?! (?:de (?:rastreo|aclaracion)|interbancaria))',
+  'codigos?':
+    '(?! (?:postal(?:es)?|de (?:rastreo|aclaracion|autorizacion|barras|promocion|referencia)))',
+};
+const FACTOR_PHRASES = [
+  'llaves? dinamicas?',
+  '(?:numeros?|numeritos?) secret[oa]s?',
+  '(?:digitos|numeros) [^.!?;]{0,20}?\\b(?:reverso|atras|seguridad)',
+  'one[- ]time (?:code|password)',
+  'mensajes? de texto',
+] as const;
 
-// Spanish puts the negated verb right before what it governs, so between a
-// warning and its factor only possessives, other factors and list words may
-// sit, and an exception after it ("excepto a nosotros") voids the warning.
-const GOVERNED_TAIL =
-  /(?:[\s,]|\b(?:tu|tus|su|sus|el|la|los|las|ni|o|y|a nadie)\b)*$/;
-const WARNING =
-  /\b(?:no|nunca|jamas|ni|nadie|ningun[oa]?|evita|evite)\b(?:[\s,]+\p{L}+){0,5}?[\s,]+(?:pediremos|pedimos|pedira|pediran|pide|solicitaremos|solicitamos|solicitara|solicitaran|solicita|necesitamos|requerimos|requerira|requeriran|preguntaremos|preguntara|preguntaran|compartas|compartir|des|dar|envies|enviar|proporciones|proporcionar|reveles|revelar|digas|decir|escribas|escribir)(?:[\s,]+(?:jamas|nunca|con nadie|a nadie|por (?:\p{L}+\s+){0,2}\p{L}+|que(?:\s+(?:nos|me|le))?\s+(?:confirmes|envies|compartas|des|digas|proporciones|escribas)))*$/u;
-const EXCEPTION =
-  /\b(?:excepto|salvo|menos|sino|a nosotros si|con nosotros si|solo a nosotros|unicamente a nosotros|a nosotros tambien)\b/;
+// A spelled-out run joins into one token with its neighbours ("N I P a" is
+// "nipa"), so the factors inside the run are added back as words.
+const SPELLED_FACTORS = [
+  'nip',
+  'pin',
+  'cvv',
+  'cvc',
+  'otp',
+  'sms',
+  'token',
+  'clave',
+  'codigo',
+] as const;
+
+const FACTOR = new RegExp(
+  `\\b(?:${[
+    ...FACTOR_WORDS.map((word) => `${word}${NOT_A_FACTOR_AFTER[word] ?? ''}`),
+    ...FACTOR_PHRASES,
+  ].join('|')})\\b`,
+);
+const FACTOR_WORD = new RegExp(`^(?:${FACTOR_WORDS.join('|')})$`);
+
+const unleet = (text: string): string =>
+  text.replace(LEET_CHARACTER, (character) => LEET[character] ?? character);
+
+function spelledRun(run: string): string {
+  const joined = run.replace(SPELLING_SEPARATOR, '');
+  const inside = SPELLED_FACTORS.filter((factor) =>
+    unleet(joined).includes(factor),
+  );
+  return [joined, ...inside].join(' ');
+}
 
 const normalize = (text: string): string =>
   text
+    .replace(IGNORABLE, '')
     .normalize('NFKC')
     .replace(LOOKALIKE, (character) => LOOKALIKES[character] ?? character)
     .normalize('NFKD')
     .replace(DIACRITICS, '')
     .toLowerCase()
-    .replace(SPELLED_OUT, (run) => run.replace(SPELLING_SEPARATOR, ''));
+    .replace(WHITESPACE, ' ')
+    .replace(SPELLED_OUT, spelledRun);
 
-const FACTOR_WORD =
-  /^(?:nips?|pins?|cvv2?s?|cvc2?s?|otps?|contra[sc]en(?:a|ia)s?|passwords?|passcodes?|passwd|pwd|tokens?|claves?|codigos?)$/;
-const TOKEN = /[\p{L}\d@$]+/gu;
-
-// Folding every "l" and digit would break the words around a factor
-// ("solicitara", "postal"), so only a token that becomes a factor is folded.
+// Folding every "l" and digit would break ordinary words ("solicitara",
+// "postal"), so only a token that becomes a factor is folded.
 const unleetFactors = (text: string): string =>
   text.replace(TOKEN, (token) => {
-    const folded = token.replace(
-      LEET_CHARACTER,
-      (character) => LEET[character] ?? character,
-    );
+    const folded = unleet(token);
     return FACTOR_WORD.test(folded) && !FACTOR_WORD.test(token)
       ? folded
       : token;
   });
 
-function isWarned(
-  sentence: string,
-  factorAt: number,
-  factorEnd: number,
-): boolean {
-  const before = sentence
-    .slice(0, factorAt)
-    .replace(FACTOR, FACTOR_MARK)
-    .replace(GOVERNED_TAIL, '');
-  return WARNING.test(before) && !EXCEPTION.test(sentence.slice(factorEnd));
-}
-
-function namesFactorOutsideWarning(plain: string): boolean {
-  return plain
-    .split(SENTENCE_END)
-    .some((sentence) =>
-      [...sentence.matchAll(FACTOR)].some(
-        ({ index, 0: factor }) =>
-          !isWarned(sentence, index, index + factor.length),
-      ),
-    );
-}
+const APPROVED = APPROVED_FACTOR_WARNINGS.map((warning) =>
+  normalize(warning).replace(/[.!]+$/, ''),
+);
 
 /**
- * Fails closed: a reply may name an authentication factor only inside a
- * warning not to share it (IFPE rules art. 18 fr. III). Any other mention,
- * a request or not, is a violation the operator or the repair turn rewords.
- * Spelled-out, look-alike and digit-for-letter spellings count as the factor.
+ * Fails closed: a reply may name an authentication factor only inside one of
+ * the approved warning sentences (IFPE rules art. 18 fr. III). Any other
+ * mention, a request or not, is a violation the operator or the repair turn
+ * rewords. Spelled-out, look-alike, invisible-character and digit-for-letter
+ * spellings count as the factor.
  */
 function namesAuthFactor(text: string): boolean {
-  return namesFactorOutsideWarning(unleetFactors(normalize(text)));
+  const outsideWarnings = APPROVED.reduce(
+    (remaining, warning) => remaining.replaceAll(warning, ' '),
+    normalize(text),
+  );
+  return FACTOR.test(unleetFactors(outsideWarnings));
 }
 
 /**
