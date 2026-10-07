@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 const PASSWORD = 'seed-spec-password-not-real';
 
 describe('seed boot', () => {
-  it('fails with one masked JSON line when its env is wrong', () => {
+  it('fails with one JSON line that echoes no secret when its env is wrong', () => {
     const run = spawnSync(
       process.execPath,
       ['--import', 'tsx', resolve(import.meta.dirname, 'main.ts')],
@@ -14,7 +14,7 @@ describe('seed boot', () => {
         cwd: resolve(import.meta.dirname, '../..'),
         env: {
           PATH: process.env.PATH,
-          DATABASE_URL: 'not a url',
+          DATABASE_URL: `postgresql://owner:${PASSWORD}@db host/copilot`,
           API_DB_PASSWORD: PASSWORD,
         },
         encoding: 'utf8',
