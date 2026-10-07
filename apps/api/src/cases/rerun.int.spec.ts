@@ -174,14 +174,32 @@ describe('manual re-runs (02 G3)', () => {
     ]);
   });
 
-  it('answers 409, never 500, when a re-run races a decision', async () => {
+  it('never answers 500 and never ends inconsistent when a re-run races a decision', async () => {
     for (let i = 0; i < RACES; i += 1) {
       const { caseId, actionId } = await seeded();
-      const statuses = await Promise.all([
+      const [rerunStatus, decideStatus] = await Promise.all([
         rerun(caseId),
         decide(actionId),
-      ]).then((responses) => responses.map(({ status }) => status).sort());
-      expect(statuses).toEqual([STATUS.ok, STATUS.conflict]);
+      ]).then((responses) => responses.map(({ status }) => status));
+      const end = await state(caseId, actionId);
+      // Decision first: the resolved case may still be re-run. Re-run first:
+      // the proposal is superseded and the decision is a conflict.
+      if (decideStatus === STATUS.ok) {
+        expect(rerunStatus).toBe(STATUS.ok);
+        expect(end).toMatchObject({
+          case_status: 'queued',
+          action_status: 'rejected',
+        });
+      } else {
+        expect([rerunStatus, decideStatus]).toEqual([
+          STATUS.ok,
+          STATUS.conflict,
+        ]);
+        expect(end).toMatchObject({
+          case_status: 'queued',
+          action_status: 'superseded',
+        });
+      }
     }
   });
 });

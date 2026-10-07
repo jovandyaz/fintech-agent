@@ -25,6 +25,11 @@ describe('parseOperatorTokens', () => {
     ['the same token twice', `ana:k1:${ANA},beto:k1:${ANA}`],
     ['the same operator key twice', `ana:k1:${ANA},ana:k1:${BETO}`],
     ['nothing at all', ''],
+    ['a token with a space inside', 'ana:k1:dev operator ana token 0123456789'],
+    [
+      'a token with a control character',
+      'ana:k1:dev-operator-ana-token\u0007-0123456789',
+    ],
   ])('refuses %s without echoing a token', (_, raw) => {
     let message = '';
     try {
