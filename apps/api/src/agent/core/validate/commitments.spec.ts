@@ -1,0 +1,118 @@
+import { describe, expect, it } from 'vitest';
+
+import { hasCommitment } from './commitments.js';
+
+describe('hasCommitment', () => {
+  it('finds the promise and completed-action verbs of 02 G5', () => {
+    for (const text of [
+      'Tranquila, te reembolsaremos el cargo.',
+      'Te devolveremos tu dinero.',
+      'Hoy te devolvemos el monto.',
+      'Abonaremos el importe a tu cuenta.',
+      'Te garantizamos una respuesta.',
+      'Ya abrimos tu aclaración.',
+      'ya escalamos tu caso',
+      'Ya enviamos el comprobante.',
+      'Ya reembolsamos el cargo.',
+      'En 3 días te depositamos.',
+      'en 48 horas hábiles te llamamos',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+  });
+
+  it('reads through case, accents and invisible characters', () => {
+    expect(hasCommitment('TE REEMBOLSAREMOS')).toBe(true);
+    expect(hasCommitment('te reem\u200bbolsaremos')).toBe(true);
+    expect(hasCommitment('Ya Envíamos el CEP')).toBe(true);
+  });
+
+  it('lets a negation that governs the verb cancel the match', () => {
+    expect(hasCommitment('No podemos hacer un reembolso.')).toBe(false);
+    expect(hasCommitment('No te reembolsaremos este cargo.')).toBe(false);
+    expect(hasCommitment('Nunca te garantizamos un plazo.')).toBe(false);
+    expect(hasCommitment('No te vamos a reembolsar ese cargo.')).toBe(false);
+    expect(hasCommitment('No le reembolsaremos el cargo.')).toBe(false);
+  });
+
+  it('does not let a negation of another clause or verb cancel the match', () => {
+    expect(hasCommitment('No te preocupes, te reembolsaremos.')).toBe(true);
+    expect(hasCommitment('No es algo que ahora mismo te devolveremos')).toBe(
+      true,
+    );
+  });
+
+  it('matches verbs, not stems', () => {
+    expect(
+      hasCommitment('Puedes solicitar un reembolso o una devolución.'),
+    ).toBe(false);
+    expect(hasCommitment('El abono depende del dictamen.')).toBe(false);
+  });
+});
+
+describe('hasCommitment, wider forms', () => {
+  it('finds the listed verbs in every person and periphrasis', () => {
+    for (const text of [
+      'Le reembolsaremos los $1,250.00.',
+      'Les devolveremos el importe.',
+      'Reembolsaremos el cargo.',
+      'Garantizamos la devolución.',
+      'Te vamos a reembolsar mañana.',
+      'Le vamos a devolver su dinero.',
+      'Dentro de 2 días te depositamos.',
+      'En 2 días, te avisamos.',
+      'En 48 horas tendrás tu dinero.',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+  });
+
+  it('cancels only on a negation that governs the verb', () => {
+    expect(
+      hasCommitment('No te preocupes que te reembolsaremos tu dinero'),
+    ).toBe(true);
+    expect(hasCommitment('No dudes que te devolveremos el cargo')).toBe(true);
+    expect(hasCommitment('no creo que te devolveremos')).toBe(true);
+  });
+});
+
+describe('hasCommitment, deadlines in any unit', () => {
+  it('finds a deadline promise with a singular or short unit', () => {
+    for (const text of [
+      'En 1 día hábil te avisamos.',
+      'En un día hábil te avisamos.',
+      'En 24h te depositamos el monto.',
+      'En 24h te avisamos.',
+      'Dentro de 1 mes recibirás tu dinero.',
+      'Hoy te depositamos el monto.',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+  });
+});
+
+describe('hasCommitment, present tense without a pronoun', () => {
+  it('finds a present-tense promise with or without a deadline', () => {
+    for (const text of [
+      'En 3 días hábiles abonamos el monto a tu cuenta.',
+      'En 24h depositamos tu dinero.',
+      'Devolvemos el monto completo.',
+      'En 2 días enviamos el comprobante.',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+    expect(hasCommitment('No abonamos cargos en disputa.')).toBe(false);
+  });
+});
+
+describe('hasCommitment, pronouns before a deadline verb', () => {
+  it('finds a deadline promise with an object or reflexive pronoun', () => {
+    for (const text of [
+      'En 48 horas lo resolvemos.',
+      'En 2 días se lo enviamos.',
+      'En 24 horas nos comunicamos contigo.',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+  });
+});
