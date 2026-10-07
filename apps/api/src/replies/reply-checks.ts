@@ -161,13 +161,9 @@ const APPROVED = APPROVED_FACTOR_WARNINGS.map((warning) =>
   normalize(warning).replace(/[.!]+$/, ''),
 );
 
-/**
- * Fails closed: a reply may name an authentication factor only inside one of
- * the approved warning sentences (IFPE rules art. 18 fr. III). Any other
- * mention, a request or not, is a violation the operator or the repair turn
- * rewords. Spelled-out, look-alike, invisible-character and digit-for-letter
- * spellings count as the factor.
- */
+// Fails closed (IFPE rules art. 18 fr. III): a factor may appear only inside
+// an approved warning, and any other mention is reworded by the operator or
+// the repair turn.
 function namesAuthFactor(text: string): boolean {
   const outsideWarnings = APPROVED.reduce(
     (remaining, warning) => remaining.replaceAll(warning, ' '),

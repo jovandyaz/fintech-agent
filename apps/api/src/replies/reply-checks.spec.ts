@@ -117,8 +117,6 @@ describe('replyViolations (02 G5, the checks a final reply shares with the draft
     expect(replyViolations(`${CLEAN} ${variant}`)).toEqual([]);
   });
 
-  // Fails closed: free-form warnings leaked request after request, so only
-  // the approved sentences may name a factor.
   it.each([
     'Nunca te pediremos tu NIP, tu CVV ni tus contraseñas.',
     'Nunca compartas con nadie tu NIP.',

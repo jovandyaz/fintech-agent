@@ -1,30 +1,23 @@
-import type { CaseStatus, CoreClient } from '@fintech-agent/contracts';
+import type { CaseStatus } from '@fintech-agent/contracts';
 import type { INestApplication } from '@nestjs/common';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { ANA, seedProposal, startApiApp } from '../../test/api-app.js';
+import {
+  ANA,
+  HTTP,
+  NO_CORE,
+  seedProposal,
+  startApiApp,
+} from '../../test/api-app.js';
 import {
   CONTAINER_START_MS,
   startTestDatabase,
   type TestDatabase,
 } from '../../test/database.js';
 
-const STATUS = {
-  ok: 200,
-  badRequest: 400,
-  unauthorized: 401,
-  notFound: 404,
-  conflict: 409,
-} as const;
 const FINAL = 'Hola Ana, ya revisamos tu caso.';
 const RACES = 10;
-
-const noCore: CoreClient = {
-  customer: () => Promise.resolve(null),
-  transaction: () => Promise.resolve(null),
-  transactions: () => Promise.resolve(null),
-};
 
 let db: TestDatabase;
 let owner: postgres.Sql;
@@ -76,7 +69,7 @@ async function state(caseId: string, actionId: string) {
 beforeAll(async () => {
   db = await startTestDatabase();
   owner = postgres(db.ownerUrl, { max: 1, onnotice: () => undefined });
-  ({ app, base } = await startApiApp(db, noCore));
+  ({ app, base } = await startApiApp(db, NO_CORE));
 }, CONTAINER_START_MS);
 
 afterAll(async () => {
@@ -91,7 +84,7 @@ describe('manual re-runs (02 G3)', () => {
     async (status) => {
       const { caseId, actionId } = await seeded(status);
       const response = await rerun(caseId);
-      expect(response.status).toBe(STATUS.ok);
+      expect(response.status).toBe(HTTP.ok);
       expect(await response.json()).toEqual({
         case_id: caseId,
         status: 'queued',
@@ -116,8 +109,8 @@ describe('manual re-runs (02 G3)', () => {
 
   it('re-runs a resolved case and leaves its decided proposal untouched', async () => {
     const { caseId, actionId } = await seeded();
-    expect((await decide(actionId)).status).toBe(STATUS.ok);
-    expect((await rerun(caseId)).status).toBe(STATUS.ok);
+    expect((await decide(actionId)).status).toBe(HTTP.ok);
+    expect((await rerun(caseId)).status).toBe(HTTP.ok);
     expect(await state(caseId, actionId)).toEqual({
       case_status: 'queued',
       manual_reruns: 1,
@@ -127,25 +120,25 @@ describe('manual re-runs (02 G3)', () => {
 
   it('answers 409 to a decision on a superseded proposal', async () => {
     const { caseId, actionId } = await seeded();
-    expect((await rerun(caseId)).status).toBe(STATUS.ok);
-    expect((await decide(actionId)).status).toBe(STATUS.conflict);
+    expect((await rerun(caseId)).status).toBe(HTTP.ok);
+    expect((await decide(actionId)).status).toBe(HTTP.conflict);
   });
 
   it('refuses the fourth re-run', async () => {
     const { caseId } = await seeded();
     for (let i = 0; i < 3; i += 1) {
       await owner`update cases set status = 'needs_review' where id = ${caseId}`;
-      expect((await rerun(caseId)).status).toBe(STATUS.ok);
+      expect((await rerun(caseId)).status).toBe(HTTP.ok);
     }
     await owner`update cases set status = 'needs_review' where id = ${caseId}`;
-    expect((await rerun(caseId)).status).toBe(STATUS.conflict);
+    expect((await rerun(caseId)).status).toBe(HTTP.conflict);
   });
 
   it.each(['queued', 'investigating'] as const)(
     'refuses a %s case',
     async (status) => {
       const { caseId, actionId } = await seeded(status);
-      expect((await rerun(caseId)).status).toBe(STATUS.conflict);
+      expect((await rerun(caseId)).status).toBe(HTTP.conflict);
       expect((await state(caseId, actionId))?.action_status).toBe('proposed');
     },
   );
@@ -155,22 +148,22 @@ describe('manual re-runs (02 G3)', () => {
     const statuses = await Promise.all([rerun(caseId), rerun(caseId)]).then(
       (responses) => responses.map(({ status }) => status).sort(),
     );
-    expect(statuses).toEqual([STATUS.ok, STATUS.conflict]);
+    expect(statuses).toEqual([HTTP.ok, HTTP.conflict]);
   });
 
   it('answers 400 for a case id outside the registry format', async () => {
-    expect((await rerun('Case-X1')).status).toBe(STATUS.badRequest);
+    expect((await rerun('Case-X1')).status).toBe(HTTP.badRequest);
   });
 
   it('answers 404 for an unknown case and 401 without a token', async () => {
-    expect((await rerun('case_nope')).status).toBe(STATUS.notFound);
+    expect((await rerun('case_nope')).status).toBe(HTTP.notFound);
     const { caseId } = await seeded();
-    expect((await rerun(caseId, null)).status).toBe(STATUS.unauthorized);
+    expect((await rerun(caseId, null)).status).toBe(HTTP.unauthorized);
   });
 
   it('audits the superseded proposal, not only the case', async () => {
     const { caseId, actionId } = await seeded();
-    expect((await rerun(caseId)).status).toBe(STATUS.ok);
+    expect((await rerun(caseId)).status).toBe(HTTP.ok);
     const rows = await owner<{ ref: string; event: string; actor: string }[]>`
       select ref, event, actor from audit_log where ref in (${caseId}, ${actionId}) order by event`;
     expect(rows).toEqual([
@@ -189,17 +182,14 @@ describe('manual re-runs (02 G3)', () => {
       const end = await state(caseId, actionId);
       // Decision first: the resolved case may still be re-run. Re-run first:
       // the proposal is superseded and the decision is a conflict.
-      if (decideStatus === STATUS.ok) {
-        expect(rerunStatus).toBe(STATUS.ok);
+      if (decideStatus === HTTP.ok) {
+        expect(rerunStatus).toBe(HTTP.ok);
         expect(end).toMatchObject({
           case_status: 'queued',
           action_status: 'rejected',
         });
       } else {
-        expect([rerunStatus, decideStatus]).toEqual([
-          STATUS.ok,
-          STATUS.conflict,
-        ]);
+        expect([rerunStatus, decideStatus]).toEqual([HTTP.ok, HTTP.conflict]);
         expect(end).toMatchObject({
           case_status: 'queued',
           action_status: 'superseded',
@@ -213,7 +203,7 @@ describe('re-runs of a canary case (02 G3)', () => {
   it('answers like a real re-run but never queues the case for the agent', async () => {
     const { caseId, actionId } = await seeded('needs_review', true);
     const response = await rerun(caseId);
-    expect(response.status).toBe(STATUS.ok);
+    expect(response.status).toBe(HTTP.ok);
     expect(await response.json()).toEqual({
       case_id: caseId,
       status: 'queued',
@@ -234,8 +224,8 @@ describe('re-runs of a canary case (02 G3)', () => {
 
   it('refuses to re-run a canary that was already decided', async () => {
     const { caseId, actionId } = await seeded('needs_review', true);
-    expect((await decide(actionId)).status).toBe(STATUS.ok);
-    expect((await rerun(caseId)).status).toBe(STATUS.conflict);
+    expect((await decide(actionId)).status).toBe(HTTP.ok);
+    expect((await rerun(caseId)).status).toBe(HTTP.conflict);
     expect(
       (await proposalsOf(caseId)).every(({ is_canary }) => is_canary),
     ).toBe(true);

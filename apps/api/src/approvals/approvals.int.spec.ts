@@ -14,6 +14,7 @@ import { z } from 'zod';
 import {
   ANA,
   BETO,
+  HTTP,
   seedProposal,
   startApiApp,
   type ProposalFixture,
@@ -26,14 +27,6 @@ import {
 
 const USER_AGENT = 'console-test/1.0';
 const FINAL = 'Hola Ana, registramos tu aclaración. Te escribimos pronto.';
-const STATUS = {
-  ok: 200,
-  badRequest: 400,
-  unauthorized: 401,
-  notFound: 404,
-  conflict: 409,
-  unavailable: 503,
-} as const;
 
 const card = (id: string, customerId: string): CardTx => ({
   id,
@@ -168,7 +161,7 @@ describe('approval gate (02 G3)', () => {
       id,
       approve({ reviewed_transaction_ids: [] }),
     );
-    expect(response.status).toBe(STATUS.ok);
+    expect(response.status).toBe(HTTP.ok);
     expect(await response.json()).toEqual({
       action_id: id,
       status: 'approved',
@@ -196,7 +189,7 @@ describe('approval gate (02 G3)', () => {
   it('rejects: stores the final reply and the code, resolves the case', async () => {
     const id = await proposal();
     const response = await decide(id, reject(), BETO);
-    expect(response.status).toBe(STATUS.ok);
+    expect(response.status).toBe(HTTP.ok);
     expect(await actionRow(id)).toMatchObject({
       status: 'rejected',
       decided_by: 'operator:beto',
@@ -210,9 +203,9 @@ describe('approval gate (02 G3)', () => {
 
   it('answers 409 to a second decision and audits only the first', async () => {
     const id = await proposal();
-    expect((await decide(id, approve())).status).toBe(STATUS.ok);
-    expect((await decide(id, approve())).status).toBe(STATUS.conflict);
-    expect((await decide(id, reject())).status).toBe(STATUS.conflict);
+    expect((await decide(id, approve())).status).toBe(HTTP.ok);
+    expect((await decide(id, approve())).status).toBe(HTTP.conflict);
+    expect((await decide(id, reject())).status).toBe(HTTP.conflict);
     expect(await auditRows(id)).toHaveLength(1);
   });
 
@@ -222,30 +215,30 @@ describe('approval gate (02 G3)', () => {
       decide(id, approve()),
       decide(id, approve(), BETO),
     ]).then((responses) => responses.map(({ status }) => status).sort());
-    expect(statuses).toEqual([STATUS.ok, STATUS.conflict]);
+    expect(statuses).toEqual([HTTP.ok, HTTP.conflict]);
     expect(await auditRows(id)).toHaveLength(1);
   });
 
   it('answers 400 for an action id outside the registry format', async () => {
     const response = await decide('not-an-action', approve());
-    expect(response.status).toBe(STATUS.badRequest);
+    expect(response.status).toBe(HTTP.badRequest);
   });
 
   it('answers 404 for an unknown action', async () => {
-    expect((await decide('act_nope', approve())).status).toBe(STATUS.notFound);
+    expect((await decide('act_nope', approve())).status).toBe(HTTP.notFound);
   });
 
   it('answers 409 when the case is not waiting for review', async () => {
     const id = await proposal({ caseStatus: 'investigating' });
-    expect((await decide(id, approve())).status).toBe(STATUS.conflict);
+    expect((await decide(id, approve())).status).toBe(HTTP.conflict);
     expect((await actionRow(id))?.status).toBe('proposed');
   });
 
   it('never creates an execution for a rejection or a none action', async () => {
     const rejected = await proposal();
     const none = await proposal({ type: 'none', transactionIds: [] });
-    expect((await decide(rejected, reject())).status).toBe(STATUS.ok);
-    expect((await decide(none, approve())).status).toBe(STATUS.ok);
+    expect((await decide(rejected, reject())).status).toBe(HTTP.ok);
+    expect((await decide(none, approve())).status).toBe(HTTP.ok);
     expect((await actionRow(none))?.final_reply).toBe(FINAL);
     const [row] = await owner<{ count: string }[]>`
       select count(*) from action_executions where action_id in (${rejected}, ${none})`;
@@ -259,7 +252,7 @@ describe('approval gate (02 G3)', () => {
   ])('refuses a final reply with %s', async (_, finalReply, code) => {
     const id = await proposal();
     const response = await decide(id, approve({ final_reply: finalReply }));
-    expect(response.status).toBe(STATUS.badRequest);
+    expect(response.status).toBe(HTTP.badRequest);
     expect(await response.json()).toMatchObject({ codes: [code] });
     expect((await actionRow(id))?.status).toBe('proposed');
   });
@@ -272,7 +265,7 @@ describe('reject reason (02 G6)', () => {
       id,
       reject({ reject_reason: 'el cliente dio su CLABE 012180001234567891' }),
     );
-    expect(response.status).toBe(STATUS.badRequest);
+    expect(response.status).toBe(HTTP.badRequest);
     expect(await response.text()).not.toContain('012180001234567891');
     expect((await actionRow(id))?.status).toBe('proposed');
   });
@@ -285,7 +278,7 @@ describe('reject reason without PII', () => {
       id,
       reject({ reject_reason: 'El tono no es el adecuado… revisar.' }),
     );
-    expect(response.status).toBe(STATUS.ok);
+    expect(response.status).toBe(HTTP.ok);
   });
 });
 
@@ -296,14 +289,14 @@ describe('operator identity (02 G3)', () => {
   ])('answers 401 with %s', async (_, token) => {
     const id = await proposal();
     const response = await decide(id, approve(), token);
-    expect(response.status).toBe(STATUS.unauthorized);
+    expect(response.status).toBe(HTTP.unauthorized);
     expect(response.headers.get('www-authenticate')).toBe('Bearer');
   });
 
   it('answers 400 to a body that names an operator', async () => {
     const id = await proposal();
     const response = await decide(id, approve({ operator: 'operator:beto' }));
-    expect(response.status).toBe(STATUS.badRequest);
+    expect(response.status).toBe(HTTP.badRequest);
     expect((await actionRow(id))?.status).toBe('proposed');
   });
 });
@@ -324,7 +317,7 @@ describe('override and forcing function (02 G3)', () => {
       id,
       approve(override('open_dispute', ['tx_c1', 'tx_c2'])),
     );
-    expect(response.status).toBe(STATUS.ok);
+    expect(response.status).toBe(HTTP.ok);
     expect(await actionRow(id)).toMatchObject({
       status: 'approved',
       type: 'open_dispute',
@@ -344,7 +337,7 @@ describe('override and forcing function (02 G3)', () => {
       id,
       approve(override('open_dispute', ['tx_c1', 'tx_c2'])),
     );
-    expect(response.status).toBe(STATUS.ok);
+    expect(response.status).toBe(HTTP.ok);
     expect((await actionRow(id))?.operator_override).toBe(false);
   });
 
@@ -354,7 +347,7 @@ describe('override and forcing function (02 G3)', () => {
       id,
       approve(override('open_dispute', ['tx_c2', 'tx_c1'])),
     );
-    expect(response.status).toBe(STATUS.ok);
+    expect(response.status).toBe(HTTP.ok);
     expect((await actionRow(id))?.operator_override).toBe(true);
   });
 
@@ -369,10 +362,7 @@ describe('override and forcing function (02 G3)', () => {
       missing,
       approve(override('open_dispute', ['tx_zz9'])),
     );
-    expect([a.status, b.status]).toEqual([
-      STATUS.badRequest,
-      STATUS.badRequest,
-    ]);
+    expect([a.status, b.status]).toEqual([HTTP.badRequest, HTTP.badRequest]);
     expect(await a.json()).toEqual(await b.json());
   });
 
@@ -382,7 +372,7 @@ describe('override and forcing function (02 G3)', () => {
       id,
       approve(override('resend_cep', ['tx_c1', 'tx_c2'])),
     );
-    expect(response.status).toBe(STATUS.badRequest);
+    expect(response.status).toBe(HTTP.badRequest);
   });
 
   it('refuses an override on a standard case without the check-off', async () => {
@@ -394,7 +384,7 @@ describe('override and forcing function (02 G3)', () => {
         reviewed_transaction_ids: [],
       }),
     );
-    expect(response.status).toBe(STATUS.badRequest);
+    expect(response.status).toBe(HTTP.badRequest);
   });
 
   it('requires the check-off on a high-tier case, as a set', async () => {
@@ -405,7 +395,7 @@ describe('override and forcing function (02 G3)', () => {
     expect(
       (await decide(id, approve({ reviewed_transaction_ids: ['tx_c1'] })))
         .status,
-    ).toBe(STATUS.badRequest);
+    ).toBe(HTTP.badRequest);
     expect(
       (
         await decide(
@@ -413,16 +403,16 @@ describe('override and forcing function (02 G3)', () => {
           approve({ reviewed_transaction_ids: ['tx_c2', 'tx_c1', 'tx_c1'] }),
         )
       ).status,
-    ).toBe(STATUS.ok);
+    ).toBe(HTTP.ok);
   });
 
   it('requires the check-off when Persist left no tier', async () => {
     const id = await proposal({ tier: null });
-    expect((await decide(id, approve())).status).toBe(STATUS.badRequest);
+    expect((await decide(id, approve())).status).toBe(HTTP.badRequest);
     expect(
       (await decide(id, approve({ reviewed_transaction_ids: ['tx_c1'] })))
         .status,
-    ).toBe(STATUS.ok);
+    ).toBe(HTTP.ok);
   });
 
   it('refuses reviewed ids the action does not name, even with no check-off due', async () => {
@@ -431,7 +421,7 @@ describe('override and forcing function (02 G3)', () => {
       id,
       approve({ reviewed_transaction_ids: ['012180001234567891'] }),
     );
-    expect(response.status).toBe(STATUS.badRequest);
+    expect(response.status).toBe(HTTP.badRequest);
   });
 
   it('refuses an override naming more transactions than G2 allows, before reading core', async () => {
@@ -439,7 +429,7 @@ describe('override and forcing function (02 G3)', () => {
     const id = await proposal();
     const ids = ['tx_c1', 'tx_c2', 'tx_c3', 'tx_c4', 'tx_c5', 'tx_c6'];
     const response = await decide(id, approve(override('escalate_fraud', ids)));
-    expect(response.status).toBe(STATUS.badRequest);
+    expect(response.status).toBe(HTTP.badRequest);
     expect(coreCalls).toBe(0);
   });
 
@@ -450,7 +440,7 @@ describe('override and forcing function (02 G3)', () => {
       id,
       approve(override('open_dispute', ['tx_c2'])),
     );
-    expect(response.status).toBe(STATUS.unavailable);
+    expect(response.status).toBe(HTTP.unavailable);
     expect((await actionRow(id))?.status).toBe('proposed');
   });
 });
@@ -468,7 +458,7 @@ describe('flag acknowledgment (02 G3)', () => {
       id,
       approve({ acknowledged_flags: acknowledged }),
     );
-    expect(response.status).toBe(STATUS.badRequest);
+    expect(response.status).toBe(HTTP.badRequest);
   });
 
   it('approves with the flags in any order and audits the acknowledgment', async () => {
@@ -477,7 +467,7 @@ describe('flag acknowledgment (02 G3)', () => {
       id,
       approve({ acknowledged_flags: [...flags].reverse() }),
     );
-    expect(response.status).toBe(STATUS.ok);
+    expect(response.status).toBe(HTTP.ok);
     const [audit] = await auditRows(id);
     expect(audit?.detail_masked.acknowledged_flags).toEqual(
       expect.arrayContaining(flags),

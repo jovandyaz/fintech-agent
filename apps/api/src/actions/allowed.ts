@@ -20,7 +20,6 @@ interface Row {
 const isSettled = (transaction: Transaction): boolean =>
   transaction.status === 'settled';
 
-/** The "Required transactions" and "Allowed when" columns of the 02 G2 table. */
 const G2_TABLE: Record<ActionType, Row> = {
   open_dispute: {
     min: 1,

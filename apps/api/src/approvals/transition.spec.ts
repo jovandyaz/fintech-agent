@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 
 import { ACTION_EVENTS, transition, type ActionEvent } from './transition.js';
 
-// Written from the 02 G3 diagram, independently of the implementation.
 function expected(
   from: ActionStatus,
   event: ActionEvent,

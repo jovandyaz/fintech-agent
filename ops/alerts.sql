@@ -1,4 +1,4 @@
--- Alert queries of specs/01-architecture.md §Alerts, one per block. Step 8 adds the rest.
+-- Alert queries of specs/01-architecture.md §Alerts, one per block.
 -- Each block starts with "-- name: <query>" and returns one row per firing alert.
 
 -- name: canary_catch_rate

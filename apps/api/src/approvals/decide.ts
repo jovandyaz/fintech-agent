@@ -98,7 +98,6 @@ interface Proposal {
   draftReply: string | null;
 }
 
-/** What one decision writes besides the fields every decision shares. */
 interface Changes {
   status: ActionStatus;
   target: Target;

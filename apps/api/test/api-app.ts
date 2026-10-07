@@ -16,6 +16,23 @@ import type { TestDatabase } from './database.js';
 export const ANA = 'dev-operator-ana-token-0123456789';
 export const BETO = 'dev-operator-beto-token-0123456789';
 const OPERATOR_TOKENS = `ana:k1:${ANA},beto:k2:${BETO}`;
+/** The status codes the gate answers with. */
+export const HTTP = {
+  ok: 200,
+  badRequest: 400,
+  unauthorized: 401,
+  notFound: 404,
+  conflict: 409,
+  unavailable: 503,
+} as const;
+
+/** A core-mock that holds nothing, for routes that never read it. */
+export const NO_CORE: CoreClient = {
+  customer: () => Promise.resolve(null),
+  transaction: () => Promise.resolve(null),
+  transactions: () => Promise.resolve(null),
+};
+
 export const DRAFT = 'Hola Ana, registramos tu aclaración con folio {{folio}}.';
 
 /** The real `AppModule` as `copilot_api`, with core-mock replaced by `core`. */
