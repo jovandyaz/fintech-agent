@@ -27,8 +27,8 @@ import {
   type DecisionFailure,
   type DecisionResult,
 } from './decide.js';
-import { CurrentOperator, OperatorGuard } from './operator.guard.js';
-import type { Operator } from './operator-tokens.js';
+import { CurrentOperator, OperatorGuard } from '../operators/operator.guard.js';
+import type { Operator } from '../operators/operator-tokens.js';
 
 export const DECIDE_DEPS = 'DECIDE_DEPS';
 

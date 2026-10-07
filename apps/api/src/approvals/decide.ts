@@ -25,7 +25,7 @@ import {
 } from '../database/schema.js';
 import { replyViolations } from '../replies/reply-checks.js';
 import { editRatio } from './edit-ratio.js';
-import type { Operator } from './operator-tokens.js';
+import type { Operator } from '../operators/operator-tokens.js';
 import { transition } from './transition.js';
 
 /** Why a decision was refused; the controller maps each to a status code. */
