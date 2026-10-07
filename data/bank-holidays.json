@@ -1,0 +1,39 @@
+{
+  "time_zone": "America/Mexico_City",
+  "years": {
+    "2026": {
+      "status": "published",
+      "source": "CNBV calendar of non-working days for 2026, as reported by Expansión (2025-12-10) and La Jornada (2025-12-27)",
+      "days": [
+        "2026-01-01",
+        "2026-02-02",
+        "2026-03-16",
+        "2026-04-02",
+        "2026-04-03",
+        "2026-05-01",
+        "2026-09-16",
+        "2026-11-02",
+        "2026-11-16",
+        "2026-12-12",
+        "2026-12-25"
+      ]
+    },
+    "2027": {
+      "status": "provisional",
+      "source": "Computed from the rules of the 2026 CNBV calendar (Holy Thursday and Friday from Easter 2027-03-28); replace with the CNBV publication",
+      "days": [
+        "2027-01-01",
+        "2027-02-01",
+        "2027-03-15",
+        "2027-03-25",
+        "2027-03-26",
+        "2027-05-01",
+        "2027-09-16",
+        "2027-11-02",
+        "2027-11-15",
+        "2027-12-12",
+        "2027-12-25"
+      ]
+    }
+  }
+}
