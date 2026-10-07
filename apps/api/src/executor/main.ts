@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { setTimeout as wait } from 'node:timers/promises';
 
 import { createCoreClient } from '@fintech-agent/contracts';
@@ -13,12 +14,15 @@ import { createCoreWriteClient } from './core-write-client.js';
 import {
   claimNext,
   executeClaimed,
+  LOST_CLAIM,
   sweep,
   type ExecutorDeps,
 } from './drain.js';
 import { runLoop } from './loop.js';
 
 const DEFAULT_POLL_MS = 1_000;
+// The compose healthcheck reads this file's age; a stuck loop stops touching it.
+const HEARTBEAT_FILE = '/tmp/executor-alive';
 const POOL_SIZE = 2;
 
 const ExecutorConfigSchema = z.object({
@@ -55,23 +59,27 @@ try {
       fetch,
     }),
     now: () => new Date(),
+    onDeferred: (actionId, reason) =>
+      logger.warn({ event: 'execution_deferred', action_id: actionId, reason }),
   };
+  const reportCycle = (error: unknown): void =>
+    logger.error({ event: 'executor_cycle_failed', reason: reasonOf(error) });
   logger.log({ event: 'executor_started' });
   await runLoop({
+    heartbeat: () => writeFileSync(HEARTBEAT_FILE, ''),
     drainOne: async () => {
       const claimed = await claimNext(deps);
       if (!claimed) return false;
-      await executeClaimed(deps, claimed);
+      if (claimed !== LOST_CLAIM) await executeClaimed(deps, claimed);
       return true;
     },
-    sweep: () => sweep(deps),
+    sweep: () => sweep(deps, { signal: stop.signal, onError: reportCycle }),
     sleep: () =>
       wait(config.EXECUTOR_POLL_MS, undefined, { signal: stop.signal }).catch(
         () => undefined,
       ),
     signal: stop.signal,
-    onError: (error) =>
-      logger.error({ event: 'executor_cycle_failed', reason: reasonOf(error) }),
+    onError: reportCycle,
   });
   logger.log({ event: 'executor_stopped' });
 } catch (error) {

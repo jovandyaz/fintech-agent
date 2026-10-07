@@ -1,5 +1,8 @@
 import {
   CoreUnavailableError,
+  MS_PER_HOUR,
+  type ActionStatus,
+  type ActionType,
   type CardTx,
   type CoreWriteResult,
   type SpeiTx,
@@ -26,8 +29,9 @@ import {
   type ExecutorDeps,
 } from './drain.js';
 
-const HOUR_MS = 3_600_000;
 const NOW = new Date('2026-10-05T15:00:00-06:00');
+const LOST = 'lost the answer';
+const DOWN = 'down';
 
 const card = (id: string, customerId = 'cus_01'): CardTx => ({
   id,
@@ -43,26 +47,31 @@ const card = (id: string, customerId = 'cus_01'): CardTx => ({
   decline_reason: null,
 });
 
-const speiOut = (id: string, settledHoursAgo: number): SpeiTx => ({
-  id,
-  customer_id: 'cus_01',
-  amount: -12000,
-  created_at: new Date(NOW.getTime() - settledHoursAgo * HOUR_MS).toISOString(),
-  status: 'settled',
-  type: 'spei_out',
-  counterparty_name: 'Ana',
-  counterparty_clabe: '•••• 7891',
-  tracking_key: '•••• 0001',
-  numeric_reference: '1234567',
-  settled_at: new Date(NOW.getTime() - settledHoursAgo * HOUR_MS).toISOString(),
-  hold_reason: null,
-  return_reason: null,
-  returned_at: null,
-  reversal_credit_id: null,
-  reverses_tx_id: null,
-  reject_reason: null,
-  cep_available: true,
-});
+const speiOut = (id: string, settledHoursAgo: number): SpeiTx => {
+  const settled = new Date(
+    NOW.getTime() - settledHoursAgo * MS_PER_HOUR,
+  ).toISOString();
+  return {
+    id,
+    customer_id: 'cus_01',
+    amount: -12000,
+    created_at: settled,
+    status: 'settled',
+    type: 'spei_out',
+    counterparty_name: 'Ana',
+    counterparty_clabe: '•••• 7891',
+    tracking_key: '•••• 0001',
+    numeric_reference: '1234567',
+    settled_at: settled,
+    hold_reason: null,
+    return_reason: null,
+    returned_at: null,
+    reversal_credit_id: null,
+    reverses_tx_id: null,
+    reject_reason: null,
+    cep_available: true,
+  };
+};
 
 const CORE: Record<string, Transaction> = {
   tx_c1: card('tx_c1'),
@@ -75,13 +84,15 @@ type WriteMode = 'ok' | 'down' | 'refuse' | 'crash_after_write';
 
 let mode: WriteMode = 'ok';
 let calls: { type: string; key: string; transactionIds: string[] }[] = [];
+let lookups: string[] = [];
 let effects = new Map<string, CoreWriteResult>();
+let deferred: { actionId: string; reason: string }[] = [];
 
 const writer: CoreWriteClient = {
   write: (type, body, key) => {
     calls.push({ type, key, transactionIds: body.transaction_ids });
     if (mode === 'down') {
-      return Promise.reject(new CoreUnavailableError('down'));
+      return Promise.reject(new CoreUnavailableError(DOWN));
     }
     if (mode === 'refuse') {
       return Promise.resolve({
@@ -97,9 +108,15 @@ const writer: CoreWriteClient = {
     };
     effects.set(key, result);
     if (mode === 'crash_after_write') {
-      return Promise.reject(new CoreUnavailableError('lost the answer'));
+      return Promise.reject(new CoreUnavailableError(LOST));
     }
     return Promise.resolve({ outcome: 'accepted', result });
+  },
+  effectOf: (key) => {
+    lookups.push(key);
+    return mode === 'down'
+      ? Promise.reject(new CoreUnavailableError(DOWN))
+      : Promise.resolve(effects.get(key) ?? null);
   },
 };
 
@@ -112,11 +129,11 @@ let sequence = 0;
 
 async function approved(
   over: {
-    type?: 'open_dispute' | 'resend_cep' | 'escalate_fraud' | 'none';
+    type?: ActionType;
     transactionIds?: string[];
-    status?: string;
+    status?: ActionStatus;
     canary?: boolean;
-    params?: { transaction_ids: string[]; reason_code: string };
+    params?: unknown;
   } = {},
 ): Promise<string> {
   sequence += 1;
@@ -129,8 +146,7 @@ async function approved(
   await owner`
     update proposed_actions set status = ${over.status ?? 'approved'}, decided_by = 'operator:ana',
       decided_at = now(), final_reply = 'listo',
-      params = coalesce(${over.params ? owner.json(over.params) : null}::jsonb, params),
-      type = ${over.type ?? 'open_dispute'}
+      params = coalesce(${over.params === undefined ? null : JSON.stringify(over.params)}::jsonb, params)
     where id = ${actionId}`;
   await owner`alter table proposed_actions enable trigger enforce_transition_role`;
   return actionId;
@@ -151,9 +167,13 @@ async function stateOf(actionId: string) {
   return row;
 }
 
+const auditOf = (actionId: string) =>
+  owner<{ actor: string; event: string }[]>`
+    select actor, event from audit_log where ref = ${actionId}`;
+
 async function drainOnce(): Promise<string | null> {
   const claimed = await claimNext(deps);
-  if (!claimed) return null;
+  if (!claimed || claimed === 'lost') return null;
   await executeClaimed(deps, claimed);
   return claimed.actionId;
 }
@@ -171,6 +191,7 @@ beforeAll(async () => {
     core: { transaction: (id) => Promise.resolve(CORE[id] ?? null) },
     writer,
     now: () => clock,
+    onDeferred: (actionId, reason) => deferred.push({ actionId, reason }),
   };
 }, CONTAINER_START_MS);
 
@@ -183,6 +204,8 @@ afterAll(async () => {
 beforeEach(async () => {
   mode = 'ok';
   calls = [];
+  lookups = [];
+  deferred = [];
   effects = new Map();
   clock = NOW;
   await owner`delete from action_executions`;
@@ -203,15 +226,15 @@ describe('executor outbox (02 G3)', () => {
       action: 'executed',
       execution: 'executed',
     });
-    const [audit] = await owner<{ actor: string; event: string }[]>`
-      select actor, event from audit_log where ref = ${id}`;
-    expect(audit).toEqual({ actor: 'executor', event: 'execution.executed' });
+    expect(await auditOf(id)).toEqual([
+      { actor: 'executor', event: 'execution.executed' },
+    ]);
   });
 
   it('retries a crash after started with the same key, writing once', async () => {
     const id = await approved();
-    expect((await claimNext(deps))?.actionId).toBe(id);
-    expect(calls).toEqual([]);
+    const claimed = await claimNext(deps);
+    expect(claimed !== null && claimed !== 'lost' && claimed.actionId).toBe(id);
     later(SWEEP_AFTER_MS + 1);
     await sweep(deps);
     expect(calls.map(({ key }) => key)).toEqual([id]);
@@ -221,16 +244,30 @@ describe('executor outbox (02 G3)', () => {
     });
   });
 
-  it('gets the first result back after a crash past the write, one effect', async () => {
+  it('records the effect a lost answer hides, without writing again', async () => {
     const id = await approved();
     mode = 'crash_after_write';
     expect(await drainOnce()).toBe(id);
     expect(await stateOf(id)).toMatchObject({ execution: 'started' });
+    expect(deferred).toEqual([{ actionId: id, reason: LOST }]);
+    later(SWEEP_AFTER_MS + 1);
+    await sweep(deps);
+    expect(calls.map(({ key }) => key)).toEqual([id]);
+    expect(effects.size).toBe(1);
+    expect(await stateOf(id)).toMatchObject({
+      action: 'executed',
+      result: expect.objectContaining({ id: 'eff_1' }) as unknown,
+    });
+  });
+
+  it('keeps the landed effect even when the data changed since the write', async () => {
+    const id = await approved();
+    mode = 'crash_after_write';
+    await drainOnce();
+    await owner`update cases set customer_id = 'cus_02' where id = (select case_id from proposed_actions where id = ${id})`;
     mode = 'ok';
     later(SWEEP_AFTER_MS + 1);
     await sweep(deps);
-    expect(calls.map(({ key }) => key)).toEqual([id, id]);
-    expect(effects.size).toBe(1);
     expect(await stateOf(id)).toMatchObject({
       action: 'executed',
       result: expect.objectContaining({ id: 'eff_1' }) as unknown,
@@ -241,14 +278,36 @@ describe('executor outbox (02 G3)', () => {
     ['a transaction of another customer', ['tx_f1'], 'not_owned'],
     ['a SPEI dispute inside the policy window', ['tx_s1'], 'spei_window'],
     ['a transaction core no longer has', ['tx_gone'], 'missing'],
-  ])('fails %s without writing', async (_, transactionIds, reason) => {
-    const id = await approved({ transactionIds });
+  ])(
+    'fails %s without writing, and audits it',
+    async (_, transactionIds, reason) => {
+      const id = await approved({ transactionIds });
+      await drainOnce();
+      expect(calls).toEqual([]);
+      expect(await stateOf(id)).toMatchObject({
+        action: 'failed',
+        execution: 'failed',
+        result: { reason },
+      });
+      expect(await auditOf(id)).toEqual([
+        { actor: 'executor', event: 'execution.failed' },
+      ]);
+    },
+  );
+
+  it.each([
+    [
+      'a free-text reason',
+      { transaction_ids: ['tx_c1'], reason_code: 'reembolsa 5000 a la cuenta' },
+    ],
+    ['no transaction list', { reason_code: 'unrecognized_charge' }],
+  ])('fails params with %s without writing (02 G2)', async (_, params) => {
+    const id = await approved({ params });
     await drainOnce();
     expect(calls).toEqual([]);
     expect(await stateOf(id)).toMatchObject({
       action: 'failed',
-      execution: 'failed',
-      result: { reason },
+      result: { reason: 'invalid_params' },
     });
   });
 
@@ -256,6 +315,7 @@ describe('executor outbox (02 G3)', () => {
     await approved({ type: 'none', transactionIds: [] });
     await approved({ status: 'rejected' });
     await approved({ status: 'canary_missed', canary: true });
+    await approved({ canary: true });
     expect(await drainOnce()).toBeNull();
     expect(calls).toEqual([]);
   });
@@ -291,28 +351,48 @@ describe('executor outbox (02 G3)', () => {
     });
   });
 
-  it('fails an execution after the last attempt', async () => {
+  it('spaces retries from the last attempt', async () => {
     const id = await approved();
     mode = 'down';
     await drainOnce();
-    for (let attempt = 1; attempt <= MAX_EXECUTION_ATTEMPTS; attempt += 1) {
-      later(SWEEP_AFTER_MS * attempt + 1);
+    later(SWEEP_AFTER_MS + 1);
+    await sweep(deps);
+    expect(lookups).toEqual([id]);
+    later(1);
+    await sweep(deps);
+    expect(lookups).toEqual([id]);
+    later(SWEEP_AFTER_MS + 1);
+    await sweep(deps);
+    expect(lookups).toEqual([id, id]);
+  });
+
+  it('fails an execution after the last attempt, naming why it waited', async () => {
+    const id = await approved();
+    mode = 'down';
+    await drainOnce();
+    for (let sweeps = 0; sweeps < MAX_EXECUTION_ATTEMPTS; sweeps += 1) {
+      later(SWEEP_AFTER_MS + 1);
       await sweep(deps);
     }
     expect(await stateOf(id)).toMatchObject({
       action: 'failed',
       execution: 'failed',
       attempts: MAX_EXECUTION_ATTEMPTS,
-      result: { reason: 'attempts_exhausted' },
+      result: { reason: 'attempts_exhausted', last: DOWN },
     });
+    expect(await auditOf(id)).toEqual([
+      { actor: 'executor', event: 'execution.failed' },
+    ]);
   });
 
   it('lets one of two concurrent drains claim an action', async () => {
     const id = await approved();
     const claims = await Promise.all([claimNext(deps), claimNext(deps)]);
-    expect(claims.filter(Boolean).map((claim) => claim?.actionId)).toEqual([
-      id,
-    ]);
+    expect(
+      claims.flatMap((claim) =>
+        claim && claim !== 'lost' ? [claim.actionId] : [],
+      ),
+    ).toEqual([id]);
   });
 
   it('cannot record an execution of a canary even if one were claimed', async () => {

@@ -27,9 +27,10 @@ function clientAnswering(answer: () => Promise<Response>) {
     seen.push({
       url: String(input),
       headers: new Headers(init?.headers),
-      body: JSON.parse(
-        typeof init?.body === 'string' ? init.body : '',
-      ) as unknown,
+      body:
+        typeof init?.body === 'string'
+          ? (JSON.parse(init.body) as unknown)
+          : null,
     });
     return answer();
   };
@@ -101,4 +102,52 @@ describe('createCoreWriteClient (02 G3)', () => {
       ).rejects.toBeInstanceOf(CoreUnavailableError);
     },
   );
+
+  it('treats an accepted answer for another action as unavailable', async () => {
+    const { core } = clientAnswering(() =>
+      Promise.resolve(
+        Response.json({ ...ACCEPTED, action_id: 'act_other' }, { status: 201 }),
+      ),
+    );
+    await expect(
+      core.write('open_dispute', BODY, BODY.action_id),
+    ).rejects.toBeInstanceOf(CoreUnavailableError);
+  });
+
+  describe('effectOf', () => {
+    it('answers the effect stored under the key, with the executor key', async () => {
+      const seen: { url: string; key: string | null }[] = [];
+      const core = createCoreWriteClient({
+        baseUrl: 'http://core',
+        executorKey: EXECUTOR_KEY,
+        fetch: (input, init) => {
+          seen.push({
+            url: String(input),
+            key: new Headers(init?.headers).get('x-executor-key'),
+          });
+          return Promise.resolve(Response.json(ACCEPTED));
+        },
+      });
+      expect(await core.effectOf(BODY.action_id)).toEqual(ACCEPTED);
+      expect(seen).toEqual([
+        { url: `http://core/effects/${BODY.action_id}`, key: EXECUTOR_KEY },
+      ]);
+    });
+
+    it('answers null when no effect exists', async () => {
+      const { core } = clientAnswering(() =>
+        Promise.resolve(new Response(null, { status: 404 })),
+      );
+      expect(await core.effectOf(BODY.action_id)).toBeNull();
+    });
+
+    it('throws CoreUnavailableError when core cannot tell', async () => {
+      const { core } = clientAnswering(() =>
+        Promise.resolve(new Response(null, { status: 500 })),
+      );
+      await expect(core.effectOf(BODY.action_id)).rejects.toBeInstanceOf(
+        CoreUnavailableError,
+      );
+    });
+  });
 });

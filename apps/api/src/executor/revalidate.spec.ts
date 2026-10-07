@@ -1,4 +1,5 @@
 import {
+  MS_PER_HOUR,
   SPEI_DISPUTE_AFTER_HOURS,
   type CardTx,
   type SpeiTx,
@@ -9,9 +10,8 @@ import { describe, expect, it } from 'vitest';
 import { revalidate } from './revalidate.js';
 
 const NOW = new Date('2026-10-05T15:00:00-06:00');
-const HOUR_MS = 3_600_000;
 const hoursAgo = (hours: number): string =>
-  new Date(NOW.getTime() - hours * HOUR_MS).toISOString();
+  new Date(NOW.getTime() - hours * MS_PER_HOUR).toISOString();
 
 const card = (over: Partial<CardTx> = {}): CardTx => ({
   id: 'tx_c1',
@@ -84,7 +84,7 @@ describe('revalidate (02 G2, re-checked by the executor on fresh data)', () => {
       'a purchase that is now declined',
       dispute(['tx_c1']),
       [card({ status: 'rejected' })],
-      'shape',
+      'transaction_state',
     ],
     [
       'a SPEI dispute inside the policy window',
@@ -97,6 +97,12 @@ describe('revalidate (02 G2, re-checked by the executor on fresh data)', () => {
       dispute(['tx_s1']),
       [speiOut(SPEI_DISPUTE_AFTER_HOURS + 1)],
       null,
+    ],
+    [
+      'a SPEI dispute whose settlement time cannot be read',
+      dispute(['tx_s1']),
+      [speiOut(SPEI_DISPUTE_AFTER_HOURS + 1, { settled_at: 'yesterday' })],
+      'spei_window',
     ],
     [
       'a CEP resend right after settlement',

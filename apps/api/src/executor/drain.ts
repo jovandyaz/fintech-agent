@@ -1,13 +1,19 @@
 import {
+  ActionParamsSchema,
   CoreUnavailableError,
+  isWritableAction,
   maskJson,
+  readTransactions,
   type ActionParams,
   type ActionStatus,
-  type CoreClient,
+  type CoreReader,
+  type CoreWriteRefusal,
+  type CoreWriteResult,
+  type ExecutionStatus,
   type Transaction,
   type WritableAction,
 } from '@fintech-agent/contracts';
-import { and, asc, eq, lt, ne, notExists, sql } from 'drizzle-orm';
+import { and, asc, eq, ne, notExists, sql } from 'drizzle-orm';
 
 import { transition } from '../approvals/transition.js';
 import { isUniqueViolation } from '../common/errors/unique-violation.js';
@@ -18,60 +24,76 @@ import {
   cases,
   proposedActions,
 } from '../database/schema.js';
-import type { CoreWriteClient } from './core-write-client.js';
-import { revalidate } from './revalidate.js';
+import type { CoreWriteClient, WriteOutcome } from './core-write-client.js';
+import { revalidate, type RevalidationFailure } from './revalidate.js';
 
-/** How long a `started` execution waits before the sweeper retries it, per attempt (02 G3). */
+/** How long a `started` execution waits after its last attempt before the sweeper retries it (02 G3). */
 export const SWEEP_AFTER_MS = 120_000;
-/** Attempts before an execution that never got an answer is marked `failed`. */
+/** Attempts before an execution whose outcome core cannot confirm is marked `failed`. */
 export const MAX_EXECUTION_ATTEMPTS = 5;
 
 const ACTOR = 'executor';
 const APPROVED: ActionStatus = 'approved';
 const NO_EFFECT = 'none';
 const EXECUTION_UNIQUE = 'action_executions_pkey';
+const INVALID_PARAMS = 'invalid_params';
+const ATTEMPTS_EXHAUSTED = 'attempts_exhausted';
 const EXECUTION_STATUS = {
   started: 'started',
   executed: 'executed',
   failed: 'failed',
-} as const;
+} as const satisfies Record<ExecutionStatus, ExecutionStatus>;
+
+type ExecutionFailure =
+  | RevalidationFailure
+  | CoreWriteRefusal
+  | typeof INVALID_PARAMS
+  | typeof ATTEMPTS_EXHAUSTED;
 
 export interface ExecutorDeps {
   db: Database;
-  core: Pick<CoreClient, 'transaction'>;
+  core: CoreReader;
   writer: CoreWriteClient;
   now: () => Date;
+  /** Core could not answer; the execution stays `started` for the sweeper. */
+  onDeferred?: (actionId: string, reason: string) => void;
 }
 
 /** An approved action this process holds an execution row for. */
 export interface ClaimedAction {
   actionId: string;
   type: WritableAction;
-  params: ActionParams;
+  params: unknown;
   customerId: string;
 }
+
+/** Another executor took the action between this one's read and its insert. */
+export const LOST_CLAIM = 'lost';
 
 type Ending =
   | {
       status: typeof EXECUTION_STATUS.executed;
-      detail: Record<string, unknown>;
+      detail: CoreWriteResult;
     }
-  | { status: typeof EXECUTION_STATUS.failed; detail: { reason: string } };
+  | {
+      status: typeof EXECUTION_STATUS.failed;
+      detail: { reason: ExecutionFailure; last?: string };
+    };
 
-const failure = (reason: string): Ending => ({
+const failure = (reason: ExecutionFailure, last?: string): Ending => ({
   status: EXECUTION_STATUS.failed,
-  detail: { reason },
+  detail: last === undefined ? { reason } : { reason, last },
 });
 
 /**
  * Claims the oldest approved, non-canary action with an effect and no
  * execution yet: `FOR UPDATE SKIP LOCKED`, then an `action_executions` row in
- * `started` in the same transaction. A concurrent claimer loses on the unique
- * key and gets null, never an error.
+ * `started` in the same transaction. Null when nothing waits; `LOST_CLAIM`
+ * when a concurrent claimer won the unique key, so the caller keeps draining.
  */
 export async function claimNext(
   deps: Pick<ExecutorDeps, 'db' | 'now'>,
-): Promise<ClaimedAction | null> {
+): Promise<ClaimedAction | typeof LOST_CLAIM | null> {
   try {
     return await deps.db.transaction(async (tx) => {
       const [row] = await tx
@@ -99,16 +121,18 @@ export async function claimNext(
         .orderBy(asc(proposedActions.decidedAt))
         .limit(1)
         .for('update', { of: proposedActions, skipLocked: true });
-      if (!row || row.type === NO_EFFECT) return null;
+      if (!row || !isWritableAction(row.type)) return null;
+      const now = deps.now();
       await tx.insert(actionExecutions).values({
         actionId: row.actionId,
         status: EXECUTION_STATUS.started,
-        startedAt: deps.now(),
+        startedAt: now,
+        lastAttemptAt: now,
       });
       return { ...row, type: row.type };
     });
   } catch (error) {
-    if (isUniqueViolation(error, EXECUTION_UNIQUE)) return null;
+    if (isUniqueViolation(error, EXECUTION_UNIQUE)) return LOST_CLAIM;
     throw error;
   }
 }
@@ -123,7 +147,7 @@ async function finish(
     ending.status === EXECUTION_STATUS.executed ? 'execute' : 'fail',
     false,
   );
-  if (!status) return;
+  if (!status) throw new Error(`no transition ends ${actionId}`);
   await deps.db.transaction(async (tx) => {
     const finished = await tx
       .update(actionExecutions)
@@ -140,7 +164,7 @@ async function finish(
       )
       .returning({ actionId: actionExecutions.actionId });
     if (finished.length === 0) return;
-    await tx
+    const moved = await tx
       .update(proposedActions)
       .set({ status })
       .where(
@@ -148,7 +172,12 @@ async function finish(
           eq(proposedActions.id, actionId),
           eq(proposedActions.status, APPROVED),
         ),
-      );
+      )
+      .returning({ id: proposedActions.id });
+    // An execution row only exists for an approved action, so this rolls back
+    // a state the database should never hold rather than record a half ending.
+    if (moved.length === 0)
+      throw new Error(`${actionId} is no longer approved`);
     await tx.insert(auditLog).values({
       at: deps.now(),
       actor: ACTOR,
@@ -159,31 +188,62 @@ async function finish(
   });
 }
 
-async function readTransactions(
+async function defer(
   deps: ExecutorDeps,
-  ids: readonly string[],
-): Promise<(Transaction | null)[] | null> {
+  actionId: string,
+  error: CoreUnavailableError,
+): Promise<void> {
+  deps.onDeferred?.(actionId, error.message);
+  await deps.db
+    .update(actionExecutions)
+    .set({ result: maskJson({ deferred: error.message }) })
+    .where(
+      and(
+        eq(actionExecutions.actionId, actionId),
+        eq(actionExecutions.status, EXECUTION_STATUS.started),
+      ),
+    );
+}
+
+const DEFERRED = Symbol('deferred');
+
+async function attempt<T>(
+  deps: ExecutorDeps,
+  actionId: string,
+  call: () => Promise<T>,
+): Promise<T | typeof DEFERRED> {
   try {
-    return await Promise.all(ids.map((id) => deps.core.transaction(id)));
+    return await call();
   } catch (error) {
-    if (error instanceof CoreUnavailableError) return null;
-    throw error;
+    if (!(error instanceof CoreUnavailableError)) throw error;
+    await defer(deps, actionId, error);
+    return DEFERRED;
   }
 }
 
 /**
  * Re-validates a claimed action on fresh core data and writes its effect
- * with `Idempotency-Key: <action_id>` (02 G3). A failed re-validation or a
- * refusal ends it `failed` without (another) write; an unreachable core
- * leaves it `started` for `sweep`.
+ * with `Idempotency-Key: <action_id>` (02 G2, G3). Params that are not the
+ * closed G2 shape, a failed re-validation or a refusal end it `failed`
+ * without a write; an unreachable core leaves it `started` for `sweep`.
  */
 export async function executeClaimed(
   deps: ExecutorDeps,
   claimed: ClaimedAction,
 ): Promise<void> {
-  const { actionId, type, params, customerId } = claimed;
-  const transactions = await readTransactions(deps, params.transaction_ids);
-  if (!transactions) return;
+  const { actionId, type, customerId } = claimed;
+  const parsed = ActionParamsSchema.safeParse(claimed.params);
+  if (!parsed.success) {
+    await finish(deps, actionId, failure(INVALID_PARAMS));
+    return;
+  }
+  const params: ActionParams = parsed.data;
+  const transactions: (Transaction | null)[] | typeof DEFERRED = await attempt(
+    deps,
+    actionId,
+    () => readTransactions(deps.core, params.transaction_ids),
+  );
+  if (transactions === DEFERRED) return;
   const invalid = revalidate(
     { type, transaction_ids: params.transaction_ids },
     customerId,
@@ -194,44 +254,95 @@ export async function executeClaimed(
     await finish(deps, actionId, failure(invalid));
     return;
   }
-  let outcome;
-  try {
-    outcome = await deps.writer.write(
-      type,
-      {
-        action_id: actionId,
-        customer_id: customerId,
-        transaction_ids: params.transaction_ids,
-        reason_code: params.reason_code,
-      },
-      actionId,
-    );
-  } catch (error) {
-    if (error instanceof CoreUnavailableError) return;
-    throw error;
-  }
+  const outcome: WriteOutcome | typeof DEFERRED = await attempt(
+    deps,
+    actionId,
+    () =>
+      deps.writer.write(
+        type,
+        {
+          action_id: actionId,
+          customer_id: customerId,
+          transaction_ids: params.transaction_ids,
+          reason_code: params.reason_code,
+        },
+        actionId,
+      ),
+  );
+  if (outcome === DEFERRED) return;
   await finish(
     deps,
     actionId,
     outcome.outcome === 'accepted'
-      ? { status: EXECUTION_STATUS.executed, detail: { ...outcome.result } }
+      ? { status: EXECUTION_STATUS.executed, detail: outcome.result }
       : failure(outcome.reason),
   );
 }
 
+interface StaleExecution {
+  actionId: string;
+  attempts: number;
+  result: unknown;
+  type: string;
+  params: unknown;
+  customerId: string;
+}
+
+const lastDeferral = (result: unknown): string | undefined => {
+  const deferred = (result as { deferred?: unknown } | null)?.deferred;
+  return typeof deferred === 'string' ? deferred : undefined;
+};
+
+async function retry(deps: ExecutorDeps, row: StaleExecution): Promise<void> {
+  const bumped = await deps.db
+    .update(actionExecutions)
+    .set({ attempts: row.attempts + 1, lastAttemptAt: deps.now() })
+    .where(
+      and(
+        eq(actionExecutions.actionId, row.actionId),
+        eq(actionExecutions.attempts, row.attempts),
+        eq(actionExecutions.status, EXECUTION_STATUS.started),
+      ),
+    )
+    .returning({ attempts: actionExecutions.attempts });
+  if (bumped.length === 0) return;
+  // A lost answer may hide a landed effect: ask core before anything else, so
+  // neither a re-validation on changed data nor exhaustion overrides it.
+  const landed = await attempt(deps, row.actionId, () =>
+    deps.writer.effectOf(row.actionId),
+  );
+  if (landed === DEFERRED) return;
+  if (landed) {
+    await finish(deps, row.actionId, {
+      status: EXECUTION_STATUS.executed,
+      detail: landed,
+    });
+    return;
+  }
+  if (!isWritableAction(row.type)) {
+    await finish(deps, row.actionId, failure(INVALID_PARAMS));
+    return;
+  }
+  await executeClaimed(deps, { ...row, type: row.type });
+}
+
 /**
- * Retries every `started` execution older than `attempts × SWEEP_AFTER_MS`
- * with the same key, so a crash between the claim and the answer neither
- * loses the action nor repeats its effect; core-mock returns the first result.
- * After `MAX_EXECUTION_ATTEMPTS` the execution fails.
+ * Retries every `started` execution whose last attempt is older than
+ * `SWEEP_AFTER_MS`, with the same key: it first asks core whether the effect
+ * landed, so a crash or a lost answer neither loses the action nor repeats
+ * it. After `MAX_EXECUTION_ATTEMPTS` the execution fails, naming the last
+ * reason it was deferred. One row's error is reported and the rest still run.
  */
-export async function sweep(deps: ExecutorDeps): Promise<void> {
-  const now = deps.now().getTime();
+export async function sweep(
+  deps: ExecutorDeps,
+  options: { signal?: AbortSignal; onError?: (error: unknown) => void } = {},
+): Promise<void> {
+  const due = new Date(deps.now().getTime() - SWEEP_AFTER_MS);
   const stale = await deps.db
     .select({
       actionId: actionExecutions.actionId,
       attempts: actionExecutions.attempts,
-      startedAt: actionExecutions.startedAt,
+      result: actionExecutions.result,
       type: proposedActions.type,
       params: proposedActions.params,
       customerId: cases.customerId,
@@ -245,33 +356,23 @@ export async function sweep(deps: ExecutorDeps): Promise<void> {
     .where(
       and(
         eq(actionExecutions.status, EXECUTION_STATUS.started),
-        lt(actionExecutions.startedAt, new Date(now - SWEEP_AFTER_MS)),
+        sql`coalesce(${actionExecutions.lastAttemptAt}, ${actionExecutions.startedAt}) < ${due.toISOString()}`,
       ),
     );
   for (const row of stale) {
-    if (row.startedAt.getTime() > now - row.attempts * SWEEP_AFTER_MS) continue;
-    if (row.attempts >= MAX_EXECUTION_ATTEMPTS) {
-      await finish(deps, row.actionId, failure('attempts_exhausted'));
-      continue;
+    if (options.signal?.aborted) return;
+    try {
+      if (row.attempts >= MAX_EXECUTION_ATTEMPTS) {
+        await finish(
+          deps,
+          row.actionId,
+          failure(ATTEMPTS_EXHAUSTED, lastDeferral(row.result)),
+        );
+      } else {
+        await retry(deps, row);
+      }
+    } catch (error) {
+      options.onError?.(error);
     }
-    if (row.type === NO_EFFECT) continue;
-    const bumped = await deps.db
-      .update(actionExecutions)
-      .set({ attempts: row.attempts + 1 })
-      .where(
-        and(
-          eq(actionExecutions.actionId, row.actionId),
-          eq(actionExecutions.attempts, row.attempts),
-          eq(actionExecutions.status, EXECUTION_STATUS.started),
-        ),
-      )
-      .returning({ actionId: actionExecutions.actionId });
-    if (bumped.length === 0) continue;
-    await executeClaimed(deps, {
-      actionId: row.actionId,
-      type: row.type,
-      params: row.params,
-      customerId: row.customerId,
-    });
   }
 }
