@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { registryIdPattern } from './ids.js';
+
 export const CASE_CATEGORIES = [
   'spei_outgoing_not_received',
   'spei_incoming_not_credited',
@@ -72,6 +74,10 @@ export const APPROVED_FACTOR_WARNINGS = [
   'Nunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.',
   'No compartas tu NIP, tu CVV, tus contraseñas ni tus códigos con nadie, ni siquiera con nosotros.',
 ] as const;
+
+/** Path ids the console sends; anything outside the registry format is a 400. */
+export const ActionIdSchema = z.string().regex(registryIdPattern('act'));
+export const CaseIdSchema = z.string().regex(registryIdPattern('case'));
 
 const MAX_QUOTE_CHARS = 200;
 
