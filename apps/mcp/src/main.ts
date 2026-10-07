@@ -1,5 +1,7 @@
+import postgres from 'postgres';
+
 import { createMcpApp } from './app.js';
-import type { SecurityEventSink } from './security-events.js';
+import { createPostgresSecurityEventSink } from './security-events.js';
 
 const DEFAULT_PORT = 3020;
 
@@ -13,14 +15,6 @@ const log = (line: Record<string, unknown>): void => {
   console.log(JSON.stringify(line));
 };
 
-// Logged, not stored: this process holds no database role to insert with.
-const securityEvents: SecurityEventSink = {
-  record: (event) => {
-    log({ event: 'security_event', ...event });
-    return Promise.resolve();
-  },
-};
-
 const app = createMcpApp({
   coreUrl: required('CORE_MOCK_URL'),
   coreReadKey: required('CORE_READ_KEY'),
@@ -30,7 +24,9 @@ const app = createMcpApp({
     .split(',')
     .map((host) => host.trim())
     .filter(Boolean),
-  securityEvents,
+  securityEvents: createPostgresSecurityEventSink(
+    postgres(required('MCP_DATABASE_URL'), { onnotice: () => undefined }),
+  ),
   log,
 });
 

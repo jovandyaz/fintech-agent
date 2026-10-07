@@ -266,6 +266,9 @@ importers:
       jose:
         specifier: 6.2.12
         version: 6.2.12
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
       tsx:
         specifier: 4.23.15
         version: 4.23.15
@@ -273,6 +276,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@fintech-agent/api':
+        specifier: workspace:*
+        version: link:../api
       '@fintech-agent/core-mock':
         specifier: workspace:*
         version: link:../core-mock
