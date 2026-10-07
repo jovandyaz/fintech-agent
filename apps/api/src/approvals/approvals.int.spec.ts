@@ -7,24 +7,24 @@ import {
   type Transaction,
 } from '@fintech-agent/contracts';
 import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import {
+  ANA,
+  BETO,
+  seedProposal,
+  startApiApp,
+  type ProposalFixture,
+} from '../../test/api-app.js';
+import {
   CONTAINER_START_MS,
   startTestDatabase,
   type TestDatabase,
 } from '../../test/database.js';
-import { AppModule } from '../app.module.js';
-import { CORE_CLIENT } from './approvals.module.js';
 
-const ANA = 'dev-operator-ana-token-0123456789';
-const BETO = 'dev-operator-beto-token-0123456789';
-const OPERATOR_TOKENS = `ana:k1:${ANA},beto:k2:${BETO}`;
 const USER_AGENT = 'console-test/1.0';
-const DRAFT = 'Hola Ana, registramos tu aclaración con folio {{folio}}.';
 const FINAL = 'Hola Ana, registramos tu aclaración. Te escribimos pronto.';
 const STATUS = {
   ok: 200,
@@ -71,38 +71,9 @@ let app: INestApplication;
 let base: string;
 let sequence = 0;
 
-interface Fixture {
-  flags?: CaseFlag[];
-  tier?: 'standard' | 'high';
-  canary?: boolean;
-  type?: contracts.ActionType;
-  transactionIds?: string[];
-  caseStatus?: contracts.CaseStatus;
-}
-
-async function proposal(fixture: Fixture = {}): Promise<string> {
+async function proposal(fixture: ProposalFixture = {}): Promise<string> {
   sequence += 1;
-  const caseId = `case_d${sequence}`;
-  const runId = `run_d${sequence}`;
-  const actionId = `act_d${sequence}`;
-  const params = {
-    transaction_ids: fixture.transactionIds ?? ['tx_c1'],
-    reason_code: 'unrecognized_charge',
-  };
-  await owner`
-    insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked, status, flags, review_tier, category)
-    values (${caseId}, ${`T-${caseId}`}, ${`AC-D${String(sequence).padStart(3, '0')}-TEST`}, now(), 'webhook', 'cus_01', 'hola',
-      ${fixture.caseStatus ?? 'needs_review'}, ${owner.json(fixture.flags ?? [])}, ${fixture.tier ?? 'standard'}, 'unrecognized_card_charge')`;
-  await owner`
-    insert into agent_runs (id, case_id, variant, model, prompt_version)
-    values (${runId}, ${caseId}, 'v1', 'model', 'p1')`;
-  await owner`
-    insert into resolutions (run_id, category, draft_reply, citations, abstained, reasoning_summary)
-    values (${runId}, 'unrecognized_card_charge', ${DRAFT}, '[]', false, 'x')`;
-  await owner`
-    insert into proposed_actions (id, case_id, run_id, agent_type, agent_params, type, params, justification, is_canary)
-    values (${actionId}, ${caseId}, ${runId}, ${fixture.type ?? 'open_dispute'}, ${owner.json(params)},
-      ${fixture.type ?? 'open_dispute'}, ${owner.json(params)}, 'x', ${fixture.canary ?? false})`;
+  const { actionId } = await seedProposal(owner, `d${sequence}`, fixture);
   return actionId;
 }
 
@@ -174,23 +145,7 @@ const auditRows = (ref: string) =>
 beforeAll(async () => {
   db = await startTestDatabase();
   owner = postgres(db.ownerUrl, { max: 1, onnotice: () => undefined });
-  const moduleRef = await Test.createTestingModule({
-    imports: [
-      AppModule.register({
-        API_DATABASE_URL: db.urlFor('copilot_api'),
-        API_PORT: 0,
-        OPERATOR_TOKENS,
-        CORE_MOCK_URL: 'http://core-mock.invalid',
-        CORE_READ_KEY: 'unused-in-tests',
-      }),
-    ],
-  })
-    .overrideProvider(CORE_CLIENT)
-    .useValue(fakeCore)
-    .compile();
-  app = moduleRef.createNestApplication({ logger: false });
-  await app.listen(0, '127.0.0.1');
-  base = await app.getUrl();
+  ({ app, base } = await startApiApp(db, fakeCore));
 }, CONTAINER_START_MS);
 
 afterAll(async () => {
