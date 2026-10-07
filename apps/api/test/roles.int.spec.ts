@@ -329,6 +329,22 @@ describe('database roles (02 G1)', () => {
             operator_override = true where id = 'act_real'`,
       TRANSITION_REFUSED,
     ],
+    [
+      'copilot_api supersedes a proposal while recording a decision',
+      'copilot_api',
+      (s) =>
+        s`update proposed_actions set status = 'superseded', decided_by = 'operator:ana', decided_at = now(), final_reply = 'listo'
+            where id = 'act_real'`,
+      TRANSITION_REFUSED,
+    ],
+    [
+      'copilot_api supersedes a proposal while overriding its action',
+      'copilot_api',
+      (s) =>
+        s`update proposed_actions set status = 'superseded', type = 'escalate_fraud', operator_override = true
+            where id = 'act_real'`,
+      TRANSITION_REFUSED,
+    ],
     ...(
       [
         ['webhook_events', 'payload_hash'],
