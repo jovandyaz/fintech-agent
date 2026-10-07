@@ -2,6 +2,7 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  CONTAINER_START_MS,
   insertCase,
   startTestDatabase,
   type TestDatabase,
@@ -20,7 +21,6 @@ const TABLES = [
   'security_events',
   'webhook_events',
 ];
-const CONTAINER_START_MS = 120_000;
 
 let db: TestDatabase;
 let sql: postgres.Sql;

@@ -64,7 +64,9 @@ export async function listen(server: Server): Promise<string> {
 export const close = (server: Server): Promise<void> =>
   new Promise((resolve) => server.close(() => resolve()));
 
-export const now = (): number => Math.floor(Date.now() / 1000);
+const MS_PER_SECOND = 1000;
+
+export const now = (): number => Math.floor(Date.now() / MS_PER_SECOND);
 
 export interface MintOptions {
   key?: string;

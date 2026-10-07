@@ -3,11 +3,14 @@ import postgres from 'postgres';
 
 const SQLSTATE_PATTERN = /^[A-Z0-9]{5}$/;
 
-type FailureCategory =
-  | 'unique_violation'
-  | 'connection_failure'
-  | 'transaction_conflict'
-  | 'unclassified';
+const FAILURE_CATEGORY = {
+  uniqueViolation: 'unique_violation',
+  connectionFailure: 'connection_failure',
+  transactionConflict: 'transaction_conflict',
+  unclassified: 'unclassified',
+} as const;
+
+type FailureCategory = (typeof FAILURE_CATEGORY)[keyof typeof FAILURE_CATEGORY];
 
 /**
  * What a database failure may say in a log line or an error. Only fields that
@@ -24,12 +27,12 @@ export interface DatabaseDiagnostics {
 }
 
 const FAILURE_CATEGORY_BY_CODE = new Map<unknown, FailureCategory>([
-  ['23505', 'unique_violation'],
-  ['08006', 'connection_failure'],
-  ['ECONNREFUSED', 'connection_failure'],
-  ['40P01', 'transaction_conflict'],
-  ['40001', 'transaction_conflict'],
-  ['55P03', 'transaction_conflict'],
+  ['23505', FAILURE_CATEGORY.uniqueViolation],
+  ['08006', FAILURE_CATEGORY.connectionFailure],
+  ['ECONNREFUSED', FAILURE_CATEGORY.connectionFailure],
+  ['40P01', FAILURE_CATEGORY.transactionConflict],
+  ['40001', FAILURE_CATEGORY.transactionConflict],
+  ['55P03', FAILURE_CATEGORY.transactionConflict],
 ]);
 
 function queryFailureIn(
@@ -76,7 +79,8 @@ export function databaseDiagnostics(error: unknown): DatabaseDiagnostics {
       : undefined;
   const diagnostics: DatabaseDiagnostics = {
     errorName: error instanceof Error ? error.constructor.name : typeof error,
-    failureCategory: FAILURE_CATEGORY_BY_CODE.get(code) ?? 'unclassified',
+    failureCategory:
+      FAILURE_CATEGORY_BY_CODE.get(code) ?? FAILURE_CATEGORY.unclassified,
     sqlState:
       typeof code === 'string' && SQLSTATE_PATTERN.test(code) ? code : null,
   };

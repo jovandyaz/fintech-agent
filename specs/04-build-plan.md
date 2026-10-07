@@ -70,7 +70,7 @@ Done when: the tool-binding tests from 02 pass; MCP Inspector lists four tools, 
 - Ports, one commit each (00 table): Drizzle module and migrate CLI, JSON logger with redaction, token cost, scripted mock-model fixtures, exfiltration link scanner into the validator.
 - Migrations for every table in 01; the `seed` compose service runs migrations idempotently before `api`, `executor` and `mcp` start (ingestion joins it in step 5). The MCP server's Postgres security-event sink is wired here.
 - `ops/alerts.sql` starts here with the canary catch-rate query the canary tests need; step 8 adds the rest.
-- Migrations create the two Postgres roles, their grants and the `enforce_transition_role` trigger (02 G1).
+- Migrations create the three Postgres roles, their grants and the `enforce_transition_role` trigger (02 G1).
 - Domain `transition()` and conditional updates; `OperatorGuard` with hashed per-operator tokens; decision API (approve / reject, both with `final_reply` checked like a draft, flag acknowledgment, `reject_code`, `reviewed_transaction_ids` on `high` tier, `override` within the G2 table); `pnpm canary:inject` and the canary transitions; audit log with key id, IP and user agent.
 - Executor service: `apps/api/src/executor/main.ts`, outbox drain with `SKIP LOCKED`, `started` row, re-validation, core-mock call with `Idempotency-Key`, sweeper; compose service; `api` refuses to boot with `CORE_EXECUTOR_KEY`.
 - Validator with every code in 02 G5: fact predicates (`ACTION_UNSUPPORTED`), quote check, `UNGROUNDED_NUMBER`, `COMMITMENT_IN_REPLY` and the two commitment placeholders, `PII_IN_REPLY` as a diff, `state_rules` of every matching chunk for `POLICY_DATA_CONFLICT`; `action_fact_mismatch` and `first_party_signal` at Persist; repair retry; fallback.

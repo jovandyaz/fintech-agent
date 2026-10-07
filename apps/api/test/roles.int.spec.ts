@@ -9,15 +9,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { setRolePasswords } from '../src/database/roles.js';
 import {
+  CONTAINER_START_MS,
   insertCase,
   startTestDatabase,
   type TestDatabase,
 } from './database.js';
 
-const CONTAINER_START_MS = 120_000;
 const OK = 'ok';
 const PERMISSION_DENIED = '42501';
 const TRANSITION_REFUSED = 'P0001';
+const FOREIGN_KEY_VIOLATION = '23503';
 
 type Query = (sql: postgres.Sql) => Promise<unknown>;
 
@@ -328,6 +329,22 @@ describe('database roles (02 G1)', () => {
             operator_override = true where id = 'act_real'`,
       TRANSITION_REFUSED,
     ],
+    [
+      'copilot_api supersedes a proposal while recording a decision',
+      'copilot_api',
+      (s) =>
+        s`update proposed_actions set status = 'superseded', decided_by = 'operator:ana', decided_at = now(), final_reply = 'listo'
+            where id = 'act_real'`,
+      TRANSITION_REFUSED,
+    ],
+    [
+      'copilot_api supersedes a proposal while overriding its action',
+      'copilot_api',
+      (s) =>
+        s`update proposed_actions set status = 'superseded', type = 'escalate_fraud', operator_override = true
+            where id = 'act_real'`,
+      TRANSITION_REFUSED,
+    ],
     ...(
       [
         ['webhook_events', 'payload_hash'],
@@ -483,6 +500,22 @@ describe('webhook intake order (01 Webhook and queue)', () => {
     const [row] = await owner<{ count: string }[]>`
       select count(*) from cases where id = 'case_w1'`;
     expect(row?.count).toBe('1');
+  });
+
+  it('refuses to commit an event whose case was never inserted', async () => {
+    const api = as('copilot_api');
+    expect(
+      await outcome(
+        api.begin(
+          (tx) => tx`
+            insert into webhook_events (event_id, payload_hash, case_id)
+            values ('evt_w2', 'hash', 'case_missing')`,
+        ),
+      ),
+    ).toBe(FOREIGN_KEY_VIOLATION);
+    const [row] = await owner<{ count: string }[]>`
+      select count(*) from webhook_events where event_id = 'evt_w2'`;
+    expect(row?.count).toBe('0');
   });
 });
 

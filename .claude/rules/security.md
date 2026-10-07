@@ -31,4 +31,4 @@ The guarantees are in `specs/02-security.md` (G1–G8). These rules are how code
 
 - Only `apps/api/src/executor/` writes to core-mock, and only for an `approved` action it re-validates first.
 - State changes use a conditional `UPDATE … WHERE status = $expected`; zero rows updated is a conflict, not a retry.
-- Queries go through Drizzle's query builder; no string-built SQL.
+- Queries go through Drizzle's query builder, or a postgres.js tagged template where Drizzle is not in the process (the MCP sink); no string-built SQL. The one exception is role DDL in `seed`, which Postgres builds itself with `format('%I', '%L')` from bound values.

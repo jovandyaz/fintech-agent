@@ -1,4 +1,5 @@
 import {
+  CONTAINER_START_MS,
   insertCase,
   startTestDatabase,
   type TestDatabase,
@@ -27,8 +28,6 @@ import {
 } from '../test/fixtures.js';
 import { createMcpApp, type McpApp } from './app.js';
 import { createPostgresSecurityEventSink } from './security-events.js';
-
-const CONTAINER_START_MS = 120_000;
 
 let db: TestDatabase;
 let owner: postgres.Sql;
