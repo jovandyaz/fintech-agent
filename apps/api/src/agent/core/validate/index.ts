@@ -1,6 +1,7 @@
 import {
   ResolutionSchema,
   VALIDATION_CODES,
+  type ProposedAction,
   type Resolution,
   type ValidationCode,
 } from '@fintech-agent/contracts';
@@ -30,12 +31,24 @@ export type ValidationOutcome =
       resolution: Resolution;
       conflicts: readonly PolicyConflict[];
     }
-  | { ok: false; codes: readonly ValidationCode[] };
+  | {
+      ok: false;
+      codes: readonly ValidationCode[];
+      conflicts: readonly PolicyConflict[];
+    };
 
 const inCodeOrder = (codes: Iterable<ValidationCode>): ValidationCode[] => {
   const found = new Set(codes);
   return VALIDATION_CODES.filter((code) => found.has(code));
 };
+
+/** The `none` action that code proposes in place of the model's. */
+export const noneAction = (justification: string): ProposedAction => ({
+  type: 'none',
+  transaction_ids: [],
+  reason_code: 'insufficient_information',
+  justification,
+});
 
 function forcedNone(
   resolution: Resolution,
@@ -44,12 +57,7 @@ function forcedNone(
   const ruleIds = [...new Set(conflicts.map(({ rule_id }) => rule_id))];
   return {
     ...resolution,
-    proposed_action: {
-      type: 'none',
-      transaction_ids: [],
-      reason_code: 'insufficient_information',
-      justification: `POLICY_DATA_CONFLICT: ${ruleIds.join(', ')}`,
-    },
+    proposed_action: noneAction(`POLICY_DATA_CONFLICT: ${ruleIds.join(', ')}`),
   };
 }
 
@@ -59,15 +67,16 @@ function forcedNone(
  * does not parse fails `SCHEMA` alone, since nothing else can be read. A
  * `POLICY_DATA_CONFLICT` is not a code: it replaces the action with `none`
  * before the other checks run, so the reply is held to the forced action.
+ * Conflicts come from the evidence alone, so a failure carries them too.
  */
 export function validate(
   raw: unknown,
   context: ValidationContext,
 ): ValidationOutcome {
-  const parsed = ResolutionSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, codes: ['SCHEMA'] };
   const { evidence } = context;
   const conflicts = policyConflicts(evidence, context.stateRules);
+  const parsed = ResolutionSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, codes: ['SCHEMA'], conflicts };
   const resolution =
     conflicts.length > 0 ? forcedNone(parsed.data, conflicts) : parsed.data;
   const codes = provenanceCodes(resolution, evidence);
@@ -79,6 +88,6 @@ export function validate(
   }
   codes.push(...replyCodes(resolution, evidence));
   return codes.length > 0
-    ? { ok: false, codes: inCodeOrder(codes) }
+    ? { ok: false, codes: inCodeOrder(codes), conflicts }
     : { ok: true, resolution, conflicts };
 }

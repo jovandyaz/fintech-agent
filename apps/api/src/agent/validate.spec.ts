@@ -30,7 +30,10 @@ import {
 } from './core/validate/evidence.js';
 import { factFlags } from './core/validate/flags.js';
 import { validate } from './core/validate/index.js';
-import { validateWithRepair } from './core/validate/repair.js';
+import {
+  RepairEvidenceError,
+  validateWithRepair,
+} from './core/validate/repair.js';
 import type { ChunkStateRules } from './core/validate/state-rules.js';
 
 const CARD_DISPUTE_RUN: ToolResult[] = [
@@ -494,7 +497,9 @@ describe('factFlags', () => {
     reason_code: 'insufficient_information',
   };
   const flagsOf = (
-    resolution: Resolution,
+    resolution: Pick<Resolution, 'proposed_action'> & {
+      category: Resolution['category'] | null;
+    },
     toolResults: ToolResult[] = CARD_DISPUTE_RUN,
     priorOpenDisputes = 0,
   ) =>
@@ -554,6 +559,20 @@ describe('factFlags', () => {
         },
       ]),
     ).toEqual(['first_party_signal']);
+  });
+
+  it('reads a fallback, which has no category, as a possible unrecognized charge', () => {
+    const fallback = {
+      category: null,
+      proposed_action: proposing(NONE).proposed_action,
+    };
+    expect(flagsOf(fallback)).toEqual(['action_fact_mismatch']);
+    expect(
+      flagsOf(fallback, [
+        listed(...cnpRows([hoursBefore(9), hoursBefore(8), hoursBefore(7)])),
+      ]),
+    ).toEqual(['action_fact_mismatch']);
+    expect(flagsOf(fallback, [customerSeen])).toEqual([]);
   });
 
   it('sets first_party_signal from three prior disputes, not from two', () => {
@@ -730,7 +749,31 @@ describe('POLICY_DATA_CONFLICT', () => {
         evidence: buildEvidence(runOf(returnedRun)),
         stateRules: CONFLICT_RULES,
       }),
-    ).toEqual({ ok: false, codes: ['COMMITMENT_IN_REPLY'] });
+    ).toEqual({
+      ok: false,
+      codes: ['COMMITMENT_IN_REPLY'],
+      conflicts: [
+        {
+          rule_id: 'return_credit_same_day',
+          chunk_id: 'chunk_p02s3',
+          transaction_id: SPEI_TX,
+          field: 'reversal_credit_id',
+        },
+      ],
+    });
+  });
+
+  it('carries the conflicts of an output that does not parse', () => {
+    expect(
+      validate('{"category":', {
+        evidence: buildEvidence(runOf(returnedRun)),
+        stateRules: CONFLICT_RULES,
+      }),
+    ).toMatchObject({
+      ok: false,
+      codes: ['SCHEMA'],
+      conflicts: [{ rule_id: 'return_credit_same_day' }],
+    });
   });
 });
 
@@ -851,6 +894,8 @@ describe('repair and fallback', () => {
     evidence: buildEvidence(runOf(toolResults)),
     stateRules: [],
   });
+  const turn = (output: unknown, toolResults = CARD_DISPUTE_RUN) =>
+    Promise.resolve({ output, evidence: buildEvidence(runOf(toolResults)) });
   const ungrounded = replying('Revisamos el cargo de $5,000 que mencionas.');
 
   it('never calls the repair turn when the first output is valid', async () => {
@@ -859,7 +904,7 @@ describe('repair and fallback', () => {
       resolutionOf(),
       (codes) => {
         repairs.push(codes);
-        return Promise.resolve(resolutionOf());
+        return turn(resolutionOf());
       },
       context(),
     );
@@ -873,7 +918,7 @@ describe('repair and fallback', () => {
       ungrounded,
       (codes) => {
         repairs.push(codes);
-        return Promise.resolve(resolutionOf());
+        return turn(resolutionOf());
       },
       context(),
     );
@@ -891,7 +936,7 @@ describe('repair and fallback', () => {
       '{"category":',
       (codes) => {
         repairs.push(codes);
-        return Promise.resolve(resolutionOf());
+        return turn(resolutionOf());
       },
       context(),
     );
@@ -904,7 +949,7 @@ describe('repair and fallback', () => {
       ungrounded,
       () => {
         repairs += 1;
-        return Promise.resolve(replying('Tranquila, te reembolsaremos.'));
+        return turn(replying('Tranquila, te reembolsaremos.'));
       },
       context(),
     );
@@ -920,39 +965,132 @@ describe('repair and fallback', () => {
           'Validation failed after one repair: COMMITMENT_IN_REPLY',
       },
       conflicts: [],
+      evidence: buildEvidence(runOf(CARD_DISPUTE_RUN)),
     });
+  });
+
+  it('validates the repair against the evidence of the run so far', async () => {
+    const beforeSearch = CARD_DISPUTE_RUN.filter(
+      ({ tool }) => tool !== 'search_policies',
+    );
+    expect(codesOf(resolutionOf(), beforeSearch)).toEqual(['CITATION_UNSEEN']);
+    const outcome = await validateWithRepair(
+      resolutionOf(),
+      () => turn(resolutionOf(), CARD_DISPUTE_RUN),
+      context(beforeSearch),
+    );
+    expect(outcome).toMatchObject({ kind: 'valid', repaired: true });
+  });
+
+  const returnedRun: ToolResult[] = [
+    ...CARD_DISPUTE_RUN,
+    {
+      tool: 'get_spei_status',
+      output: speiStatus({
+        status: 'returned',
+        returned_at: '2026-10-02T17:00:00Z',
+      }),
+    },
+  ];
+  const returnCreditRules: ChunkStateRules[] = [
+    {
+      chunk_id: 'chunk_p02s3',
+      quarantined: false,
+      rules: [
+        {
+          id: 'return_credit_same_day',
+          applies_to: { type: 'spei_out', status: 'returned' },
+          requires: { field: 'reversal_credit_id', not_null: true },
+        },
+      ],
+    },
+  ];
+
+  it('hands Persist the evidence the accepted or failed verdict used', async () => {
+    const fresh = buildEvidence(runOf(CARD_DISPUTE_RUN));
+    const initial = context();
+    const valid = await validateWithRepair(
+      resolutionOf(),
+      () => Promise.resolve({ output: resolutionOf(), evidence: fresh }),
+      initial,
+    );
+    expect(valid.evidence).toBe(initial.evidence);
+    const repaired = await validateWithRepair(
+      ungrounded,
+      () => Promise.resolve({ output: resolutionOf(), evidence: fresh }),
+      initial,
+    );
+    expect(repaired.evidence).toBe(fresh);
+    const fallback = await validateWithRepair(
+      ungrounded,
+      () => Promise.resolve({ output: ungrounded, evidence: fresh }),
+      initial,
+    );
+    expect(fallback.evidence).toBe(fresh);
+  });
+
+  it('refuses repair evidence that drops what the first turn saw', async () => {
+    const withoutSpei = CARD_DISPUTE_RUN.map((result) =>
+      result.tool === 'list_transactions' ? listed(cardRow()) : result,
+    );
+    await expect(
+      validateWithRepair(
+        ungrounded,
+        () => turn(resolutionOf(), withoutSpei),
+        context(),
+      ),
+    ).rejects.toThrow(RepairEvidenceError);
+    await expect(
+      validateWithRepair(ungrounded, () => turn(resolutionOf()), {
+        evidence: buildEvidence(
+          runOf(CARD_DISPUTE_RUN, { injectionSignal: true }),
+        ),
+        stateRules: [],
+      }),
+    ).rejects.toThrow(RepairEvidenceError);
+  });
+
+  it.each([
+    ['a SPEI status', 'get_spei_status'],
+    ['a card authorization', 'get_card_authorization'],
+    ['a policy chunk', 'search_policies'],
+    ['the customer', 'get_customer'],
+  ])('refuses repair evidence that drops %s', async (_, tool) => {
+    const firstTurn: ToolResult[] = [
+      ...CARD_DISPUTE_RUN,
+      { tool: 'get_spei_status', output: speiStatus() },
+    ];
+    await expect(
+      validateWithRepair(
+        ungrounded,
+        () =>
+          turn(
+            resolutionOf(),
+            firstTurn.filter((result) => result.tool !== tool),
+          ),
+        context(firstTurn),
+      ),
+    ).rejects.toThrow(RepairEvidenceError);
+  });
+
+  it('refuses repair evidence that drops a cross-customer lookup', async () => {
+    await expect(
+      validateWithRepair(ungrounded, () => turn(resolutionOf()), {
+        evidence: buildEvidence(
+          runOf(CARD_DISPUTE_RUN, { crossCustomerLookup: true }),
+        ),
+        stateRules: [],
+      }),
+    ).rejects.toThrow(RepairEvidenceError);
   });
 
   it('keeps the policy conflicts of the run on a fallback', async () => {
     const outcome = await validateWithRepair(
       ungrounded,
-      () => Promise.resolve(ungrounded),
+      () => turn(ungrounded, returnedRun),
       {
-        evidence: buildEvidence(
-          runOf([
-            ...CARD_DISPUTE_RUN,
-            {
-              tool: 'get_spei_status',
-              output: speiStatus({
-                status: 'returned',
-                returned_at: '2026-10-02T17:00:00Z',
-              }),
-            },
-          ]),
-        ),
-        stateRules: [
-          {
-            chunk_id: 'chunk_p02s3',
-            quarantined: false,
-            rules: [
-              {
-                id: 'return_credit_same_day',
-                applies_to: { type: 'spei_out', status: 'returned' },
-                requires: { field: 'reversal_credit_id', not_null: true },
-              },
-            ],
-          },
-        ],
+        evidence: buildEvidence(runOf(returnedRun)),
+        stateRules: returnCreditRules,
       },
     );
     expect(outcome).toMatchObject({
@@ -960,6 +1098,21 @@ describe('repair and fallback', () => {
       conflicts: [
         { rule_id: 'return_credit_same_day', transaction_id: SPEI_TX },
       ],
+    });
+  });
+
+  it('flags a conflict first seen in the repair turn on a fallback', async () => {
+    const outcome = await validateWithRepair(
+      ungrounded,
+      () => turn(ungrounded, returnedRun),
+      {
+        evidence: buildEvidence(runOf(CARD_DISPUTE_RUN)),
+        stateRules: returnCreditRules,
+      },
+    );
+    expect(outcome).toMatchObject({
+      kind: 'fallback',
+      conflicts: [{ rule_id: 'return_credit_same_day' }],
     });
   });
 });
