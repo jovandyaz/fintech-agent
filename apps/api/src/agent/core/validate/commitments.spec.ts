@@ -176,3 +176,25 @@ describe('hasCommitment, any person of the listed verbs', () => {
     expect(hasCommitment('te rеembolsaremos')).toBe(true);
   });
 });
+
+describe('hasCommitment, deadlines given as a range', () => {
+  it.each([
+    'En 2-3 días hábiles te llega tu reembolso.',
+    'Entre 2 y 3 días te llega el abono.',
+    'En 2 a 3 días tendrás tu dinero.',
+    'Dentro de 2–3 días recibirás tu dinero.',
+  ])('finds "%s"', (text) => {
+    expect(hasCommitment(text)).toBe(true);
+  });
+});
+
+describe('hasCommitment, deadlines with decimals or thousands', () => {
+  it.each([
+    'En 1,5 días te llega el abono.',
+    'En 1.5 días tendrás tu dinero.',
+    'En 1.000 días tendrás tu dinero.',
+    'En mil días te llega el abono.',
+  ])('finds "%s"', (text) => {
+    expect(hasCommitment(text)).toBe(true);
+  });
+});

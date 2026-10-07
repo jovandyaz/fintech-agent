@@ -107,7 +107,8 @@ const LAST_FOUR = new RegExp(
   String.raw`(?:termina(?:da)?\s+en|terminaci[oó]n|[uú]ltimos?\s+(?:4|cuatro)(?:\s+d[ií]gitos)?)\s*:?\s*\d{4}(?!\d)${NOT_JOINED_AFTER}`,
   'gi',
 );
-const REGISTRY_ID = new RegExp(
+/** A registry id (`tx_…`, `case_…`) anywhere in a text, never inside a word. */
+export const REGISTRY_ID_IN_TEXT = new RegExp(
   String.raw`(?<![\p{L}\d_])(?:${ID_PREFIXES.join('|')})_${ID_PAYLOAD_PATTERN}(?![0-9a-z_])`,
   'gu',
 );
@@ -143,7 +144,7 @@ const EXEMPTIONS: readonly Exemption[] = [
   { pattern: LAST_FOUR, maxDigits: LAST_FOUR_DIGITS_CAP },
   { pattern: POSTAL_CODE, maxDigits: POSTAL_DIGITS_CAP },
   { pattern: YEAR, maxDigits: YEAR_DIGITS_CAP },
-  { pattern: REGISTRY_ID, maxDigits: REGISTRY_DIGITS_CAP },
+  { pattern: REGISTRY_ID_IN_TEXT, maxDigits: REGISTRY_DIGITS_CAP },
   { pattern: FOLIO, maxDigits: FOLIO_DIGITS_CAP },
 ];
 
@@ -739,6 +740,16 @@ function classifyWindow(groups: string[]): DigitKind | null {
   }
   const phone = contiguous ? isContiguousPhone(digits) : isGroupedPhone(groups);
   return phone ? 'phone' : null;
+}
+
+const VISIBLE_TAIL = new RegExp(String.raw`${MASK}(\d{${VISIBLE_DIGITS}})$`);
+
+/**
+ * The last digits a value masked by `maskPii` still shows ("CLABE ••••7781"
+ * → "7781"), or `undefined` when it shows none.
+ */
+export function visibleTailOf(masked: string): string | undefined {
+  return VISIBLE_TAIL.exec(masked)?.[1];
 }
 
 const render = (label: string, tail: string): string =>

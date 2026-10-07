@@ -1,4 +1,11 @@
-import { QUALIFIERS, UNITS, alternation, foldForMatching } from './spanish.js';
+import {
+  GROUPED,
+  QUALIFIER_WORD,
+  RANGE_DASH,
+  RANGE_JOIN,
+  UNIT_WORD,
+  foldForMatching,
+} from './spanish.js';
 
 const CLITIC = String.raw`(?:te|le|les)\s`;
 const OBJECT_PRONOUN = String.raw`(?:lo|la|los|las|se|nos|te|le|les)\s`;
@@ -50,7 +57,8 @@ const DONE_ACTIONS = [
   'devolvimos',
   'depositamos',
 ];
-const DEADLINE = String.raw`\b(?:en|dentro de)\s\d+\s?(?:${alternation(UNITS)})\b(?:\s(?:${alternation(QUALIFIERS)})\b)?,?\s`;
+const DEADLINE_FIGURE = String.raw`(?:${GROUPED}|\d+)(?:[.,]\d{1,2})?`;
+const DEADLINE = String.raw`\b(?:en|dentro de|entre)\s${DEADLINE_FIGURE}(?:\s?${RANGE_DASH}\s?${DEADLINE_FIGURE}|\s${RANGE_JOIN}\s${DEADLINE_FIGURE})?\s?${UNIT_WORD}(?:\s${QUALIFIER_WORD})?,?\s`;
 const YOU_WILL = [
   'tendras',
   'tendra',

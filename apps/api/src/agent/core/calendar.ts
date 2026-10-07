@@ -54,6 +54,18 @@ export function localDateOf(instant: Date): string {
   return LOCAL_DATE.format(instant);
 }
 
+const LOCAL_TIME = new Intl.DateTimeFormat('en-GB', {
+  timeZone: BANK_CALENDAR.time_zone,
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** The wall-clock time (`HH:MM`, 24-hour) of an instant in Mexico City. */
+export function localTimeOf(instant: Date): string {
+  return LOCAL_TIME.format(instant);
+}
+
 const ISO_DAY_LENGTH = 'YYYY-MM-DD'.length;
 const YEAR_LENGTH = 'YYYY'.length;
 

@@ -635,6 +635,106 @@ describe('UNGROUNDED_NUMBER', () => {
       ]),
     ).toEqual(['UNGROUNDED_NUMBER']);
   });
+
+  it.each([
+    'Recibirás 5-10 mil pesos.',
+    'Recibirás en octubre cinco mil pesos.',
+    'Recibirás 2000 de vuelta.',
+    'Recibirás…5000 de vuelta.',
+    'Te llegan 50 libras.',
+    'Lo revisamos durante 2031.',
+    'Tu tarjeta terminación 9999 quedó revisada.',
+  ])('fails closed on "%s", which nothing grounds', (draft) => {
+    expect(codesOf(replying(draft))).toEqual(['UNGROUNDED_NUMBER']);
+  });
+
+  const withChunk = (content: string): ToolResult[] => [
+    ...CARD_DISPUTE_RUN.slice(0, -1),
+    searched(policyChunk({ content })),
+  ];
+  const LAW_CHUNK_RUN = withChunk(
+    'Conforme al artículo 23 de la LTOSF y la Circular 14/2017, el abono se hace a más tardar el segundo día hábil.',
+  );
+
+  it.each(['El monto es de 23 pesos.', 'Recibirás 2017 de vuelta.'])(
+    'never grounds "%s" on an article or circular number of a cited chunk',
+    (draft) => {
+      expect(codesOf(replying(draft), LAW_CHUNK_RUN)).toEqual([
+        'UNGROUNDED_NUMBER',
+      ]);
+    },
+  );
+
+  it('grounds a masked CLABE and an alphanumeric tracking key the run saw', () => {
+    const run: ToolResult[] = [
+      ...CARD_DISPUTE_RUN,
+      {
+        tool: 'get_spei_status',
+        output: speiStatus({ tracking_key_last4: 'O01A' }),
+      },
+    ];
+    expect(
+      codesOf(
+        replying('Tu envío a la CLABE ••••7781, rastreo con final O01A.'),
+        run,
+      ),
+    ).toEqual([]);
+    expect(codesOf(replying('Tu rastreo con final O02A.'), run)).toEqual([
+      'UNGROUNDED_NUMBER',
+    ]);
+  });
+
+  it('never lets clock minutes hide an amount next to a grounded time', () => {
+    const run: ToolResult[] = [
+      ...CARD_DISPUTE_RUN,
+      {
+        tool: 'get_spei_status',
+        output: speiStatus({ settled_at: '2026-10-05T21:50:00Z' }),
+      },
+    ];
+    expect(codesOf(replying('Tu envío llegó a las 15 y 50.'), run)).toEqual([]);
+    expect(
+      codesOf(replying('Tu envío llegó a las 15 y 50 pesos de comisión.'), run),
+    ).toEqual(['UNGROUNDED_NUMBER']);
+  });
+
+  it('never grounds "1.000 días hábiles" on a chunk that states one day', () => {
+    const run = withChunk(
+      'El abono se hace a más tardar el segundo día hábil; la respuesta llega en 1 día hábil.',
+    );
+    expect(
+      codesOf(replying('Se resuelve en 1.000 días hábiles.'), run),
+    ).toEqual(['UNGROUNDED_NUMBER']);
+  });
+
+  const AMOUNT_2500_RUN: ToolResult[] = [
+    ...CARD_DISPUTE_RUN,
+    listed(speiRow({ amount: 2500 })),
+  ];
+
+  it('never grounds "2 500 mil pesos" on an amount of 2,500', () => {
+    expect(
+      codesOf(
+        replying('El monto revisado es de 2 500 mil pesos.'),
+        AMOUNT_2500_RUN,
+      ),
+    ).toEqual(['UNGROUNDED_NUMBER']);
+  });
+
+  it('never grounds "2 500 pesos y medio" on an amount of 2,500', () => {
+    expect(
+      codesOf(
+        replying('El monto revisado es de 2 500 pesos y medio.'),
+        AMOUNT_2500_RUN,
+      ),
+    ).toEqual(['UNGROUNDED_NUMBER']);
+  });
+
+  it('passes a count of a listed noun and the article "un"', () => {
+    expect(codesOf(replying('Revisamos tus 2 cargos en un momento.'))).toEqual(
+      [],
+    );
+  });
 });
 
 describe('COMMITMENT_IN_REPLY', () => {
@@ -791,6 +891,14 @@ describe('validation time', () => {
     '1,111',
     '1 111 ',
     '1 de ',
+    'xxxx1',
+    'terminacion 1 ',
+    '1 millon 1 ',
+    'a las 1 ',
+    '1:11 ',
+    '_1',
+    'medio millon ',
+    'a las uno y ',
   ];
 
   it('stays within budget on a maximal adversarial draft', () => {
@@ -839,9 +947,10 @@ describe('date placeholders and their commitments', () => {
     ).toEqual([]);
   });
 
-  it('fails a placeholder glued to a letter or a digit (SCHEMA)', () => {
+  it('fails a placeholder glued to a letter or a digit (SCHEMA; the digit is an ungrounded figure)', () => {
     expect(codesOf(replying('Ref 12{{fecha_recepcion}} registrada.'))).toEqual([
       'SCHEMA',
+      'UNGROUNDED_NUMBER',
     ]);
     expect(codesOf(replying('Folio{{folio}} registrado.'))).toEqual(['SCHEMA']);
   });

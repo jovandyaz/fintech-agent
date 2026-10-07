@@ -53,6 +53,17 @@ export const QUALIFIERS = canonicalOf(QUALIFIER_SPELLINGS);
 export const alternation = (forms: Readonly<Record<string, unknown>>): string =>
   Object.keys(forms).join('|');
 
+/** A figure grouped by thousands with a dot, comma or space, as regex source. */
+export const GROUPED = String.raw`\d{1,3}(?:[,. ]\d{3})+`;
+/** Any spelling of a duration unit, as regex source. */
+export const UNIT_WORD = String.raw`(?:${alternation(UNITS)})\b`;
+/** Any spelling of a day-count qualifier, as regex source. */
+export const QUALIFIER_WORD = String.raw`(?:${alternation(QUALIFIERS)})\b`;
+/** The dash of a range ("2-3", "2–3", "2—3"), as regex source. */
+export const RANGE_DASH = '[-–—]';
+/** The word joining the ends of a spoken range ("2 a 3", "2 y 3"). */
+export const RANGE_JOIN = '(?:a|y)';
+
 /**
  * The one folding every lexical G5 check reads through, so they cannot
  * drift: accents, invisible characters and case removed, look-alike
