@@ -1,5 +1,4 @@
 import { request as httpRequest } from 'node:http';
-import type { AddressInfo } from 'node:net';
 
 import {
   CASE_TOKEN_ISSUER,
@@ -23,23 +22,32 @@ import {
   StreamableHTTPClientTransport,
 } from '@modelcontextprotocol/client';
 import { McpServer } from '@modelcontextprotocol/server';
-import { SignJWT, UnsecuredJWT } from 'jose';
+import { UnsecuredJWT } from 'jose';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import {
+  AUDIENCE,
+  CASE_ID,
+  CASE_TOKEN_KEY,
+  OTHER,
+  OWNER,
+  READ_KEY,
+  RUN_ID,
+  TOKEN_TTL_S,
+  cardCharge,
+  close,
+  customer,
+  foreignCharge,
+  listen,
+  mint,
+  now,
+} from '../test/fixtures.js';
 import { READ_ONLY } from './annotations.js';
 import { createMcpApp, type McpApp, type McpAppOptions } from './app.js';
 import type { SecurityEvent } from './security-events.js';
 import { createCallBudget, registerTools } from './tools.js';
 
-const CASE_TOKEN_KEY = 'test-case-token-key-with-at-least-32-bytes';
 const WEBHOOK_SECRET = 'test-webhook-secret-with-at-least-32-bytes';
-const READ_KEY = 'test-core-read-key';
-const AUDIENCE = 'http://mcp.internal/mcp';
-const OWNER = 'cus_01';
-const OTHER = 'cus_02';
-const CASE_ID = 'case_ab12';
-const RUN_ID = 'run_cd34';
-const TOKEN_TTL_S = 300;
 const TOO_LONG_TTL_S = 601;
 const PAST_S = 3600;
 const EXPIRED_AGO_S = 30;
@@ -54,21 +62,6 @@ const TOOL_ORDER = [
   'get_spei_status',
   'get_card_authorization',
 ];
-
-const customer = (id: string): Customer => ({
-  id,
-  first_name: 'Ana',
-  last_names: 'Gómez Pérez',
-  rfc: 'GOPA741222HKG',
-  curp: 'GOPA741222MDFGHJP1',
-  email: 'ana.gomez@example.com',
-  phone: '5532732905',
-  clabe: '646180590988801788',
-  card_pan: '4761343220832617',
-  card_status: 'active',
-  kyc_level: 'N3',
-  account_status: 'active',
-});
 
 const speiOut: SpeiTx = {
   id: 'tx_so02a',
@@ -91,26 +84,6 @@ const speiOut: SpeiTx = {
   cep_available: true,
 };
 
-const cardCharge: CardTx = {
-  id: 'tx_cu01a',
-  customer_id: OWNER,
-  type: 'card_purchase',
-  status: 'settled',
-  amount: 899,
-  created_at: '2026-10-03T22:10:00-06:00',
-  merchant_descriptor: 'PAYPAL *DIGITALGOODS',
-  merchant_brand: 'Digital Goods Ltd',
-  channel: 'card_not_present',
-  auth_factors: 1,
-  decline_reason: null,
-};
-
-const foreignCharge: CardTx = {
-  ...cardCharge,
-  id: 'tx_f001',
-  customer_id: OTHER,
-};
-
 const foreignSpei: SpeiTx = { ...speiOut, id: 'tx_f002', customer_id: OTHER };
 
 interface Upstream {
@@ -127,47 +100,6 @@ let logs: Record<string, unknown>[];
 let sinkFailure: Error | undefined;
 let upstream: Upstream[];
 let stubbed: (() => Promise<Response>) | undefined;
-let nextJti = 0;
-
-const listen = async (server: CoreMock['server']): Promise<string> => {
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const { port } = server.address() as AddressInfo;
-  return `http://127.0.0.1:${port}`;
-};
-
-const close = (server: CoreMock['server']): Promise<void> =>
-  new Promise((resolve) => server.close(() => resolve()));
-
-const encode = (value: string): Uint8Array => new TextEncoder().encode(value);
-
-interface MintOptions {
-  key?: string;
-  issuer?: string;
-  audience?: string;
-  scope?: string;
-  issuedAt?: number;
-  expiresAt?: number;
-  jti?: string;
-}
-
-const now = (): number => Math.floor(Date.now() / 1000);
-
-async function mint(options: MintOptions = {}): Promise<string> {
-  const issuedAt = options.issuedAt ?? now();
-  return new SignJWT({
-    case_id: CASE_ID,
-    run_id: RUN_ID,
-    scope: options.scope ?? CASE_TOKEN_SCOPE,
-  })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuer(options.issuer ?? CASE_TOKEN_ISSUER)
-    .setAudience(options.audience ?? AUDIENCE)
-    .setSubject(OWNER)
-    .setJti(options.jti ?? `jti_${nextJti++}`)
-    .setIssuedAt(issuedAt)
-    .setExpirationTime(options.expiresAt ?? issuedAt + TOKEN_TTL_S)
-    .sign(encode(options.key ?? CASE_TOKEN_KEY));
-}
 
 async function connect(
   token: string,
