@@ -6,7 +6,7 @@ import {
   type CoreClient,
   type Transaction,
 } from '@fintech-agent/contracts';
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, LoggerService } from '@nestjs/common';
 import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -50,6 +50,14 @@ const CORE: Record<string, Transaction> = {
 
 let coreDown = false;
 let coreCalls = 0;
+let warnings: unknown[] = [];
+const capture: LoggerService = {
+  log: () => undefined,
+  error: () => undefined,
+  warn: (message: unknown) => {
+    warnings.push(message);
+  },
+};
 const fakeCore: CoreClient = {
   customer: () => Promise.resolve(null),
   transactions: () => Promise.resolve(null),
@@ -141,7 +149,7 @@ const auditRows = (ref: string) =>
 beforeAll(async () => {
   db = await startTestDatabase();
   owner = postgres(db.ownerUrl, { max: 1, onnotice: () => undefined });
-  ({ app, base } = await startApiApp(db, fakeCore));
+  ({ app, base } = await startApiApp(db, fakeCore, capture));
 }, CONTAINER_START_MS);
 
 afterAll(async () => {
@@ -222,6 +230,7 @@ describe('approval gate (02 G3)', () => {
   it('answers 400 for an action id outside the registry format', async () => {
     const response = await decide('not-an-action', approve());
     expect(response.status).toBe(HTTP.badRequest);
+    expect(await response.json()).toMatchObject({ message: 'invalid_path' });
   });
 
   it('answers 404 for an unknown action', async () => {
@@ -435,6 +444,7 @@ describe('override and forcing function (02 G3)', () => {
 
   it('answers 503 and leaves the proposal open when core-mock is down', async () => {
     coreDown = true;
+    warnings = [];
     const id = await proposal();
     const response = await decide(
       id,
@@ -442,6 +452,7 @@ describe('override and forcing function (02 G3)', () => {
     );
     expect(response.status).toBe(HTTP.unavailable);
     expect((await actionRow(id))?.status).toBe('proposed');
+    expect(warnings).toEqual([{ event: 'core_unavailable', action_id: id }]);
   });
 });
 

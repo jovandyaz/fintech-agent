@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Logger,
   Param,
   Post,
   Req,
@@ -18,11 +19,12 @@ import type { Request } from 'express';
 
 import { failureException } from '../common/http/failure-status.js';
 import { requestMeta } from '../common/http/request-meta.js';
-import { ZodPipe } from '../common/http/zod.pipe.js';
+import { INPUT_PART, ZodPipe } from '../common/http/zod.pipe.js';
 import { CurrentOperator, OperatorGuard } from '../operators/operator.guard.js';
 import type { Operator } from '../operators/operator-tokens.js';
 import {
   decide,
+  DECISION_FAILURE,
   DecisionError,
   type DecideDeps,
   type DecisionResult,
@@ -34,12 +36,15 @@ export const DECIDE_DEPS = 'DECIDE_DEPS';
 @Controller('actions')
 @UseGuards(OperatorGuard)
 export class ApprovalsController {
+  private readonly logger = new Logger(ApprovalsController.name);
+
   constructor(@Inject(DECIDE_DEPS) private readonly deps: DecideDeps) {}
 
   @Post(':actionId/decision')
   @HttpCode(HttpStatus.OK)
   async decide(
-    @Param('actionId', new ZodPipe(ActionIdSchema)) actionId: string,
+    @Param('actionId', new ZodPipe(ActionIdSchema, INPUT_PART.path))
+    actionId: string,
     @Body(new ZodPipe(DecisionSchema)) decision: Decision,
     @CurrentOperator() operator: Operator,
     @Req() request: Request,
@@ -53,6 +58,9 @@ export class ApprovalsController {
       });
     } catch (error) {
       if (error instanceof DecisionError) {
+        if (error.failure === DECISION_FAILURE.coreUnavailable) {
+          this.logger.warn({ event: 'core_unavailable', action_id: actionId });
+        }
         throw failureException(
           error.failure,
           error.codes.length > 0 ? { codes: error.codes } : {},

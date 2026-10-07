@@ -13,7 +13,7 @@ import type { Request } from 'express';
 
 import { failureException } from '../common/http/failure-status.js';
 import { requestMeta } from '../common/http/request-meta.js';
-import { ZodPipe } from '../common/http/zod.pipe.js';
+import { INPUT_PART, ZodPipe } from '../common/http/zod.pipe.js';
 import { CurrentOperator, OperatorGuard } from '../operators/operator.guard.js';
 import type { Operator } from '../operators/operator-tokens.js';
 import {
@@ -34,7 +34,7 @@ export class CasesController {
   @Post(':caseId/rerun')
   @HttpCode(HttpStatus.OK)
   async rerun(
-    @Param('caseId', new ZodPipe(CaseIdSchema)) caseId: string,
+    @Param('caseId', new ZodPipe(CaseIdSchema, INPUT_PART.path)) caseId: string,
     @CurrentOperator() operator: Operator,
     @Req() request: Request,
   ): Promise<RerunResult> {

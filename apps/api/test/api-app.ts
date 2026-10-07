@@ -5,7 +5,7 @@ import type {
   CoreClient,
   ReviewTier,
 } from '@fintech-agent/contracts';
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, LoggerService } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Sql } from 'postgres';
 
@@ -39,6 +39,7 @@ export const DRAFT = 'Hola Ana, registramos tu aclaración con folio {{folio}}.'
 export async function startApiApp(
   db: TestDatabase,
   core: CoreClient,
+  logger: LoggerService | false = false,
 ): Promise<{ app: INestApplication; base: string }> {
   const moduleRef = await Test.createTestingModule({
     imports: [
@@ -54,7 +55,7 @@ export async function startApiApp(
     .overrideProvider(CORE_CLIENT)
     .useValue(core)
     .compile();
-  const app = moduleRef.createNestApplication({ logger: false });
+  const app = moduleRef.createNestApplication({ logger });
   await app.listen(0, '127.0.0.1');
   return { app, base: await app.getUrl() };
 }
