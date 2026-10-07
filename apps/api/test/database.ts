@@ -1,5 +1,8 @@
-import type { DbRole } from '@fintech-agent/contracts';
+import { DB_ROLES, type DbRole } from '@fintech-agent/contracts';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
+
+import { migrateDatabase } from '../src/database/migrate.js';
+import { setRolePasswords } from '../src/database/roles.js';
 
 const IMAGE = 'postgres:16-alpine';
 
@@ -10,11 +13,18 @@ export interface TestDatabase {
   stop: () => Promise<void>;
 }
 
-/** A throwaway Postgres 16, the compose image; the caller migrates it. */
+/** A throwaway Postgres 16 (the compose image), migrated, with every role able to log in. */
 export async function startTestDatabase(): Promise<TestDatabase> {
   const container = await new PostgreSqlContainer(IMAGE).start();
   const ownerUrl = container.getConnectionUri();
   const passwordFor = (role: DbRole): string => `test-${role}`;
+  await migrateDatabase(ownerUrl);
+  await setRolePasswords(
+    ownerUrl,
+    Object.fromEntries(
+      DB_ROLES.map((role) => [role, passwordFor(role)]),
+    ) as Record<DbRole, string>,
+  );
   return {
     ownerUrl,
     passwordFor,
