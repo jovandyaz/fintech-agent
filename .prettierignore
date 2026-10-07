@@ -4,3 +4,4 @@ data/**/*.json
 
 docs/agent-setup/
 .superpowers/
+apps/api/drizzle/
