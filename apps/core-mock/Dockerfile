@@ -3,7 +3,6 @@ WORKDIR /repo
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/core-mock/package.json apps/core-mock/
-COPY data/package.json data/
 COPY packages/contracts/package.json packages/contracts/
 RUN pnpm install --frozen-lockfile --prod --filter @fintech-agent/core-mock...
 COPY packages/contracts/src packages/contracts/src
