@@ -79,3 +79,13 @@ export function createCoreClient(options: {
       ),
   };
 }
+
+/** The one read a caller outside the MCP server needs: a transaction by id. */
+export type CoreReader = Pick<CoreClient, 'transaction'>;
+
+/** Reads each id, in order; throws `CoreUnavailableError` if core cannot answer. */
+export const readTransactions = (
+  reader: CoreReader,
+  ids: readonly string[],
+): Promise<(Transaction | null)[]> =>
+  Promise.all(ids.map((id) => reader.transaction(id)));

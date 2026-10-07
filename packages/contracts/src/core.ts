@@ -123,6 +123,10 @@ export const CORE_WRITE_PATHS = {
 } as const;
 export type WritableAction = keyof typeof CORE_WRITE_PATHS;
 
+/** Whether an action type has an effect core-mock can write (`none` has none). */
+export const isWritableAction = (type: string): type is WritableAction =>
+  Object.hasOwn(CORE_WRITE_PATHS, type);
+
 /** The headers of a core-mock write: who may write, and the key that makes it happen once. */
 export const CORE_WRITE_HEADERS = {
   executorKey: 'x-executor-key',
@@ -168,3 +172,4 @@ export const CoreRefusalSchema = z.object({
  * same figure.
  */
 export const SPEI_DISPUTE_AFTER_HOURS = 24;
+export const MS_PER_HOUR = 3_600_000;
