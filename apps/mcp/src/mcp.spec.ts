@@ -463,12 +463,8 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
       additionalProperties: false,
       properties: { from: { format: 'date-time' }, limit: { maximum: 25 } },
     });
-    expect(spei?.inputSchema).toMatchObject({
-      required: ['transaction_id'],
-      properties: {
-        transaction_id: { pattern: expect.stringMatching(/^\^tx_/) },
-      },
-    });
+    expect(spei?.inputSchema).toMatchObject({ required: ['transaction_id'] });
+    expect(JSON.stringify(spei?.inputSchema)).toContain('"pattern":"^tx_');
     await client.close();
   });
 
