@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { failedQuery, postgresError } from '../../../test/database-errors.js';
 import { isUniqueViolation } from './unique-violation.js';
 
-const CONSTRAINT = 'action_executions_action_id_unique';
+const CONSTRAINT = 'action_executions_pkey';
 
 const violation = (code: string, constraint: string) =>
   postgresError({

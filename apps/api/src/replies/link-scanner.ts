@@ -73,9 +73,8 @@ function isAllowedDestination(
 /**
  * Whether a reply contains HTML, a scriptable URL, or a link, autolink, email
  * or bare domain whose host is outside `allowed`; a destination that does not
- * parse counts as outside. Ported from the Knowtis exfiltration-link assertion
- * and inverted to an allow-list: the reply and the operator's browser are the
- * only outbound channels.
+ * parse counts as outside. An allow-list, because the reply and the
+ * operator's browser are the only outbound channels.
  */
 export function hasLinkOutsideAllowList(
   text: string,
