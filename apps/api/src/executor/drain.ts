@@ -329,6 +329,17 @@ async function retry(deps: ExecutorDeps, row: StaleExecution): Promise<void> {
 // Exhausting is only safe once core says no effect landed; while it cannot
 // answer the outcome is unknown, and the row stays `started` for a later sweep.
 async function exhaust(deps: ExecutorDeps, row: StaleExecution): Promise<void> {
+  const marked = await deps.db
+    .update(actionExecutions)
+    .set({ lastAttemptAt: deps.now() })
+    .where(
+      and(
+        eq(actionExecutions.actionId, row.actionId),
+        eq(actionExecutions.status, EXECUTION_STATUS.started),
+      ),
+    )
+    .returning({ actionId: actionExecutions.actionId });
+  if (marked.length === 0) return;
   const landed = await attempt(deps, row.actionId, () =>
     deps.writer.effectOf(row.actionId),
   );

@@ -406,11 +406,18 @@ describe('executor outbox (02 G3)', () => {
     });
   });
 
-  it('keeps an execution started while core cannot say whether it landed', async () => {
+  it('keeps an execution started while core cannot say whether it landed, asking once per window', async () => {
     const id = await approved();
     mode = 'down';
     await drainOnce();
-    await sweepTimes(MAX_EXECUTION_ATTEMPTS + 2);
+    await sweepTimes(MAX_EXECUTION_ATTEMPTS);
+    const asked = lookups.length;
+    const logged = deferred.length;
+    later(1);
+    await sweep(deps);
+    expect([lookups.length, deferred.length]).toEqual([asked, logged]);
+    await sweepTimes(1);
+    expect([lookups.length, deferred.length]).toEqual([asked + 1, logged + 1]);
     expect(await stateOf(id)).toMatchObject({ execution: 'started' });
   });
 
