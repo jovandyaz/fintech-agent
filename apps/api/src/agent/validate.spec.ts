@@ -845,6 +845,12 @@ describe('date placeholders and their commitments', () => {
     ]);
     expect(codesOf(replying('Folio{{folio}} registrado.'))).toEqual(['SCHEMA']);
   });
+
+  it('fails two placeholders with nothing between them (SCHEMA)', () => {
+    expect(
+      codesOf(replying('Hola {{nombre}}, folio {{folio}}{{fecha_recepcion}}.')),
+    ).toEqual(['SCHEMA']);
+  });
 });
 
 describe('calendar coverage', () => {

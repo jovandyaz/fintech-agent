@@ -13,6 +13,9 @@ const PESOS_PER_MIL = 1000;
 const MONTHS_IN_YEAR = 12;
 const MAX_DAY_OF_MONTH = 31;
 const TWO_DIGITS = 2;
+// A bare figure in this range reads as a year, not an amount.
+const FIRST_YEAR = 1900;
+const LAST_YEAR = 2099;
 const CENTURY = 2000;
 const AMOUNT_KEY = 'amount';
 const INSTANT_KEY_SUFFIX = '_at';
@@ -30,6 +33,11 @@ const ORDINAL = String.raw`(?:°|o|ro)?`;
 const MONTH = `(${alternation(MONTH_NUMBER)})`;
 // A year spelled out folds to "2,026", so a grouped year is a year too.
 const YEAR_AFTER = String.raw`(?:,?\s(?:del?\s)?(\d{4}|2,0\d{2})(?![,.]?\d))?`;
+
+// Words and masks before the last digits of a card ("terminación 4321",
+// "****4321"), which are no amount. A mask is four marks, so Markdown bold
+// or a bullet before an amount does not hide it.
+const LAST_DIGITS_CUE = String.raw`(?:terminacion(?:\sen)?|termina\sen|terminada\sen|con\sfinal|digitos|[*•]{4})`;
 
 // Each match yields its exact atom first, then the looser forms it grounds:
 // a dated value grounds the same day without a year, and a qualified
@@ -132,8 +140,9 @@ const PATTERNS: readonly Pattern[] = [
     forms: (m) => dateForms(fullYear(m[3]), Number(m[2]), Number(m[1])),
   },
   // Last, so a currency, percentage, duration or date at the same place wins.
-  // A bare figure is an amount when it has thousands, cents or five to seven
-  // digits; a count, a last-4 or a year has none of those.
+  // A bare figure is an amount when it has thousands, cents or three to seven
+  // digits, unless it reads as a year or follows a last-digits cue; a count
+  // has at most two.
   {
     regex: /\b(\d{1,3}(?:[,. ]\d{3})+|\d{5,7})(?:\.(\d{1,2}))?\b/g,
     forms: amountForms,
@@ -141,6 +150,13 @@ const PATTERNS: readonly Pattern[] = [
   {
     regex: /\b(\d+)\.(\d{2})\b/g,
     forms: amountForms,
+  },
+  {
+    regex: new RegExp(String.raw`(?<!${LAST_DIGITS_CUE}\s?)\b(\d{3,4})\b`, 'g'),
+    forms: (m) => {
+      const figure = Number(m[1]);
+      return figure >= FIRST_YEAR && figure <= LAST_YEAR ? [] : amountForms(m);
+    },
   },
 ];
 
@@ -194,7 +210,7 @@ function instantForms(value: string): string[] {
 // and a count such as `auth_factors` is no amount, so neither grounds.
 function groundedForms(value: unknown, key = ''): string[] {
   if (key === AMOUNT_KEY && typeof value === 'number') {
-    return [`amount:${Math.round(value * CENTS_PER_PESO)}`];
+    return [`amount:${Math.round(Math.abs(value) * CENTS_PER_PESO)}`];
   }
   if (key.endsWith(INSTANT_KEY_SUFFIX) && typeof value === 'string') {
     return instantForms(value);

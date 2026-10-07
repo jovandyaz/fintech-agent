@@ -14,7 +14,7 @@ import { PLACEHOLDERS, placeholdersIn } from './placeholders.js';
 const KNOWN_PLACEHOLDERS: ReadonlySet<string> = new Set(PLACEHOLDERS);
 // A filled value joined to a letter or digit becomes text nobody validated
 // ("1234567" + a date is an 8-digit run), so a placeholder stands apart.
-const GLUED_PLACEHOLDER = /[\p{L}\p{N}]\{\{|\}\}[\p{L}\p{N}]/u;
+const GLUED_PLACEHOLDER = /[\p{L}\p{N}]\{\{|\}\}[\p{L}\p{N}]|\}\}\{\{/u;
 
 // Reads card authorization outputs only: a promise of credit rests on the
 // factor count a status output confirms, never on a list row's copy.

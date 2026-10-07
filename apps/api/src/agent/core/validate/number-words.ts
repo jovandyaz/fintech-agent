@@ -1,4 +1,9 @@
 const THOUSAND = 1000;
+const LONE_THOUSAND = 'mil';
+// "¡Mil gracias!" is courtesy, not a figure. Denied by the noun that follows,
+// so a lone "mil" in any other slot ("recibirás mil") still reads as 1,000.
+const COURTESY_NEXT =
+  /^\s(?:gracias|disculpas|perdones|besos|abrazos|bendiciones|veces)\b/;
 
 const WORD_VALUES: Readonly<Record<string, number>> = {
   cero: 0,
@@ -97,10 +102,13 @@ function valueOf(run: string): number {
  * días", "cinco mil" → "5,000") so a figure spelled out is read like one written in digits. Takes
  * text already lowercased and stripped of accents. "y" joins words only
  * between two number words; articles ("un", "una") become 1, which only
- * matters before a unit or a currency.
+ * matters before a unit or a currency. A lone "mil" before a courtesy noun
+ * ("mil gracias") stays a word.
  */
 export function foldNumberWords(text: string): string {
-  return text.replace(RUN, (run) =>
-    String(valueOf(run)).replace(THOUSANDS_GROUP, ','),
+  return text.replace(RUN, (run: string, offset: number) =>
+    run === LONE_THOUSAND && COURTESY_NEXT.test(text.slice(offset + run.length))
+      ? run
+      : String(valueOf(run)).replace(THOUSANDS_GROUP, ','),
   );
 }
