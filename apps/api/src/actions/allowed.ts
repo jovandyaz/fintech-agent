@@ -1,4 +1,8 @@
-import type { ActionType, Transaction } from '@fintech-agent/contracts';
+import {
+  MAX_ACTION_TRANSACTIONS,
+  type ActionType,
+  type Transaction,
+} from '@fintech-agent/contracts';
 
 export const G2_VIOLATIONS = [
   'transaction_count',
@@ -32,7 +36,7 @@ const G2_TABLE: Record<ActionType, Row> = {
     allows: (transaction) =>
       transaction.type !== 'card_purchase' && isSettled(transaction),
   },
-  escalate_fraud: { min: 0, max: 5, allows: () => true },
+  escalate_fraud: { min: 0, max: MAX_ACTION_TRANSACTIONS, allows: () => true },
   none: { min: 0, max: 0, allows: () => true },
 };
 
