@@ -1,4 +1,5 @@
 import { addBusinessDays, addNaturalDays, localDateOf } from '../calendar.js';
+import { SPANISH_MONTHS } from './spanish.js';
 
 /** The placeholders a draft may carry (02 G5); the harness fills them after validation. */
 export const PLACEHOLDERS = [
@@ -29,24 +30,9 @@ const COMMITMENTS = {
     'Te abonaremos el importe del cargo a más tardar el {{fecha_limite_abono}}, mientras resolvemos tu aclaración.',
 } as const satisfies Partial<Record<Placeholder, string>>;
 
-const MONTHS = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-] as const;
-
 const spanishDate = (day: string): string => {
   const [year, month, dayOfMonth] = day.split('-').map(Number);
-  return `${dayOfMonth} de ${MONTHS[month! - 1]} de ${year}`;
+  return `${dayOfMonth} de ${SPANISH_MONTHS[month! - 1]} de ${year}`;
 };
 
 const isPlaceholder = (name: string): name is Placeholder =>

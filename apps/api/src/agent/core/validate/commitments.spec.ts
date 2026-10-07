@@ -116,3 +116,15 @@ describe('hasCommitment, pronouns before a deadline verb', () => {
     }
   });
 });
+
+describe('hasCommitment, the units the number reader knows', () => {
+  it('finds a deadline in years, minutes or hours however written', () => {
+    for (const text of [
+      'En 1 año recibirás tu dinero.',
+      'En 30 minutos te llamamos.',
+      'En 2 hrs te avisamos.',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+  });
+});

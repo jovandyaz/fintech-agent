@@ -1,8 +1,12 @@
 import { localDateOf } from '../calendar.js';
-import { foldNumberWords } from './number-words.js';
+import {
+  QUALIFIERS,
+  SPANISH_MONTHS,
+  UNITS,
+  alternation,
+  foldForMatching,
+} from './spanish.js';
 
-const IGNORABLE = /\p{Default_Ignorable_Code_Point}/gu;
-const DIACRITICS = /\p{M}/gu;
 const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T/;
 const CENTS_PER_PESO = 100;
 const PESOS_PER_MIL = 1000;
@@ -13,51 +17,11 @@ const CENTURY = 2000;
 const AMOUNT_KEY = 'amount';
 const INSTANT_KEY_SUFFIX = '_at';
 
-const MONTHS = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-] as const;
 const MONTH_NUMBER: Readonly<Record<string, number>> = {
-  ...Object.fromEntries(MONTHS.map((name, index) => [name, index + 1])),
-  setiembre: MONTHS.indexOf('septiembre') + 1,
+  ...Object.fromEntries(SPANISH_MONTHS.map((name, index) => [name, index + 1])),
+  setiembre: SPANISH_MONTHS.indexOf('septiembre') + 1,
 };
 
-const UNIT_SPELLINGS = {
-  minuto: ['minuto', 'minutos'],
-  hora: ['hora', 'horas', 'hr', 'hrs', 'h', 'hs'],
-  dia: ['dia', 'dias'],
-  semana: ['semana', 'semanas'],
-  mes: ['mes', 'meses'],
-  ano: ['ano', 'anos'],
-} as const;
-const QUALIFIER_SPELLINGS = {
-  habil: ['habiles', 'habil', 'bancarios', 'bancario'],
-  natural: ['naturales', 'natural'],
-} as const;
-
-const canonicalOf = (
-  spellings: Readonly<Record<string, readonly string[]>>,
-): Readonly<Record<string, string>> =>
-  Object.fromEntries(
-    Object.entries(spellings).flatMap(([canonical, forms]) =>
-      forms.map((form) => [form, canonical]),
-    ),
-  );
-const UNITS = canonicalOf(UNIT_SPELLINGS);
-const QUALIFIERS = canonicalOf(QUALIFIER_SPELLINGS);
-
-const alternation = (forms: Readonly<Record<string, unknown>>): string =>
-  Object.keys(forms).join('|');
 // A dot or a space followed by three digits groups thousands ("$5.000",
 // "50 000"); a dot with one or two digits is cents.
 const PESOS = String.raw`(\d{1,3}(?:[,. ]\d{3})+|\d+)(?:\.(\d{1,2}))?(?!\d)`;
@@ -180,20 +144,10 @@ const PATTERNS: readonly Pattern[] = [
   },
 ];
 
-const normalize = (text: string): string =>
-  foldNumberWords(
-    text
-      .normalize('NFKD')
-      .replace(DIACRITICS, '')
-      .replace(IGNORABLE, '')
-      .normalize('NFKC')
-      .toLowerCase(),
-  );
-
 // Leftmost match first, and a match that overlaps it is dropped, so
 // "$5,000 pesos" is one amount, not two.
 function matchesOf(text: string): string[][] {
-  const normalized = normalize(text);
+  const normalized = foldForMatching(text);
   const found: { start: number; end: number; forms: string[] }[] = [];
   for (const { regex, forms } of PATTERNS) {
     for (const match of normalized.matchAll(regex)) {
