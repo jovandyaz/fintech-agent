@@ -41,11 +41,11 @@ The repo declares the plugins it is built with in `.claude/settings.json` (`extr
 | Planning | `superpowers:writing-plans` | `specs/04-build-plan.md` is the plan; deviations are `Ruling:` lines in the ledger |
 | Execution | `workflows:developing-feature`, `superpowers:executing-plans`, `superpowers:test-driven-development` | Each build step and each behavior change outside a step; every test is seen failing first, and mutation checks prove the tests bite |
 | Bugs | `workflows:fixing-bug`, `superpowers:systematic-debugging` | A defect starts with the test that reproduces it |
-| Review | `workflows:reviewing-pr` (code-quality gate, then `superpowers:requesting-code-review`, then Matt Pocock's two-axis `code-review`), plus the repo's `invariant-reviewer` | At the end of every step on that step's commit range, and on the whole branch at the end. The Anthropic `code-review` lens publishes to GitHub, so it stays off: the repo is local |
+| Review | `workflows:reviewing-pr` (code-quality gate, then `superpowers:requesting-code-review`, then separate Spec and Standards subagents that are never merged into one verdict), plus the repo's `invariant-reviewer` | At the end of every step on that step's commit range, and on the whole branch at the end. The Anthropic `code-review` lens publishes to GitHub, so it stays off: the repo is local |
 | Verification | `workflows:verifying-change`, `superpowers:verification-before-completion` | A fresh verifier checks each claim: `curl --fail-with-body` for HTTP surfaces, Playwright MCP (desktop and mobile) for the console, promptfoo evals for agent behavior |
 | Commit | `workflows:committing-change` | One concern per commit, single-line Conventional Commits, never squashed |
 
-Prerequisites outside the plugins: Matt Pocock's `code-review` and `setup-matt-pocock-skills` (`pnpm dlx skills@1.5.23 add https://github.com/mattpocock/skills/archive/6654f6b60cd9d5be8b54c6fafe44346dabeb3b76.tar.gz --skill code-review --skill setup-matt-pocock-skills`, then `/setup-matt-pocock-skills` once per repo), and the MCP servers in `.mcp.json`: Context7, Playwright and a read-only Postgres.
+Prerequisites outside the plugins: the MCP servers in `.mcp.json` (Context7, Playwright and a read-only Postgres). Matt Pocock's `code-review` was part of `reviewing-pr` until workflows 0.4.0; it was dropped because its two axes duplicated `code-quality` and `requesting-code-review` and its setup writes scaffolding into the repo.
 
 ## What stays personal
 
