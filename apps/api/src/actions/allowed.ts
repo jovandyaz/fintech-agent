@@ -11,13 +11,16 @@ export const G2_VIOLATIONS = [
 ] as const;
 export type G2Violation = (typeof G2_VIOLATIONS)[number];
 
+/** The fields of a transaction its G2 row reads, wherever it was read from. */
+export type TransactionShape = Pick<Transaction, 'id' | 'type' | 'status'>;
+
 interface Row {
   min: number;
   max: number;
-  allows: (transaction: Transaction) => boolean;
+  allows: (transaction: TransactionShape) => boolean;
 }
 
-const isSettled = (transaction: Transaction): boolean =>
+const isSettled = (transaction: TransactionShape): boolean =>
   transaction.status === 'settled';
 
 const G2_TABLE: Record<ActionType, Row> = {
@@ -46,14 +49,34 @@ const G2_TABLE: Record<ActionType, Row> = {
  */
 export function shapeViolation(
   type: ActionType,
-  transactions: readonly Transaction[],
+  transactions: readonly TransactionShape[],
+): G2Violation | null {
+  return (
+    countViolation(
+      type,
+      transactions.map(({ id }) => id),
+    ) ?? stateViolation(type, transactions)
+  );
+}
+
+/** The part of a G2 row that reads each transaction's type and status. */
+export function stateViolation(
+  type: ActionType,
+  transactions: readonly TransactionShape[],
+): G2Violation | null {
+  return transactions.every(G2_TABLE[type].allows) ? null : 'transaction_state';
+}
+
+/** The part of a G2 row that needs only the ids: how many, and no repeats. */
+export function countViolation(
+  type: ActionType,
+  transactionIds: readonly string[],
 ): G2Violation | null {
   const row = G2_TABLE[type];
-  if (transactions.length < row.min || transactions.length > row.max) {
+  if (transactionIds.length < row.min || transactionIds.length > row.max) {
     return 'transaction_count';
   }
-  if (new Set(transactions.map(({ id }) => id)).size !== transactions.length) {
-    return 'duplicate_transaction';
-  }
-  return transactions.every(row.allows) ? null : 'transaction_state';
+  return new Set(transactionIds).size === transactionIds.length
+    ? null
+    : 'duplicate_transaction';
 }
