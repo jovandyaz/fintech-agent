@@ -1,5 +1,6 @@
-import { DB_ROLES, type DbRole } from '@fintech-agent/contracts';
+import { DB_ROLES, newFolio, type DbRole } from '@fintech-agent/contracts';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import type { Sql } from 'postgres';
 
 import { migrateDatabase } from '../src/database/migrate.js';
 import { setRolePasswords } from '../src/database/roles.js';
@@ -38,4 +39,15 @@ export async function startTestDatabase(): Promise<TestDatabase> {
       await container.stop();
     },
   };
+}
+
+/** Inserts a queued case as the owner, for tests that need a row to point at. */
+export async function insertCase(
+  sql: Sql,
+  id: string,
+  customerId = 'cus_01',
+): Promise<void> {
+  await sql`
+    insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked)
+    values (${id}, ${`T-${id}`}, ${newFolio()}, now(), 'webhook', ${customerId}, 'hola')`;
 }

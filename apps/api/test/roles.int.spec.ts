@@ -3,7 +3,11 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { setRolePasswords } from '../src/database/roles.js';
-import { startTestDatabase, type TestDatabase } from './database.js';
+import {
+  insertCase,
+  startTestDatabase,
+  type TestDatabase,
+} from './database.js';
 
 const CONTAINER_START_MS = 120_000;
 const OK = 'ok';
@@ -61,9 +65,7 @@ beforeAll(async () => {
     'case_r5',
     'case_r6',
   ]) {
-    await owner`
-      insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked)
-      values (${id}, ${`T-${id}`}, ${`AC-KMQX-${id.slice(-2).toUpperCase()}AB`}, now(), 'webhook', 'cus_01', 'hola')`;
+    await insertCase(owner, id);
   }
   await owner`
     insert into agent_runs (id, case_id, variant, model, prompt_version)
@@ -357,16 +359,20 @@ describe('database roles (02 G1)', () => {
       copilot_executor: db.passwordFor('copilot_executor'),
       copilot_mcp: db.passwordFor('copilot_mcp'),
     };
-    await setRolePasswords(db.ownerUrl, passwords);
-    await setRolePasswords(db.ownerUrl, passwords);
-    const url = new URL(db.urlFor('copilot_api'));
-    url.password = encodeURIComponent(password);
-    const sql = postgres(url.toString(), { max: 1 });
-    expect(await outcome(sql`select 1`)).toBe(OK);
-    await sql.end();
-    await setRolePasswords(db.ownerUrl, {
-      ...passwords,
-      copilot_api: db.passwordFor('copilot_api'),
-    });
+    let sql: postgres.Sql | undefined;
+    try {
+      await setRolePasswords(db.ownerUrl, passwords);
+      await setRolePasswords(db.ownerUrl, passwords);
+      const url = new URL(db.urlFor('copilot_api'));
+      url.password = encodeURIComponent(password);
+      sql = postgres(url.toString(), { max: 1 });
+      expect(await outcome(sql`select 1`)).toBe(OK);
+    } finally {
+      await sql?.end();
+      await setRolePasswords(db.ownerUrl, {
+        ...passwords,
+        copilot_api: db.passwordFor('copilot_api'),
+      });
+    }
   });
 });
