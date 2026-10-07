@@ -184,7 +184,7 @@ async function approvalChanges(
   }
   // An approve of a canary is a miss, but an override replaces the defective
   // action instead of passing it, so the operator caught it.
-  const caught = proposal.isCanary && decision.override !== undefined;
+  const caught = proposal.isCanary && !sameAction(target, proposal.agent);
   const status = transition(
     proposal.status,
     caught ? REJECT : APPROVE,
