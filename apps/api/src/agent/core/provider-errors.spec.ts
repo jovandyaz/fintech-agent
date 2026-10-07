@@ -1,4 +1,5 @@
-import { APICallError, LoadAPIKeyError, RetryError } from 'ai';
+import { APICallError, LoadAPIKeyError, RetryError, generateText } from 'ai';
+import { MockLanguageModelV4 } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -9,8 +10,9 @@ import {
 } from '../../../test/mock-model.js';
 import {
   PROVIDER_ERROR,
-  isRetryable,
+  isProviderOutage,
   providerErrorOf,
+  watchProvider,
 } from './provider-errors.js';
 
 const afterRetries = (lastError: unknown): RetryError =>
@@ -106,10 +108,83 @@ describe('providerErrorOf', () => {
   });
 });
 
-describe('isRetryable', () => {
-  it('retries only an unavailable provider', () => {
-    expect(
-      Object.values(PROVIDER_ERROR).filter((code) => isRetryable(code)),
-    ).toEqual([PROVIDER_ERROR.unavailable]);
+describe('isProviderOutage (01 §Failure handling, breaker)', () => {
+  it.each([
+    ['a 429', tooManyRequests(), true],
+    ['a 529', callError(529), true],
+    ['a 503 after the SDK retries', afterRetries(callError(503)), true],
+    ['a step timeout', new DOMException('Step timeout', 'TimeoutError'), false],
+    ['a 408', callError(408), false],
+    ['a spend-limit 429', callError(429, SPEND_LIMIT_429_BODY), false],
+    ['a non-provider error', new Error('bug'), false],
+  ])('%s → %s', (_, error, outage) => {
+    expect(isProviderOutage(error)).toBe(outage);
+  });
+});
+
+describe('watchProvider', () => {
+  const NO_WAIT = { 'retry-after-ms': '0' };
+  const refusing = (error: () => Error) => {
+    let calls = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: () => {
+        calls += 1;
+        return Promise.reject(error());
+      },
+    });
+    return { model, calls: () => calls };
+  };
+  const caught = (promise: Promise<unknown>) =>
+    promise.then(
+      () => null,
+      (error: unknown) => error,
+    );
+
+  it('stops the SDK from retrying a spend limit, which no retry clears', async () => {
+    const refused = refusing(() =>
+      callError(429, SPEND_LIMIT_429_BODY, NO_WAIT),
+    );
+    const watched = watchProvider(refused.model);
+    const error = await caught(
+      generateText({ model: watched.model, prompt: 'hola' }),
+    );
+    expect(refused.calls()).toBe(1);
+    expect(providerErrorOf(watched.causeOf(error))).toBe(
+      PROVIDER_ERROR.spendLimit,
+    );
+  });
+
+  it('still lets the SDK retry an ordinary 429', async () => {
+    const refused = refusing(tooManyRequests);
+    await caught(
+      generateText({
+        model: watchProvider(refused.model).model,
+        prompt: 'hola',
+      }),
+    );
+    expect(refused.calls()).toBe(3);
+  });
+
+  it('reads a timeout during the retry wait as the refusal that caused the wait', async () => {
+    const slow = { 'retry-after-ms': '30000' };
+    const refused = refusing(() => callError(429, '', slow));
+    const watched = watchProvider(refused.model);
+    const error = await caught(
+      generateText({
+        model: watched.model,
+        prompt: 'hola',
+        timeout: { totalMs: 50 },
+      }),
+    );
+    expect(error).toMatchObject({ name: 'AbortError' });
+    const cause = watched.causeOf(error);
+    expect(providerErrorOf(cause)).toBe(PROVIDER_ERROR.unavailable);
+    expect(isProviderOutage(cause)).toBe(true);
+  });
+
+  it('leaves any other error as it is', () => {
+    const watched = watchProvider(refusing(tooManyRequests).model);
+    const bug = new Error('bug');
+    expect(watched.causeOf(bug)).toBe(bug);
   });
 });

@@ -1,4 +1,11 @@
-import { APICallError, LoadAPIKeyError, RetryError } from 'ai';
+import {
+  APICallError,
+  LoadAPIKeyError,
+  RetryError,
+  wrapLanguageModel,
+  type LanguageModel,
+  type LanguageModelMiddleware,
+} from 'ai';
 
 /**
  * The `agent_runs.error_code` of a provider failure (01 §Failure handling).
@@ -59,6 +66,75 @@ export function providerErrorOf(error: unknown): ProviderErrorCode | null {
   return null;
 }
 
-/** Whether a job-level retry may clear the failure. */
-export const isRetryable = (code: ProviderErrorCode): boolean =>
-  code === PROVIDER_ERROR.unavailable;
+const ABORT_ERROR_NAME = 'AbortError';
+const RATE_LIMITED = 429;
+
+/**
+ * Whether a failure is the provider being down or saturated (01 §Failure
+ * handling): a 429 that is not a spend limit, a 529 or a 5xx after the
+ * SDK's retries. Only these open the worker's breaker; a timeout, a 408 or
+ * a network error does not.
+ */
+export function isProviderOutage(error: unknown): boolean {
+  if (RetryError.isInstance(error)) return isProviderOutage(error.lastError);
+  if (!APICallError.isInstance(error)) return false;
+  const status = error.statusCode;
+  return (
+    status !== undefined &&
+    codeOfCall(error) === PROVIDER_ERROR.unavailable &&
+    (status === RATE_LIMITED || status >= FIRST_SERVER_ERROR)
+  );
+}
+
+/** A model whose refusals the harness can read after the SDK gave up. */
+export interface WatchedModel {
+  model: Exclude<LanguageModel, string>;
+  /**
+   * The refusal behind an error: a timeout that fires while the SDK waits to
+   * retry surfaces as a bare `AbortError`, so it is read as the provider
+   * refusal that caused the wait.
+   */
+  causeOf(error: unknown): unknown;
+}
+
+/**
+ * Wraps a model so a spend limit is never retried by the SDK (it does not
+ * clear, 01 §Failure handling) and the last provider refusal is kept for
+ * `causeOf`.
+ */
+export function watchProvider(
+  model: Exclude<LanguageModel, string>,
+): WatchedModel {
+  let lastRefusal: APICallError | null = null;
+  const middleware: LanguageModelMiddleware = {
+    wrapGenerate: async ({ doGenerate }) => {
+      try {
+        return await doGenerate();
+      } catch (error) {
+        if (!APICallError.isInstance(error)) throw error;
+        lastRefusal = error;
+        if (codeOfCall(error) !== PROVIDER_ERROR.spendLimit) throw error;
+        const { statusCode, responseHeaders, responseBody } = error;
+        throw new APICallError({
+          message: error.message,
+          url: error.url,
+          requestBodyValues: error.requestBodyValues,
+          ...(statusCode === undefined ? {} : { statusCode }),
+          ...(responseHeaders === undefined ? {} : { responseHeaders }),
+          ...(responseBody === undefined ? {} : { responseBody }),
+          cause: error,
+          isRetryable: false,
+        });
+      }
+    },
+  };
+  return {
+    model: wrapLanguageModel({ model, middleware }),
+    causeOf: (error) =>
+      error instanceof DOMException &&
+      error.name === ABORT_ERROR_NAME &&
+      lastRefusal !== null
+        ? lastRefusal
+        : error,
+  };
+}

@@ -75,3 +75,18 @@ export const addUsage = (
   cacheWriteTokens:
     total.cacheWriteTokens + (usage.inputTokenDetails.cacheWriteTokens ?? 0),
 });
+
+/** The cost of one call's reported usage; a count not reported costs zero. */
+export const usageCostUsd = (
+  usage: LanguageModelUsage,
+  pricing: ModelPricing,
+): number =>
+  computeTokenCostUsd(
+    {
+      inputTokens: usage.inputTokens ?? 0,
+      outputTokens: usage.outputTokens ?? 0,
+      cacheReadTokens: usage.inputTokenDetails.cacheReadTokens,
+      cacheWriteTokens: usage.inputTokenDetails.cacheWriteTokens,
+    },
+    pricing,
+  );

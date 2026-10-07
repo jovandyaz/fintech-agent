@@ -25,8 +25,8 @@ import { z } from 'zod';
 import { CalendarRangeError } from './calendar.js';
 import {
   addUsage,
-  computeTokenCostUsd,
   emptyUsage,
+  usageCostUsd,
   type ModelPricing,
 } from './cost.js';
 import { PRICED_PROMPT_TOKENS_MAX, pricingOf } from './prices.js';
@@ -237,15 +237,7 @@ function failedTool(steps: readonly Step[]): McpToolName | null {
 }
 
 const stepCost = (step: Step, pricing: ModelPricing): number =>
-  computeTokenCostUsd(
-    {
-      inputTokens: step.usage.inputTokens ?? 0,
-      outputTokens: step.usage.outputTokens ?? 0,
-      cacheReadTokens: step.usage.inputTokenDetails.cacheReadTokens,
-      cacheWriteTokens: step.usage.inputTokenDetails.cacheWriteTokens,
-    },
-    pricing,
-  );
+  usageCostUsd(step.usage, pricing);
 
 const UNMEASURED = {
   inputMasked: null,
