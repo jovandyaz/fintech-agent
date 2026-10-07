@@ -28,8 +28,24 @@ export interface DatabaseDiagnostics {
 
 const FAILURE_CATEGORY_BY_CODE = new Map<unknown, FailureCategory>([
   ['23505', FAILURE_CATEGORY.uniqueViolation],
-  ['08006', FAILURE_CATEGORY.connectionFailure],
-  ['ECONNREFUSED', FAILURE_CATEGORY.connectionFailure],
+  ...[
+    // SQLSTATE class 08, the socket errors Node raises while dialing, and
+    // postgres.js's own connection codes.
+    '08001',
+    '08006',
+    'ECONNREFUSED',
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'ETIMEDOUT',
+    'ECONNRESET',
+    'CONNECT_TIMEOUT',
+    'CONNECTION_CLOSED',
+    'CONNECTION_ENDED',
+    'CONNECTION_DESTROYED',
+  ].map((code): [string, FailureCategory] => [
+    code,
+    FAILURE_CATEGORY.connectionFailure,
+  ]),
   ['40P01', FAILURE_CATEGORY.transactionConflict],
   ['40001', FAILURE_CATEGORY.transactionConflict],
   ['55P03', FAILURE_CATEGORY.transactionConflict],
