@@ -128,3 +128,28 @@ describe('hasCommitment, the units the number reader knows', () => {
     }
   });
 });
+
+describe('hasCommitment, the forms 02 G5 names', () => {
+  it('finds "vamos a" + infinitive with no pronoun, a pronoun pair or an enclitic', () => {
+    for (const text of [
+      'Vamos a reembolsar el cargo.',
+      'Te lo vamos a devolver.',
+      'Se lo vamos a reembolsar mañana.',
+      'Vamos a devolverte tu dinero.',
+      'Vamos a abonárselo hoy.',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+    expect(hasCommitment('No vamos a reembolsar ese cargo.')).toBe(false);
+  });
+
+  it('finds "ya" + a completed action with a pronoun in between', () => {
+    for (const text of [
+      'Ya te enviamos el CEP.',
+      'Ya le abrimos una aclaración.',
+      'Ya se lo escalamos al área de fraudes.',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+  });
+});
