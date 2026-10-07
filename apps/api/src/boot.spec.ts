@@ -31,6 +31,13 @@ describe('api boot (02 G1 process boundary)', () => {
     );
 
     expect(run.status).not.toBe(0);
-    expect(run.stderr).toMatch(/CORE_EXECUTOR_KEY/);
+    const lines = run.stderr.trim().split('\n');
+    expect(lines.map((line) => JSON.parse(line) as unknown)).toEqual([
+      expect.objectContaining({
+        level: 'error',
+        event: 'boot_failed',
+        reason: expect.stringMatching(/CORE_EXECUTOR_KEY/) as unknown,
+      }),
+    ]);
   });
 });

@@ -1,3 +1,4 @@
+import { bootFailureLine } from '@fintech-agent/contracts';
 import postgres from 'postgres';
 
 import { createMcpApp } from './app.js';
@@ -10,28 +11,37 @@ const log = (line: Record<string, unknown>): void => {
   console.log(JSON.stringify(line));
 };
 
-const config = loadMcpConfig(process.env);
-const app = createMcpApp({
-  coreUrl: config.CORE_MOCK_URL,
-  coreReadKey: config.CORE_READ_KEY,
-  caseTokenKey: config.CASE_TOKEN_KEY,
-  audience: config.MCP_AUDIENCE,
-  allowedHosts: config.MCP_ALLOWED_HOSTS,
-  securityEvents: createPostgresSecurityEventSink(
-    postgres(config.MCP_DATABASE_URL, {
-      connect_timeout: DB_CONNECT_TIMEOUT_S,
-      onnotice: () => undefined,
-    }),
-  ),
-  log,
-});
+function start(): void {
+  const config = loadMcpConfig(process.env);
+  const app = createMcpApp({
+    coreUrl: config.CORE_MOCK_URL,
+    coreReadKey: config.CORE_READ_KEY,
+    caseTokenKey: config.CASE_TOKEN_KEY,
+    audience: config.MCP_AUDIENCE,
+    allowedHosts: config.MCP_ALLOWED_HOSTS,
+    securityEvents: createPostgresSecurityEventSink(
+      postgres(config.MCP_DATABASE_URL, {
+        connect_timeout: DB_CONNECT_TIMEOUT_S,
+        onnotice: () => undefined,
+      }),
+    ),
+    log,
+  });
 
-app.server.listen(config.MCP_PORT, () => {
-  log({ event: 'mcp_listening', port: config.MCP_PORT });
-});
+  app.server.listen(config.MCP_PORT, () => {
+    log({ event: 'mcp_listening', port: config.MCP_PORT });
+  });
 
-const shutdown = (): void => {
-  app.server.close(() => process.exit(0));
-};
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+  const shutdown = (): void => {
+    app.server.close(() => process.exit(0));
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}
+
+try {
+  start();
+} catch (error) {
+  process.stderr.write(`${bootFailureLine(error)}\n`);
+  process.exitCode = 1;
+}
