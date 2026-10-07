@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+
 import {
   CorePageSchema,
   CustomerRecordSchema,
@@ -5,8 +7,7 @@ import {
   type CorePage,
   type Customer,
   type Transaction,
-} from '@fintech-agent/contracts';
-import type { z } from 'zod';
+} from './core.js';
 
 const CORE_TIMEOUT_MS = 5_000;
 const NOT_FOUND = 404;
@@ -29,9 +30,9 @@ export interface CoreClient {
 }
 
 /**
- * Read-only client for core-mock. It authenticates with the MCP server's own
- * read key; the case token never leaves this process (02 G4). Every answer is
- * parsed against its contract schema; a missing record resolves to null.
+ * Read-only client for core-mock, authenticated with the caller's own key; a
+ * case token is never forwarded (02 G4). Every answer is parsed against its
+ * contract schema; a missing record resolves to null.
  */
 export function createCoreClient(options: {
   baseUrl: string;
