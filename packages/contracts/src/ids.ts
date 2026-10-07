@@ -61,3 +61,22 @@ export function newFolio(random: RandomIndex = cryptoIndex): string {
   const groups = Array.from({ length: FOLIO_GROUPS }, () => newGroup(random));
   return [FOLIO_PREFIX, ...groups].join('-');
 }
+
+const ID_LETTERS = 'abcdefghijkmnpqrstuvwxyz';
+const ID_PAYLOAD_CHARS = 12;
+
+/**
+ * A new system id, e.g. `case_kqmxtbwhpvra`. Letters only, so it never
+ * carries a digit run the masker would touch, and 24^12 values make a clash
+ * negligible at this scale.
+ */
+export function newRegistryId(
+  prefix: IdPrefix,
+  random: RandomIndex = cryptoIndex,
+): string {
+  const payload = Array.from(
+    { length: ID_PAYLOAD_CHARS },
+    () => ID_LETTERS[random(ID_LETTERS.length)] ?? ID_LETTERS.charAt(0),
+  ).join('');
+  return `${prefix}_${payload}`;
+}
