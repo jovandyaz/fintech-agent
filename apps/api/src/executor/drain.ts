@@ -57,6 +57,12 @@ export interface ExecutorDeps {
   now: () => Date;
   /** Core could not answer; the execution stays `started` for the sweeper. */
   onDeferred?: (actionId: string, reason: string) => void;
+  /** An execution ended, after its ending was committed. */
+  onFinished?: (ending: {
+    actionId: string;
+    status: ExecutionStatus;
+    reason?: string;
+  }) => void;
 }
 
 /** An approved action this process holds an execution row for. */
@@ -148,6 +154,7 @@ async function finish(
     false,
   );
   if (!status) throw new Error(`no transition ends ${actionId}`);
+  let ended = false;
   await deps.db.transaction(async (tx) => {
     const finished = await tx
       .update(actionExecutions)
@@ -185,7 +192,17 @@ async function finish(
       ref: actionId,
       detailMasked: maskJson(ending.detail),
     });
+    ended = true;
   });
+  if (ended) {
+    deps.onFinished?.({
+      actionId,
+      status: ending.status,
+      ...(ending.status === EXECUTION_STATUS.failed
+        ? { reason: ending.detail.reason }
+        : {}),
+    });
+  }
 }
 
 async function defer(

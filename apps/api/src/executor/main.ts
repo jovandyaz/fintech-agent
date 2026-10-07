@@ -61,6 +61,13 @@ try {
     now: () => new Date(),
     onDeferred: (actionId, reason) =>
       logger.warn({ event: 'execution_deferred', action_id: actionId, reason }),
+    onFinished: ({ actionId, status, reason }) =>
+      logger.log({
+        event: 'execution_finished',
+        action_id: actionId,
+        status,
+        reason,
+      }),
   };
   const reportCycle = (error: unknown): void =>
     logger.error({ event: 'executor_cycle_failed', reason: reasonOf(error) });

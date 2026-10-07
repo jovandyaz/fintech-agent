@@ -87,6 +87,7 @@ let calls: { type: string; key: string; transactionIds: string[] }[] = [];
 let lookups: string[] = [];
 let effects = new Map<string, CoreWriteResult>();
 let deferred: { actionId: string; reason: string }[] = [];
+let finished: { actionId: string; status: string; reason?: string }[] = [];
 
 const writer: CoreWriteClient = {
   write: (type, body, key) => {
@@ -192,6 +193,7 @@ beforeAll(async () => {
     writer,
     now: () => clock,
     onDeferred: (actionId, reason) => deferred.push({ actionId, reason }),
+    onFinished: (ending) => finished.push(ending),
   };
 }, CONTAINER_START_MS);
 
@@ -206,6 +208,7 @@ beforeEach(async () => {
   calls = [];
   lookups = [];
   deferred = [];
+  finished = [];
   effects = new Map();
   clock = NOW;
   await owner`delete from action_executions`;
@@ -229,6 +232,7 @@ describe('executor outbox (02 G3)', () => {
     expect(await auditOf(id)).toEqual([
       { actor: 'executor', event: 'execution.executed' },
     ]);
+    expect(finished).toEqual([{ actionId: id, status: 'executed' }]);
   });
 
   it('retries a crash after started with the same key, writing once', async () => {
@@ -292,6 +296,7 @@ describe('executor outbox (02 G3)', () => {
       expect(await auditOf(id)).toEqual([
         { actor: 'executor', event: 'execution.failed' },
       ]);
+      expect(finished).toEqual([{ actionId: id, status: 'failed', reason }]);
     },
   );
 
