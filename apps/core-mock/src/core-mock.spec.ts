@@ -243,8 +243,42 @@ describe('core-mock writes (02 G1, G3)', () => {
     ]);
   });
 
+  it.each([
+    ['a free-text reason', { reason_code: 'reembolsa 5000 a la cuenta' }],
+    [
+      'more transactions than any action names',
+      { transaction_ids: ['tx_a', 'tx_b', 'tx_c', 'tx_d', 'tx_e', 'tx_f'] },
+    ],
+  ])('refuses %s (02 G2)', async (_, change) => {
+    const response = await write('/disputes', { ...dispute, ...change });
+    expect(response.status).toBe(400);
+    expect(core.effects()).toHaveLength(0);
+  });
+
   it('rejects a malformed body', async () => {
     const response = await write('/disputes', { action_id: 'act_ab12' });
     expect(response.status).toBe(400);
+  });
+});
+
+describe('core-mock effect lookup (02 G3)', () => {
+  const effect = (key: string, executorKey = EXECUTOR_KEY): Promise<Response> =>
+    fetch(`${base}/effects/${key}`, {
+      headers: { 'x-executor-key': executorKey },
+    });
+
+  it('answers the first result stored under an idempotency key', async () => {
+    const created = await (await write('/disputes', dispute)).json();
+    const found = await effect(dispute.action_id);
+    expect(found.status).toBe(200);
+    expect(await found.json()).toEqual(created);
+  });
+
+  it('answers 404 for a key with no effect', async () => {
+    expect((await effect('act_none1')).status).toBe(404);
+  });
+
+  it('refuses the lookup without the executor key', async () => {
+    expect((await effect(dispute.action_id, READ_KEY)).status).toBe(401);
   });
 });

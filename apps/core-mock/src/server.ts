@@ -8,9 +8,12 @@ import {
 import { DatabaseSync } from 'node:sqlite';
 
 import {
+  CORE_EFFECTS_PATH,
+  CORE_WRITE_HEADERS,
   CORE_WRITE_PATHS,
   CoreWriteBodySchema,
   type CoreWriteRefusal,
+  type CoreWriteResult,
   DEFAULT_LIST_LIMIT,
   MAX_LIST_LIMIT,
   type Customer,
@@ -237,14 +240,38 @@ export function createCoreMock(options: CoreMockOptions): CoreMock {
     throw notFound();
   }
 
+  // The executor asks whether a write it lost the answer to landed, before it
+  // gives up on the action, so a lost answer never reads as a failed effect.
+  function handleEffect(req: IncomingMessage, url: URL): unknown {
+    if (
+      !sameSecret(
+        header(req, CORE_WRITE_HEADERS.executorKey),
+        options.executorKey,
+      )
+    ) {
+      throw new HttpError(STATUS.unauthorized, ERROR.unauthorized);
+    }
+    const key = decodeURIComponent(
+      url.pathname.slice(CORE_EFFECTS_PATH.length + 1),
+    );
+    const stored = findEffect.get(key) as { response: string } | undefined;
+    if (!stored) throw notFound();
+    return JSON.parse(stored.response);
+  }
+
   async function handleWrite(
     req: IncomingMessage,
     endpoint: WriteEndpoint,
   ): Promise<unknown> {
-    if (!sameSecret(header(req, 'x-executor-key'), options.executorKey)) {
+    if (
+      !sameSecret(
+        header(req, CORE_WRITE_HEADERS.executorKey),
+        options.executorKey,
+      )
+    ) {
       throw new HttpError(STATUS.unauthorized, ERROR.unauthorized);
     }
-    const key = header(req, 'idempotency-key');
+    const key = header(req, CORE_WRITE_HEADERS.idempotencyKey);
     if (!key) throw new HttpError(STATUS.badRequest, ERROR.keyRequired);
     const parsed = CoreWriteBodySchema.safeParse(
       parseJson(await readBody(req)),
@@ -278,7 +305,7 @@ export function createCoreMock(options: CoreMockOptions): CoreMock {
       action_id: body.action_id,
       transaction_ids: body.transaction_ids,
       status: 'accepted',
-    };
+    } satisfies CoreWriteResult;
     insertEffect.run(
       key,
       endpoint,
@@ -298,6 +325,13 @@ export function createCoreMock(options: CoreMockOptions): CoreMock {
     const url = new URL(req.url ?? '/', 'http://core-mock');
     if (req.method === 'GET' && url.pathname === '/health') {
       send(res, STATUS.ok, { status: 'ok' });
+      return;
+    }
+    if (
+      req.method === 'GET' &&
+      url.pathname.startsWith(`${CORE_EFFECTS_PATH}/`)
+    ) {
+      send(res, STATUS.ok, handleEffect(req, url));
       return;
     }
     if (req.method === 'GET') {

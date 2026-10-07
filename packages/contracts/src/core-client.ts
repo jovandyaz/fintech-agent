@@ -9,7 +9,8 @@ import {
   type Transaction,
 } from './core.js';
 
-const CORE_TIMEOUT_MS = 5_000;
+/** How long any call to core-mock may take before it counts as unavailable. */
+export const CORE_TIMEOUT_MS = 5_000;
 const NOT_FOUND = 404;
 
 export type FetchLike = (

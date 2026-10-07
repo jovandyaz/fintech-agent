@@ -1,10 +1,14 @@
-import { CoreUnavailableError, type FetchLike } from '@fintech-agent/contracts';
+import {
+  CoreUnavailableError,
+  type CoreWriteBody,
+  type FetchLike,
+} from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { createCoreWriteClient } from './core-write-client.js';
 
 const EXECUTOR_KEY = 'dev-core-executor-key';
-const BODY = {
+const BODY: CoreWriteBody = {
   action_id: 'act_kqmxtbwhpvra',
   customer_id: 'cus_07',
   transaction_ids: ['tx_cu01a'],
