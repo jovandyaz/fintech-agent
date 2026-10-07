@@ -112,3 +112,36 @@ export const CorePageSchema = z.object({
   next_cursor: z.string().nullable(),
 });
 export type CorePage = z.infer<typeof CorePageSchema>;
+
+/** The core-mock write endpoint of each action type that has an effect; `none` has none (02 G3). */
+export const CORE_WRITE_PATHS = {
+  open_dispute: '/disputes',
+  resend_cep: '/cep/resend',
+  escalate_fraud: '/fraud/escalations',
+} as const;
+export type WritableAction = keyof typeof CORE_WRITE_PATHS;
+
+/** The body of every core-mock write: ids and a reason, no value field (02 G2). */
+export const CoreWriteBodySchema = z.strictObject({
+  action_id: z.string().min(1),
+  customer_id: z.string().min(1),
+  transaction_ids: z.array(z.string().min(1)),
+  reason_code: z.string().min(1),
+});
+export type CoreWriteBody = z.infer<typeof CoreWriteBodySchema>;
+
+/** What core-mock answers to an accepted write, and to every repeat of its key. */
+export const CoreWriteResultSchema = z.object({
+  id: z.string().min(1),
+  action_id: z.string().min(1),
+  transaction_ids: z.array(z.string().min(1)),
+  status: z.literal('accepted'),
+});
+export type CoreWriteResult = z.infer<typeof CoreWriteResultSchema>;
+
+/** The final refusals of a core-mock write; anything else is worth a retry. */
+export const CORE_WRITE_REFUSALS = [
+  'transactions_not_owned',
+  'idempotency_key_reused',
+] as const;
+export type CoreWriteRefusal = (typeof CORE_WRITE_REFUSALS)[number];

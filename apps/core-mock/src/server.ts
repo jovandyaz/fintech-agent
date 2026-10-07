@@ -8,6 +8,9 @@ import {
 import { DatabaseSync } from 'node:sqlite';
 
 import {
+  CORE_WRITE_PATHS,
+  CoreWriteBodySchema,
+  type CoreWriteRefusal,
   DEFAULT_LIST_LIMIT,
   MAX_LIST_LIMIT,
   type Customer,
@@ -35,24 +38,17 @@ const ERROR = {
   invalidQuery: 'invalid_query',
   invalidBody: 'invalid_body',
   keyRequired: 'idempotency_key_required',
-  keyReused: 'idempotency_key_reused',
-  notOwned: 'transactions_not_owned',
+  keyReused: 'idempotency_key_reused' satisfies CoreWriteRefusal,
+  notOwned: 'transactions_not_owned' satisfies CoreWriteRefusal,
   internal: 'internal',
 } as const;
 
 export const WRITE_ENDPOINTS = {
-  '/disputes': 'dsp',
-  '/cep/resend': 'cep',
-  '/fraud/escalations': 'frd',
+  [CORE_WRITE_PATHS.open_dispute]: 'dsp',
+  [CORE_WRITE_PATHS.resend_cep]: 'cep',
+  [CORE_WRITE_PATHS.escalate_fraud]: 'frd',
 } as const;
 type WriteEndpoint = keyof typeof WRITE_ENDPOINTS;
-
-const WriteBodySchema = z.strictObject({
-  action_id: z.string().min(1),
-  customer_id: z.string().min(1),
-  transaction_ids: z.array(z.string().min(1)),
-  reason_code: z.string().min(1),
-});
 
 const ListQuerySchema = z.object({
   type: z.string().optional(),
@@ -250,7 +246,9 @@ export function createCoreMock(options: CoreMockOptions): CoreMock {
     }
     const key = header(req, 'idempotency-key');
     if (!key) throw new HttpError(STATUS.badRequest, ERROR.keyRequired);
-    const parsed = WriteBodySchema.safeParse(parseJson(await readBody(req)));
+    const parsed = CoreWriteBodySchema.safeParse(
+      parseJson(await readBody(req)),
+    );
     if (!parsed.success) {
       throw new HttpError(STATUS.badRequest, ERROR.invalidBody);
     }
