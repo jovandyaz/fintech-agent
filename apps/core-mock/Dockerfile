@@ -6,6 +6,7 @@ COPY apps/core-mock/package.json apps/core-mock/
 COPY data/package.json data/
 COPY packages/contracts/package.json packages/contracts/
 RUN pnpm install --frozen-lockfile --prod --filter @fintech-agent/core-mock...
+COPY packages/contracts/src packages/contracts/src
 COPY data/customers.json data/transactions.json data/
 COPY apps/core-mock/src apps/core-mock/src
 RUN mkdir -p /var/lib/core-mock && chown node:node /var/lib/core-mock

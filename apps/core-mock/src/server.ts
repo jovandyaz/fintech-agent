@@ -7,12 +7,15 @@ import {
 } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 
-import type { Customer, Transaction } from '@fintech-agent/contracts';
+import {
+  DEFAULT_LIST_LIMIT,
+  MAX_LIST_LIMIT,
+  type Customer,
+  type Transaction,
+} from '@fintech-agent/contracts';
 import { z } from 'zod';
 
 const MAX_BODY_BYTES = 64 * 1024;
-const DEFAULT_PAGE_SIZE = 10;
-const MAX_PAGE_SIZE = 25;
 const COUNTER_RADIX = 36;
 const STATUS = {
   ok: 200,
@@ -63,8 +66,8 @@ const ListQuerySchema = z.object({
     .number()
     .int()
     .min(1)
-    .max(MAX_PAGE_SIZE)
-    .default(DEFAULT_PAGE_SIZE),
+    .max(MAX_LIST_LIMIT)
+    .default(DEFAULT_LIST_LIMIT),
   cursor: z.coerce.number().int().min(0).default(0),
 });
 

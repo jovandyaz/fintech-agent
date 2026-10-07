@@ -51,7 +51,7 @@ export const MCP_TOOL_ERRORS = [
 export type McpToolError = (typeof MCP_TOOL_ERRORS)[number];
 
 export const MAX_LIST_LIMIT = 25;
-const DEFAULT_LIST_LIMIT = 10;
+export const DEFAULT_LIST_LIMIT = 10;
 const MAX_QUERY_CHARS = 64;
 
 // A bare date would be read as UTC midnight and drop most of a Mexico City day.
