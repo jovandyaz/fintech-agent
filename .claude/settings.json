@@ -50,5 +50,21 @@
         ]
       }
     ]
+  },
+  "extraKnownMarketplaces": {
+    "agentic-development-workflows": {
+      "source": {
+        "source": "github",
+        "repo": "jovandyaz/agentic-development-workflows"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "workflows@agentic-development-workflows": true,
+    "context7@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
   }
 }

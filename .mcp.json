@@ -15,6 +15,11 @@
       "env": {
         "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY:-}"
       }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": ["dlx", "@playwright/mcp@0.0.81"]
     }
   }
 }
