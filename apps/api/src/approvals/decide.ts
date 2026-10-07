@@ -98,7 +98,6 @@ interface Proposal {
   draftReply: string | null;
 }
 
-/** What one decision writes besides the fields every decision shares. */
 interface Changes {
   status: ActionStatus;
   target: Target;
@@ -185,7 +184,14 @@ async function approvalChanges(
   }
   // An approve of a canary is a miss, but an override replaces the defective
   // action instead of passing it, so the operator caught it.
-  const caught = proposal.isCanary && decision.override !== undefined;
+  const caught =
+    proposal.isCanary &&
+    (target.type !== proposal.agent.type ||
+      target.params.reason_code !== proposal.agent.params.reason_code ||
+      !sameSet(
+        target.params.transaction_ids,
+        proposal.agent.params.transaction_ids,
+      ));
   const status = transition(
     proposal.status,
     caught ? REJECT : APPROVE,

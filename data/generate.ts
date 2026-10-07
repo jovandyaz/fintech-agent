@@ -1,11 +1,12 @@
-import type {
-  CardTx,
-  Customer,
-  KycLevel,
-  SpeiTx,
-  Transaction,
-  TxStatus,
-  WebhookEvent,
+import {
+  TICKET_ID_PREFIX,
+  type CardTx,
+  type Customer,
+  type KycLevel,
+  type SpeiTx,
+  type Transaction,
+  type TxStatus,
+  type WebhookEvent,
 } from '@fintech-agent/contracts';
 
 import {
@@ -406,7 +407,7 @@ export function generateDataset(seed: number): Dataset {
     scenario_id: scenario.id,
     event: {
       event_id: `evt-${scenario.id.toLowerCase()}`,
-      ticket_id: `tkt-${scenario.id.toLowerCase()}`,
+      ticket_id: `${TICKET_ID_PREFIX}${scenario.id.toLowerCase()}`,
       customer_id: scenario.customer_id,
       text: scenario.text(lookup),
       created_at: scenario.received_at,

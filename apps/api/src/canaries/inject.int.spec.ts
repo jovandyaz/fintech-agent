@@ -1,15 +1,10 @@
-import {
-  isFolio,
-  maskPii,
-  registryIdPattern,
-  type CoreClient,
-} from '@fintech-agent/contracts';
+import { isFolio, maskPii, registryIdPattern } from '@fintech-agent/contracts';
 import type { INestApplication } from '@nestjs/common';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { ANA, seedProposal, startApiApp } from '../../test/api-app.js';
+import { ANA, NO_CORE, seedProposal, startApiApp } from '../../test/api-app.js';
 import {
   CONTAINER_START_MS,
   startTestDatabase,
@@ -19,12 +14,6 @@ import * as schema from '../database/schema.js';
 import { reviewTierOf } from '../cases/review-tier.js';
 import { injectCanaries } from './inject.js';
 import { CANARY_DEFECTS, CANARY_TEMPLATES } from './templates.js';
-
-const noCore: CoreClient = {
-  customer: () => Promise.resolve(null),
-  transaction: () => Promise.resolve(null),
-  transactions: () => Promise.resolve(null),
-};
 
 let db: TestDatabase;
 let owner: postgres.Sql;
@@ -39,7 +28,7 @@ beforeAll(async () => {
   db = await startTestDatabase();
   owner = postgres(db.ownerUrl, { max: 1, onnotice: () => undefined });
   api = postgres(db.urlFor('copilot_api'), { max: 1 });
-  ({ app, base } = await startApiApp(db, noCore));
+  ({ app, base } = await startApiApp(db, NO_CORE));
 }, CONTAINER_START_MS);
 
 afterAll(async () => {

@@ -53,11 +53,36 @@ const LOOKALIKES: Record<string, string> = {
   х: 'x',
   і: 'i',
   ј: 'j',
+  ᴀ: 'a',
+  ʙ: 'b',
+  ᴄ: 'c',
+  ᴅ: 'd',
+  ᴇ: 'e',
+  ꜰ: 'f',
+  ɢ: 'g',
+  ʜ: 'h',
+  ɪ: 'i',
+  ᴊ: 'j',
+  ᴋ: 'k',
+  ʟ: 'l',
+  ᴍ: 'm',
+  ɴ: 'n',
+  ᴏ: 'o',
+  ᴘ: 'p',
+  ʀ: 'r',
+  ꜱ: 's',
+  ᴛ: 't',
+  ᴜ: 'u',
+  ᴠ: 'v',
+  ᴡ: 'w',
+  ʏ: 'y',
+  ᴢ: 'z',
 };
 const LOOKALIKE = new RegExp(`[${Object.keys(LOOKALIKES).join('')}]`, 'gu');
 const SPELLED_OUT =
-  /(?<![\p{L}\d])(?:[\p{L}\d][.\s\-·_]){1,7}[\p{L}\d](?![\p{L}\d])/gu;
-const SPELLING_SEPARATOR = /[.\s\-·_]/g;
+  /(?<![\p{L}\p{N}])(?:[\p{L}\p{N}][^\p{L}\p{N}]{1,4}){1,7}[\p{L}\p{N}](?![\p{L}\p{N}])/gu;
+const SPELLING_SEPARATOR = /[^\p{L}\p{N}]/gu;
+const LINE_BREAK = /\s*\n\s*/g;
 const LEET: Record<string, string> = {
   '0': 'o',
   '1': 'i',
@@ -97,9 +122,10 @@ const NOT_A_FACTOR_AFTER: Partial<
 };
 const FACTOR_PHRASES = [
   'llaves? dinamicas?',
-  '(?:numeros?|numeritos?) secret[oa]s?',
-  '(?:digitos|numeros) [^.!?;]{0,20}?\\b(?:reverso|atras|seguridad)',
+  '(?:numeros?|numeritos?|palabras?|claves?|codigos?) secret[oa]s?',
+  '(?:digitos|numeros?|numeritos)(?! del? (?:folio|caso|aclaracion|rastreo)) [^.!?;]{0,30}?\\b(?:reverso|atras|detras|seguridad|sms|mensaje)',
   'one[- ]time (?:code|password)',
+  '(?:security|verification|access) codes?',
   'mensajes? de texto',
 ] as const;
 
@@ -144,6 +170,7 @@ const normalize = (text: string): string =>
     .normalize('NFKD')
     .replace(DIACRITICS, '')
     .toLowerCase()
+    .replace(LINE_BREAK, '. ')
     .replace(WHITESPACE, ' ')
     .replace(SPELLED_OUT, spelledRun);
 
@@ -157,20 +184,26 @@ const unleetFactors = (text: string): string =>
       : token;
   });
 
-const APPROVED = APPROVED_FACTOR_WARNINGS.map((warning) =>
-  normalize(warning).replace(/[.!]+$/, ''),
+const escapeRegExp = (text: string): string =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Only a whole sentence counts as the warning, so "Es falso que <warning>"
+// or "<warning>; salvo hoy, escríbelos" fails; a lead-in such as
+// "Recuerda:", a bullet or a quote may open it, as a line break may close it.
+const APPROVED = APPROVED_FACTOR_WARNINGS.map(
+  (warning) =>
+    new RegExp(
+      `(?<=(?:^|[.!?:])\\s*(?:[-•*"'«(]\\s*)?)${escapeRegExp(normalize(warning).replace(/[.!]+$/, ''))}(?=\\s*["'»)]?\\s*(?:[.!?]|$))`,
+      'g',
+    ),
 );
 
-/**
- * Fails closed: a reply may name an authentication factor only inside one of
- * the approved warning sentences (IFPE rules art. 18 fr. III). Any other
- * mention, a request or not, is a violation the operator or the repair turn
- * rewords. Spelled-out, look-alike, invisible-character and digit-for-letter
- * spellings count as the factor.
- */
+// Fails closed (IFPE rules art. 18 fr. III): a factor may appear only inside
+// an approved warning, and any other mention is reworded by the operator or
+// the repair turn.
 function namesAuthFactor(text: string): boolean {
   const outsideWarnings = APPROVED.reduce(
-    (remaining, warning) => remaining.replaceAll(warning, ' '),
+    (remaining, warning) => remaining.replace(warning, ' '),
     normalize(text),
   );
   return FACTOR.test(unleetFactors(outsideWarnings));

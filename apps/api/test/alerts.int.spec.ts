@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import type { ActionStatus } from '@fintech-agent/contracts';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -24,13 +25,15 @@ function query(name: string): string {
   return block.slice(block.indexOf('\n') + 1);
 }
 
+const CANARY_WINDOW = 20;
+
 let db: TestDatabase;
 let owner: postgres.Sql;
 let sequence = 0;
 
 async function decided(
   operator: string,
-  status: 'canary_caught' | 'canary_missed' | 'rejected',
+  status: Extract<ActionStatus, 'canary_caught' | 'canary_missed' | 'rejected'>,
   minutesAgo: number,
 ): Promise<void> {
   sequence += 1;
@@ -50,10 +53,13 @@ beforeAll(async () => {
     insert into agent_runs (id, case_id, variant, model, prompt_version)
     values ('run_al', 'case_al', 'v1', 'model', 'p1')`;
   await owner`alter table proposed_actions disable trigger enforce_transition_role`;
-  for (let i = 0; i < 20; i += 1) await decided('ana', 'canary_caught', i);
-  for (let i = 1; i < 20; i += 1) await decided('beto', 'canary_caught', i);
+  for (let i = 0; i < CANARY_WINDOW; i += 1)
+    await decided('ana', 'canary_caught', i);
+  for (let i = 1; i < CANARY_WINDOW; i += 1)
+    await decided('beto', 'canary_caught', i);
   await decided('beto', 'canary_missed', 0);
-  for (let i = 0; i < 20; i += 1) await decided('caro', 'canary_caught', i);
+  for (let i = 0; i < CANARY_WINDOW; i += 1)
+    await decided('caro', 'canary_caught', i);
   for (let i = 0; i < 5; i += 1)
     await decided('caro', 'canary_missed', 100 + i);
   await decided('dani', 'canary_caught', 1);

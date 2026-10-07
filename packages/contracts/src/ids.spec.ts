@@ -5,6 +5,7 @@ import {
   isFolio,
   isRegistryId,
   newFolio,
+  newIdPayload,
   newRegistryId,
   registryIdPattern,
 } from './ids.js';
@@ -78,5 +79,13 @@ describe('newRegistryId', () => {
       Array.from({ length: 1000 }, () => newRegistryId('case')),
     );
     expect(ids.size).toBe(1000);
+  });
+});
+
+describe('newIdPayload', () => {
+  it('draws only letters the masker never reads as digits', () => {
+    for (let i = 0; i < 200; i += 1) {
+      expect(newIdPayload()).toMatch(/^[a-km-np-z]+$/);
+    }
   });
 });

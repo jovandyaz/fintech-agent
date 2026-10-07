@@ -198,6 +198,17 @@ describe('DecisionSchema', () => {
   });
 });
 
+describe('ResolutionSchema draft cap', () => {
+  it('caps the draft like the final reply, which the edit ratio compares it with', () => {
+    expect(
+      ResolutionSchema.safeParse({
+        ...validResolution,
+        draft_reply: 'a'.repeat(MAX_REPLY_CHARS + 1),
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe('ActionParamsSchema (G2: what executes, value-free)', () => {
   it('holds only the transaction ids and the reason code', () => {
     const params = {

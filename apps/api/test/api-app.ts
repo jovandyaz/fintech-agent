@@ -5,7 +5,7 @@ import type {
   CoreClient,
   ReviewTier,
 } from '@fintech-agent/contracts';
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, LoggerService } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Sql } from 'postgres';
 
@@ -16,12 +16,30 @@ import type { TestDatabase } from './database.js';
 export const ANA = 'dev-operator-ana-token-0123456789';
 export const BETO = 'dev-operator-beto-token-0123456789';
 const OPERATOR_TOKENS = `ana:k1:${ANA},beto:k2:${BETO}`;
+/** The status codes the gate answers with. */
+export const HTTP = {
+  ok: 200,
+  badRequest: 400,
+  unauthorized: 401,
+  notFound: 404,
+  conflict: 409,
+  unavailable: 503,
+} as const;
+
+/** A core-mock that holds nothing, for routes that never read it. */
+export const NO_CORE: CoreClient = {
+  customer: () => Promise.resolve(null),
+  transaction: () => Promise.resolve(null),
+  transactions: () => Promise.resolve(null),
+};
+
 export const DRAFT = 'Hola Ana, registramos tu aclaración con folio {{folio}}.';
 
 /** The real `AppModule` as `copilot_api`, with core-mock replaced by `core`. */
 export async function startApiApp(
   db: TestDatabase,
   core: CoreClient,
+  logger: LoggerService | false = false,
 ): Promise<{ app: INestApplication; base: string }> {
   const moduleRef = await Test.createTestingModule({
     imports: [
@@ -37,7 +55,7 @@ export async function startApiApp(
     .overrideProvider(CORE_CLIENT)
     .useValue(core)
     .compile();
-  const app = moduleRef.createNestApplication({ logger: false });
+  const app = moduleRef.createNestApplication({ logger });
   await app.listen(0, '127.0.0.1');
   return { app, base: await app.getUrl() };
 }
