@@ -95,6 +95,13 @@ export const ResolutionSchema = z.strictObject({
 });
 export type Resolution = z.infer<typeof ResolutionSchema>;
 
+/** What executes (`proposed_actions.params`, 01): the G2 fields besides the type, no values. */
+export const ActionParamsSchema = ProposedActionSchema.pick({
+  transaction_ids: true,
+  reason_code: true,
+});
+export type ActionParams = z.infer<typeof ActionParamsSchema>;
+
 /** An operator's replacement action: the G2 fields only, no justification, no values. */
 export const OverrideSchema = z.strictObject({
   type: z.enum(ACTION_TYPES),
@@ -103,8 +110,12 @@ export const OverrideSchema = z.strictObject({
 });
 export type Override = z.infer<typeof OverrideSchema>;
 
+/** Bounds what an operator sends, and with it the edit-ratio computation over the reply. */
+export const MAX_REPLY_CHARS = 4000;
+export const MAX_REJECT_REASON_CHARS = 1000;
+
 const decisionBase = {
-  final_reply: z.string().min(1),
+  final_reply: z.string().min(1).max(MAX_REPLY_CHARS),
   acknowledged_flags: z.array(z.enum(CASE_FLAGS)),
 };
 
@@ -123,7 +134,7 @@ export const DecisionSchema = z.discriminatedUnion('decision', [
     ...decisionBase,
     decision: z.literal('reject'),
     reject_code: z.enum(REJECT_CODES),
-    reject_reason: z.string().optional(),
+    reject_reason: z.string().max(MAX_REJECT_REASON_CHARS).optional(),
   }),
 ]);
 export type Decision = z.infer<typeof DecisionSchema>;

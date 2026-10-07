@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ActionParamsSchema,
   CASE_FLAGS,
   DecisionSchema,
+  MAX_REJECT_REASON_CHARS,
+  MAX_REPLY_CHARS,
   ResolutionSchema,
   WebhookEventSchema,
 } from './schemas.js';
@@ -161,6 +164,29 @@ describe('DecisionSchema', () => {
     ).toBe(false);
   });
 
+  it('caps the final reply and the reject reason', () => {
+    expect(
+      DecisionSchema.safeParse({
+        ...approve,
+        final_reply: 'a'.repeat(MAX_REPLY_CHARS),
+      }).success,
+    ).toBe(true);
+    expect(
+      DecisionSchema.safeParse({
+        ...approve,
+        final_reply: 'a'.repeat(MAX_REPLY_CHARS + 1),
+      }).success,
+    ).toBe(false);
+    expect(
+      DecisionSchema.safeParse({
+        ...base,
+        decision: 'reject',
+        reject_code: 'other',
+        reject_reason: 'a'.repeat(MAX_REJECT_REASON_CHARS + 1),
+      }).success,
+    ).toBe(false);
+  });
+
   it('requires a final reply even on a reject', () => {
     expect(
       DecisionSchema.safeParse({
@@ -168,6 +194,23 @@ describe('DecisionSchema', () => {
         reject_code: 'tone',
         acknowledged_flags: [],
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe('ActionParamsSchema (G2: what executes, value-free)', () => {
+  it('holds only the transaction ids and the reason code', () => {
+    const params = {
+      transaction_ids: ['tx_0412'],
+      reason_code: 'unrecognized_charge',
+    };
+    expect(ActionParamsSchema.parse(params)).toEqual(params);
+    expect(
+      ActionParamsSchema.safeParse({ ...params, amount: 5000 }).success,
+    ).toBe(false);
+    expect(
+      ActionParamsSchema.safeParse({ ...params, type: 'open_dispute' })
+        .success,
     ).toBe(false);
   });
 });
