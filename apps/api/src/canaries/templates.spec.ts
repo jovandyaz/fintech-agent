@@ -137,6 +137,7 @@ describe('canary templates through the validator (02 G3, G5)', () => {
       expect(validate(resolution, { evidence, stateRules: [] })).toEqual({
         ok: false,
         codes: ['NO_SUPPORT'],
+        conflicts: [],
       });
       expect(factFlags(resolution, evidence, { priorOpenDisputes: 0 })).toEqual(
         seed.flags,

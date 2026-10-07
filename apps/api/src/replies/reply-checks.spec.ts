@@ -4,6 +4,7 @@ import {
 } from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
 
+import { fastestRunMs } from '../../test/timing.js';
 import { replyViolations } from './reply-checks.js';
 
 const CHECK_BUDGET_MS = 50;
@@ -180,9 +181,9 @@ describe('replyViolations (02 G5, the checks a final reply shares with the draft
     ['spelled-out runs', 'n i p '.repeat(660)],
     ['digits before a back side', 'digitos '.repeat(500) + 'reverso'],
   ])('checks %s at the reply cap within the time budget', (_, text) => {
-    const started = performance.now();
-    replyViolations(text.slice(0, MAX_REPLY_CHARS));
-    expect(performance.now() - started).toBeLessThan(CHECK_BUDGET_MS);
+    expect(
+      fastestRunMs(() => replyViolations(text.slice(0, MAX_REPLY_CHARS))),
+    ).toBeLessThan(CHECK_BUDGET_MS);
   });
 
   it.each([

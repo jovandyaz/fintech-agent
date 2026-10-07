@@ -2,6 +2,10 @@ import { QUALIFIERS, UNITS, alternation, foldForMatching } from './spanish.js';
 
 const CLITIC = String.raw`(?:te|le|les)\s`;
 const OBJECT_PRONOUN = String.raw`(?:lo|la|los|las|se|nos|te|le|les)\s`;
+// "Te lo devolveremos", "se lo vamos a reembolsar": up to two pronouns.
+const PRONOUNS = `(?:${OBJECT_PRONOUN}){0,2}`;
+// "devolverte", "abonárselo": pronouns glued to the infinitive.
+const ENCLITICS = '(?:te|le|les|lo|la|los|las|se|nos)*';
 const FUTURE_PROMISES = [
   'reembolsaremos',
   'devolveremos',
@@ -36,13 +40,13 @@ const YOU_WILL = [
 ];
 
 // Verb forms, never stems: "reembolso" or "abono" alone promise nothing. The
-// clitic sits inside the match so a negation right before it governs it.
+// pronouns sit inside the match so a negation right before them governs it.
 const COMMITMENT = new RegExp(
   [
-    String.raw`\b(?:${CLITIC})?(?:${FUTURE_PROMISES.join('|')})\b`,
-    String.raw`\b(?:${CLITIC})?(?:${PRESENT_PROMISES.join('|')})\b`,
-    String.raw`\b${CLITIC}vamos\sa\s(?:${PROMISED_INFINITIVES.join('|')})\b`,
-    String.raw`\bya\s(?:${DONE_ACTIONS.join('|')})\b`,
+    String.raw`\b${PRONOUNS}(?:${FUTURE_PROMISES.join('|')})\b`,
+    String.raw`\b${PRONOUNS}(?:${PRESENT_PROMISES.join('|')})\b`,
+    String.raw`\b${PRONOUNS}vamos\sa\s(?:${PROMISED_INFINITIVES.join('|')})${ENCLITICS}\b`,
+    String.raw`\bya\s${PRONOUNS}(?:${DONE_ACTIONS.join('|')})\b`,
     String.raw`${DEADLINE}(?:${CLITIC}\p{L}+|(?:${OBJECT_PRONOUN})*\p{L}+mos\b|(?:${YOU_WILL.join('|')})\b)`,
   ].join('|'),
   'gu',

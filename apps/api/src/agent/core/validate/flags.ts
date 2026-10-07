@@ -1,4 +1,8 @@
-import type { CaseFlag, Resolution } from '@fintech-agent/contracts';
+import type {
+  CaseCategory,
+  CaseFlag,
+  ProposedAction,
+} from '@fintech-agent/contracts';
 
 import type { RunEvidence } from './evidence.js';
 import { cardNotPresentBurst, fraudDeclineSeen } from './predicates.js';
@@ -10,18 +14,28 @@ export const FIRST_PARTY_PRIOR_DISPUTES = 3;
 /** How far back Persist counts those disputes, canaries excluded. */
 export const FIRST_PARTY_LOOKBACK_DAYS = 120;
 
+/** What Persist flags: the accepted resolution, or the fallback's `none`. */
+export interface FlagSubject {
+  /** Null on a fallback, where no model output was accepted. */
+  category: CaseCategory | null;
+  proposed_action: ProposedAction;
+}
+
 const DISPUTABLE_CARD_STATUSES: ReadonlySet<string> = new Set([
   'settled',
   'pending',
 ]);
 
+// A fallback has no category to rule the charge out, so it reads as a
+// possible unrecognized one: the suppressed dispute stays visible.
 function actionFactMismatch(
-  resolution: Resolution,
+  subject: FlagSubject,
   evidence: RunEvidence,
 ): boolean {
-  if (resolution.proposed_action.type !== 'none') return false;
+  if (subject.proposed_action.type !== 'none') return false;
   const disputableCharge =
-    resolution.category === 'unrecognized_card_charge' &&
+    (subject.category === null ||
+      subject.category === 'unrecognized_card_charge') &&
     [...evidence.transactions.values()].some(
       (transaction) =>
         transaction.type === 'card_purchase' &&
@@ -37,11 +51,11 @@ function actionFactMismatch(
 }
 
 function firstPartySignal(
-  resolution: Resolution,
+  subject: FlagSubject,
   evidence: RunEvidence,
   priorOpenDisputes: number,
 ): boolean {
-  const action = resolution.proposed_action;
+  const action = subject.proposed_action;
   if (action.type !== 'open_dispute') return false;
   const twoFactorPurchase = action.transaction_ids.some((id) => {
     const factors = evidence.transactions.get(id)?.auth_factors;
@@ -57,15 +71,15 @@ function firstPartySignal(
  * count of the customer's approved or executed disputes in the lookback.
  */
 export function factFlags(
-  resolution: Resolution,
+  subject: FlagSubject,
   evidence: RunEvidence,
   history: { priorOpenDisputes: number },
 ): CaseFlag[] {
   const flags: CaseFlag[] = [];
-  if (actionFactMismatch(resolution, evidence)) {
+  if (actionFactMismatch(subject, evidence)) {
     flags.push('action_fact_mismatch');
   }
-  if (firstPartySignal(resolution, evidence, history.priorOpenDisputes)) {
+  if (firstPartySignal(subject, evidence, history.priorOpenDisputes)) {
     flags.push('first_party_signal');
   }
   return flags;
