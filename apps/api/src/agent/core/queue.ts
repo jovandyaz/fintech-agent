@@ -157,13 +157,7 @@ export async function releaseForRetry(
   claim: Claim,
   options: { now: Date; random: () => number },
 ): Promise<typeof QUEUED | typeof FAILED> {
-  if (claim.attempt >= MAX_ATTEMPTS) {
-    await tx
-      .update(cases)
-      .set({ status: FAILED, ...released })
-      .where(eq(cases.id, claim.caseId));
-    return FAILED;
-  }
+  if (claim.attempt >= MAX_ATTEMPTS) return failNow(tx, claim);
   const nextAttemptAt = new Date(
     options.now.getTime() + backoffMs(claim.attempt, options.random),
   );
@@ -172,4 +166,20 @@ export async function releaseForRetry(
     .set({ status: QUEUED, ...released, nextAttemptAt })
     .where(eq(cases.id, claim.caseId));
   return QUEUED;
+}
+
+/**
+ * Ends an attempt no retry can clear (no key, a spend limit, an auth error),
+ * inside the `withClaim` that closes its run: the case fails now and the
+ * claim is released.
+ */
+export async function failNow(
+  tx: DbTransaction,
+  claim: Claim,
+): Promise<typeof FAILED> {
+  await tx
+    .update(cases)
+    .set({ status: FAILED, ...released })
+    .where(eq(cases.id, claim.caseId));
+  return FAILED;
 }

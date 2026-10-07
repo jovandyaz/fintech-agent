@@ -31,7 +31,15 @@ import {
 import { replyViolations } from '../../replies/reply-checks.js';
 import { traceTotals, type AgentOutcome, type StepRecord } from './agent.js';
 import { MS_PER_DAY } from './calendar.js';
-import { StaleClaimError, withClaim, type Claim } from './queue.js';
+import {
+  LEASE_EXPIRED,
+  StaleClaimError,
+  failNow,
+  releaseForRetry,
+  withClaim,
+  type Claim,
+} from './queue.js';
+import type { ProviderErrorCode } from './provider-errors.js';
 import type { RunEvidence } from './validate/evidence.js';
 import { factFlags, velocitySignal } from './validate/flags.js';
 import { noneAction } from './validate/index.js';
@@ -293,6 +301,67 @@ async function priorOpenDisputes(
 const usdOf = (value: number | null): string | null =>
   value === null ? null : String(value);
 
+async function runningRun(tx: DbTransaction, claim: Claim, runId: string) {
+  const [run] = await tx
+    .select({
+      variant: agentRuns.variant,
+      promptVersion: agentRuns.promptVersion,
+      startedAt: agentRuns.startedAt,
+    })
+    .from(agentRuns)
+    .where(
+      and(
+        eq(agentRuns.id, runId),
+        eq(agentRuns.caseId, claim.caseId),
+        eq(agentRuns.status, RUNNING),
+      ),
+    );
+  if (!run) throw new StaleClaimError(claim.caseId);
+  return run;
+}
+
+interface RunEnd {
+  status: RunStatus;
+  stopReason: StopReason;
+  errorCode?: RunErrorCode;
+}
+
+async function closeRun(
+  tx: DbTransaction,
+  runId: string,
+  startedAt: Date,
+  trace: readonly StepRecord[],
+  now: Date,
+  end: RunEnd,
+): Promise<void> {
+  const totals = traceTotals(trace);
+  await tx
+    .update(agentRuns)
+    .set({
+      ...end,
+      inputTokens: totals.inputTokens,
+      outputTokens: totals.outputTokens,
+      cachedInputTokens: totals.cachedInputTokens,
+      costUsd: String(totals.costUsd),
+      latencyMs: now.getTime() - startedAt.getTime(),
+      finishedAt: now,
+    })
+    .where(eq(agentRuns.id, runId));
+  if (trace.length === 0) return;
+  await tx.insert(runSteps).values(
+    trace.map((record, idx) => ({
+      ...record,
+      runId,
+      idx,
+      // Masking is idempotent, so the writer masks again: a caller that
+      // forgot to cannot put a full value in the trace (02 G6).
+      inputMasked: maskJson(record.inputMasked),
+      outputMasked: maskJson(record.outputMasked),
+      costUsd: usdOf(record.costUsd),
+    })),
+  );
+}
+
 /**
  * Persist (01 §Agent pipeline): in one transaction fenced by the claim, ends
  * the run with its totals, writes its steps, the resolution (only when one
@@ -306,6 +375,7 @@ export async function persistRun(
 ): Promise<Persisted> {
   const { claim, runId, now } = input;
   return withClaim(db, claim, async (tx) => {
+    const run = await runningRun(tx, claim, runId);
     const [held] = await tx
       .select({
         folio: cases.folio,
@@ -314,21 +384,7 @@ export async function persistRun(
       })
       .from(cases)
       .where(eq(cases.id, claim.caseId));
-    const [run] = await tx
-      .select({
-        variant: agentRuns.variant,
-        promptVersion: agentRuns.promptVersion,
-        startedAt: agentRuns.startedAt,
-      })
-      .from(agentRuns)
-      .where(
-        and(
-          eq(agentRuns.id, runId),
-          eq(agentRuns.caseId, claim.caseId),
-          eq(agentRuns.status, RUNNING),
-        ),
-      );
-    if (!held || !run) throw new StaleClaimError(claim.caseId);
+    if (!held) throw new StaleClaimError(claim.caseId);
 
     const settled = settle(input.outcome, {
       folio: held.folio,
@@ -337,34 +393,10 @@ export async function persistRun(
       stateRules: input.stateRules,
       log: input.log,
     });
-    const totals = traceTotals(input.trace);
-    await tx
-      .update(agentRuns)
-      .set({
-        status: settled.runStatus,
-        stopReason: settled.stopReason,
-        inputTokens: totals.inputTokens,
-        outputTokens: totals.outputTokens,
-        cachedInputTokens: totals.cachedInputTokens,
-        costUsd: String(totals.costUsd),
-        latencyMs: now.getTime() - run.startedAt.getTime(),
-        finishedAt: now,
-      })
-      .where(eq(agentRuns.id, runId));
-    if (input.trace.length > 0) {
-      await tx.insert(runSteps).values(
-        input.trace.map((record, idx) => ({
-          ...record,
-          runId,
-          idx,
-          // Masking is idempotent, so the writer masks again: a caller that
-          // forgot to cannot put a full value in the trace (02 G6).
-          inputMasked: maskJson(record.inputMasked),
-          outputMasked: maskJson(record.outputMasked),
-          costUsd: usdOf(record.costUsd),
-        })),
-      );
-    }
+    await closeRun(tx, runId, run.startedAt, input.trace, now, {
+      status: settled.runStatus,
+      stopReason: settled.stopReason,
+    });
     if (settled.resolution) {
       const { resolution } = settled;
       await tx.insert(resolutions).values({
@@ -417,5 +449,52 @@ export async function persistRun(
       })
       .where(eq(cases.id, claim.caseId));
     return { runStatus: settled.runStatus, actionId };
+  });
+}
+
+/** The MCP server could not be reached for the attempt; a retry may clear it. */
+export const MCP_UNAVAILABLE = 'mcp_unavailable';
+/** An error neither the provider's nor the MCP server's: a bug, retried then failed. */
+export const INTERNAL_ERROR = 'internal_error';
+/** Every `agent_runs.error_code` (01 §Failure handling): one closed set. */
+export type RunErrorCode =
+  | ProviderErrorCode
+  | typeof LEASE_EXPIRED
+  | typeof MCP_UNAVAILABLE
+  | typeof INTERNAL_ERROR;
+
+const FAILED_RUN = 'failed' satisfies RunStatus;
+
+export interface FailInput {
+  claim: Claim;
+  runId: string;
+  errorCode: RunErrorCode;
+  /** Whether a later attempt may clear it; otherwise the case fails now. */
+  retryable: boolean;
+  trace: readonly StepRecord[];
+  now: Date;
+  random: () => number;
+}
+
+/**
+ * Ends an attempt that produced no proposal (01 §Failure handling), fenced
+ * like Persist: the run fails with its code and keeps the steps and cost it
+ * spent; the case is queued again after the backoff, or fails now.
+ */
+export async function failRun(
+  db: Database,
+  input: FailInput,
+): Promise<CaseStatus> {
+  const { claim, runId, now } = input;
+  return withClaim(db, claim, async (tx) => {
+    const run = await runningRun(tx, claim, runId);
+    await closeRun(tx, runId, run.startedAt, input.trace, now, {
+      status: FAILED_RUN,
+      stopReason: STOP.error,
+      errorCode: input.errorCode,
+    });
+    return input.retryable
+      ? releaseForRetry(tx, claim, { now, random: input.random })
+      : failNow(tx, claim);
   });
 }

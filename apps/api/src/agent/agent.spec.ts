@@ -3,10 +3,17 @@ import {
   type McpToolName,
   type Resolution,
 } from '@fintech-agent/contracts';
-import { dynamicTool, jsonSchema, type ToolSet } from 'ai';
+import { type ToolSet } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  investigation,
+  mcpFailed,
+  mcpOk,
+  mcpToolsOf,
+  type McpAnswer,
+} from '../../test/agent-fixtures.js';
 import {
   inOrder,
   malformedJson,
@@ -21,9 +28,6 @@ import {
   NOW,
   RECEIVED_AT,
   cardAuth,
-  cardRow,
-  customerSeen,
-  listed,
   policyChunk,
   resolutionOf,
   speiStatus,
@@ -51,51 +55,17 @@ const CASE_TEXT = 'No reconozco un cargo de AMZN MKTP MX en mi tarjeta.';
 const RUN_TIMEOUT_MS = 180_000;
 const HUGE = 1e9;
 
-const mcpOk = (value: unknown) => ({
-  content: [{ type: 'text', text: JSON.stringify(value) }],
-});
-const mcpFailed = (error: string) => ({
-  content: [{ type: 'text', text: JSON.stringify({ error }) }],
-  isError: true,
-});
-
-type McpAnswer = (input: unknown) => unknown;
-
-const mcpTool = (answer: McpAnswer) =>
-  dynamicTool({
-    description: 'fake MCP tool',
-    inputSchema: jsonSchema({ type: 'object' }),
-    execute: (input) => Promise.resolve(answer(input)),
-  });
-
-const CARD_CASE: Record<McpToolName, McpAnswer> = {
-  get_customer: () => mcpOk(customerSeen.output),
-  list_transactions: () => mcpOk(listed(cardRow()).output),
-  get_spei_status: () => mcpFailed('WRONG_TYPE'),
-  get_card_authorization: () => mcpOk(cardAuth()),
-};
-
 function toolsOf(
   answers: Partial<Record<McpToolName, McpAnswer>> = {},
 ): ToolSet {
-  const mcp = { ...CARD_CASE, ...answers };
   return {
-    ...Object.fromEntries(
-      Object.entries(mcp).map(([name, answer]) => [name, mcpTool(answer)]),
-    ),
+    ...mcpToolsOf(answers),
     search_policies: searchPoliciesTool({
       catalog: [{ doc_id: 'pol-04', title: 'Cargos no reconocidos' }],
       search: () => Promise.resolve([policyChunk()]),
     }),
   };
 }
-
-const investigation = [
-  () => toolCallResponse('get_customer', {}),
-  () => toolCallResponse('get_card_authorization', { transaction_id: CARD_TX }),
-  () =>
-    toolCallResponse('search_policies', { query: 'cargo no reconocido', k: 4 }),
-];
 
 const logs: Record<string, unknown>[] = [];
 
