@@ -44,6 +44,13 @@ export const STEP_KINDS = [
 ] as const;
 export type StepKind = (typeof STEP_KINDS)[number];
 
+/**
+ * What a `guard` step records in `output_masked.outcome`; the redactor
+ * degraded alert counts `degraded` (01 §Observability).
+ */
+export const GUARD_OUTCOMES = ['passed', 'flagged', 'degraded'] as const;
+export type GuardOutcome = (typeof GUARD_OUTCOMES)[number];
+
 /** Which role may move a row between these is enforced by a trigger (02 G1). */
 export const ACTION_STATUSES = [
   'proposed',
