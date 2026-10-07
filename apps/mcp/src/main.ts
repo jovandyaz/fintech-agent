@@ -26,6 +26,10 @@ const app = createMcpApp({
   coreReadKey: required('CORE_READ_KEY'),
   caseTokenKey: required('CASE_TOKEN_KEY'),
   audience: required('MCP_AUDIENCE'),
+  allowedHosts: (process.env.MCP_ALLOWED_HOSTS ?? '')
+    .split(',')
+    .map((host) => host.trim())
+    .filter(Boolean),
   securityEvents,
   log,
 });

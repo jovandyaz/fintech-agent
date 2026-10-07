@@ -36,6 +36,8 @@ export interface McpAppOptions {
   caseTokenKey: string;
   /** The server's canonical URL; the token's `aud` must equal it, whatever URL the client dialed (02 G4). */
   audience: string;
+  /** Extra hostnames clients may dial besides the audience host and loopback, e.g. the compose service name. */
+  allowedHosts?: string[];
   securityEvents: SecurityEventSink;
   fetch?: FetchLike;
   log?: (line: Record<string, unknown>) => void;
@@ -82,6 +84,7 @@ export function createMcpApp(options: McpAppOptions): McpApp {
   // DNS-rebinding guard: the SDK handler validates neither header.
   const allowedHosts = [
     new URL(options.audience).hostname,
+    ...(options.allowedHosts ?? []),
     ...localhostAllowedHostnames(),
   ];
 

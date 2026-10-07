@@ -43,6 +43,7 @@ services:
     environment:
       MCP_PORT: 3020
       MCP_AUDIENCE: ${MCP_AUDIENCE:-http://mcp:3020/mcp}
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-mcp}
       CASE_TOKEN_KEY: ${CASE_TOKEN_KEY:-dev-case-token-key-0123456789abcdef}
       CORE_MOCK_URL: http://core-mock:3010
       CORE_READ_KEY: ${CORE_READ_KEY:-dev-core-read-key}

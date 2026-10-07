@@ -5,9 +5,13 @@ import {
   CASE_TOKEN_ISSUER,
   CASE_TOKEN_MAX_CALLS,
   CASE_TOKEN_SCOPE,
+  type CardTx,
+  type Customer,
+  type SpeiTx,
+  type Transaction,
 } from '@fintech-agent/contracts';
 import { createCoreMock, type CoreMock } from '@fintech-agent/core-mock';
-import type { CardTx, Customer, SpeiTx } from '@fintech-agent/contracts';
+
 import {
   Client,
   InMemoryTransport,
@@ -18,7 +22,7 @@ import { SignJWT, UnsecuredJWT } from 'jose';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { READ_ONLY } from './annotations.js';
-import { createMcpApp, type McpApp } from './app.js';
+import { createMcpApp, type McpApp, type McpAppOptions } from './app.js';
 import type { SecurityEvent } from './security-events.js';
 import { createCallBudget, registerTools } from './tools.js';
 
@@ -109,6 +113,7 @@ interface Upstream {
 }
 
 let core: CoreMock;
+let coreUrl: string;
 let app: McpApp;
 let mcpUrl: string;
 let events: SecurityEvent[];
@@ -204,21 +209,22 @@ const rawPost = (token?: string): Promise<Response> =>
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
   });
 
-beforeEach(async () => {
+async function startCore(
+  customers: Customer[],
+  transactions: Transaction[],
+): Promise<void> {
   core = createCoreMock({
-    customers: [customer(OWNER), customer(OTHER)],
-    transactions: [speiOut, cardCharge, foreignCharge, foreignSpei],
+    customers,
+    transactions,
     readKey: READ_KEY,
     executorKey: 'test-executor-key',
     databasePath: ':memory:',
     log: () => undefined,
   });
-  const coreUrl = await listen(core.server);
-  events = [];
-  logs = [];
-  sinkFailure = undefined;
-  upstream = [];
-  stubbed = undefined;
+  coreUrl = await listen(core.server);
+}
+
+async function startApp(overrides: Partial<McpAppOptions> = {}): Promise<void> {
   app = createMcpApp({
     coreUrl,
     coreReadKey: READ_KEY,
@@ -240,15 +246,31 @@ beforeEach(async () => {
       return stubbed?.() ?? fetch(input, init);
     },
     log: (line) => logs.push(line),
+    ...overrides,
   });
   mcpUrl = `${await listen(app.server)}/mcp`;
-});
+}
 
-afterEach(async () => {
+async function stopAll(): Promise<void> {
   await close(app.server);
   await close(core.server);
   core.close();
+}
+
+beforeEach(async () => {
+  events = [];
+  logs = [];
+  sinkFailure = undefined;
+  upstream = [];
+  stubbed = undefined;
+  await startCore(
+    [customer(OWNER), customer(OTHER)],
+    [speiOut, cardCharge, foreignCharge, foreignSpei],
+  );
+  await startApp();
 });
+
+afterEach(stopAll);
 
 interface RawAnswer {
   status: number;
@@ -297,6 +319,17 @@ describe('MCP DNS-rebinding protection', () => {
       authorization: `Bearer ${await mint()}`,
     });
     expect(answer.status).toBe(FORBIDDEN);
+  });
+
+  it('accepts a configured dial host when the audience is a different canonical URL', async () => {
+    await close(app.server);
+    await startApp({
+      audience: 'https://mcp.case-copilot.example/mcp',
+      allowedHosts: ['mcp'],
+    });
+    const dialed = await rawRequest({ ...json, host: 'mcp:3020' });
+    const other = await rawRequest({ ...json, host: 'api:3000' });
+    expect([dialed.status, other.status]).toEqual([401, FORBIDDEN]);
   });
 
   it('lets the audience host and loopback through to authentication', async () => {
@@ -501,26 +534,9 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
       merchant_descriptor: `PAGO ${PLANTED_PAN}`,
       merchant_brand: `Tel ${PLANTED_PHONE}`,
     };
-    await close(app.server);
-    await close(core.server);
-    core.close();
-    core = createCoreMock({
-      customers: [customer(OWNER)],
-      transactions: [planted],
-      readKey: READ_KEY,
-      executorKey: 'test-executor-key',
-      databasePath: ':memory:',
-      log: () => undefined,
-    });
-    app = createMcpApp({
-      coreUrl: await listen(core.server),
-      coreReadKey: READ_KEY,
-      caseTokenKey: CASE_TOKEN_KEY,
-      audience: AUDIENCE,
-      securityEvents: { record: () => Promise.resolve() },
-      log: () => undefined,
-    });
-    mcpUrl = `${await listen(app.server)}/mcp`;
+    await stopAll();
+    await startCore([customer(OWNER)], [planted]);
+    await startApp();
     const client = await connect(await mint());
     const outputs = [
       await call(client, 'list_transactions'),
