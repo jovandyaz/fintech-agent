@@ -29,6 +29,18 @@ const JWT =
   'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjdXNfMDEiLCJqdGkiOiJqMSJ9.c2lnbmF0dXJlc2lnbmF0dXJl';
 const EIGHT_DIGITS = /\d{8}/;
 
+// A real stack's frames are the test runner's paths, whose digits (a pnpm
+// store hash) would count against the eight-digit budget.
+function withoutFrames(make: () => Error): Error {
+  const limit = Error.stackTraceLimit;
+  Error.stackTraceLimit = 0;
+  try {
+    return make();
+  } finally {
+    Error.stackTraceLimit = limit;
+  }
+}
+
 function linesWrittenTo(write: WriteSpy): string[] {
   return write.mock.calls.map(([chunk]) => String(chunk));
 }
@@ -338,21 +350,23 @@ describe('JsonConsoleLogger behind Nest Logger', () => {
     it.each([
       [
         'a cause stack appended to the error stack',
-        () => {
-          const cause = new Error('card\n4532\n0151\n1283\n0366');
-          const error = new Error('outer');
-          error.stack = `${error.stack ?? ''}\nCaused by: ${cause.stack ?? ''}`;
-          return error;
-        },
+        () =>
+          withoutFrames(() => {
+            const cause = new Error('card\n4532\n0151\n1283\n0366');
+            const error = new Error('outer');
+            error.stack = `${error.stack ?? ''}\nCaused by: ${cause.stack ?? ''}`;
+            return error;
+          }),
       ],
       [
         'a message shortened after the stack was read',
-        () => {
-          const error = new Error('card\n4532\n0151\n1283\n0366');
-          void error.stack;
-          error.message = 'card';
-          return error;
-        },
+        () =>
+          withoutFrames(() => {
+            const error = new Error('card\n4532\n0151\n1283\n0366');
+            void error.stack;
+            error.message = 'card';
+            return error;
+          }),
       ],
       [
         'a phone in pairs across frame locations',
