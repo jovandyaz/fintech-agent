@@ -11,11 +11,15 @@
     "canary:inject": "node --import tsx src/canaries/main.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "4.0.72",
+    "@ai-sdk/mcp": "2.0.67",
     "@fintech-agent/contracts": "workspace:*",
     "@nestjs/common": "11.2.7",
     "@nestjs/core": "11.2.7",
     "@nestjs/platform-express": "11.2.7",
+    "ai": "7.0.128",
     "drizzle-orm": "0.45.3",
+    "jose": "6.2.12",
     "postgres": "3.4.9",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
