@@ -18,3 +18,11 @@ export function rerunTarget(
     ? 'queued'
     : null;
 }
+
+/** The one status a case is decided from (02 G3). */
+export const AWAITING_DECISION: CaseStatus = 'needs_review';
+
+/** Where a decision takes the case, or null when it is not waiting for one. */
+export function resolveTarget(status: CaseStatus): 'resolved' | null {
+  return status === AWAITING_DECISION ? 'resolved' : null;
+}

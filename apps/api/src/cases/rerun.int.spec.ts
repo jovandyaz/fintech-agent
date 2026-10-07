@@ -1,4 +1,4 @@
-import type { CoreClient } from '@fintech-agent/contracts';
+import type { CaseStatus, CoreClient } from '@fintech-agent/contracts';
 import type { INestApplication } from '@nestjs/common';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -17,6 +17,7 @@ const STATUS = {
   conflict: 409,
 } as const;
 const FINAL = 'Hola Ana, ya revisamos tu caso.';
+const RACES = 10;
 
 const noCore: CoreClient = {
   customer: () => Promise.resolve(null),
@@ -51,17 +52,15 @@ const decide = (actionId: string) =>
     }),
   });
 
-async function seeded(
-  caseStatus:
-    | 'needs_review'
-    | 'failed'
-    | 'resolved'
-    | 'queued'
-    | 'investigating' = 'needs_review',
-) {
+async function seeded(caseStatus: CaseStatus = 'needs_review', canary = false) {
   sequence += 1;
-  return seedProposal(owner, `r${sequence}`, { caseStatus });
+  return seedProposal(owner, `r${sequence}`, { caseStatus, canary });
 }
+
+const proposalsOf = (caseId: string) =>
+  owner<{ id: string; status: string; is_canary: boolean; type: string }[]>`
+    select id, status, is_canary, type from proposed_actions
+    where case_id = ${caseId} order by proposed_at, id`;
 
 async function state(caseId: string, actionId: string) {
   const [row] = await owner<
@@ -162,5 +161,60 @@ describe('manual re-runs (02 G3)', () => {
     expect((await rerun('case_nope')).status).toBe(STATUS.notFound);
     const { caseId } = await seeded();
     expect((await rerun(caseId, null)).status).toBe(STATUS.unauthorized);
+  });
+
+  it('audits the superseded proposal, not only the case', async () => {
+    const { caseId, actionId } = await seeded();
+    expect((await rerun(caseId)).status).toBe(STATUS.ok);
+    const rows = await owner<{ ref: string; event: string; actor: string }[]>`
+      select ref, event, actor from audit_log where ref in (${caseId}, ${actionId}) order by event`;
+    expect(rows).toEqual([
+      { ref: caseId, event: 'case.rerun', actor: 'operator:ana' },
+      { ref: actionId, event: 'proposal.supersede', actor: 'operator:ana' },
+    ]);
+  });
+
+  it('answers 409, never 500, when a re-run races a decision', async () => {
+    for (let i = 0; i < RACES; i += 1) {
+      const { caseId, actionId } = await seeded();
+      const statuses = await Promise.all([
+        rerun(caseId),
+        decide(actionId),
+      ]).then((responses) => responses.map(({ status }) => status).sort());
+      expect(statuses).toEqual([STATUS.ok, STATUS.conflict]);
+    }
+  });
+});
+
+describe('re-runs of a canary case (02 G3)', () => {
+  it('answers like a real re-run but never queues the case for the agent', async () => {
+    const { caseId, actionId } = await seeded('needs_review', true);
+    const response = await rerun(caseId);
+    expect(response.status).toBe(STATUS.ok);
+    expect(await response.json()).toEqual({
+      case_id: caseId,
+      status: 'queued',
+      manual_reruns: 1,
+    });
+    const [row] = await owner<{ status: string }[]>`
+      select status from cases where id = ${caseId}`;
+    expect(row?.status).toBe('needs_review');
+    const proposals = await proposalsOf(caseId);
+    expect(proposals).toHaveLength(2);
+    expect(proposals[0]).toMatchObject({ id: actionId, status: 'superseded' });
+    expect(proposals[1]).toMatchObject({
+      status: 'proposed',
+      is_canary: true,
+      type: 'open_dispute',
+    });
+  });
+
+  it('refuses to re-run a canary that was already decided', async () => {
+    const { caseId, actionId } = await seeded('needs_review', true);
+    expect((await decide(actionId)).status).toBe(STATUS.ok);
+    expect((await rerun(caseId)).status).toBe(STATUS.conflict);
+    expect(
+      (await proposalsOf(caseId)).every(({ is_canary }) => is_canary),
+    ).toBe(true);
   });
 });

@@ -16,6 +16,7 @@ import {
   type TestDatabase,
 } from '../../test/database.js';
 import * as schema from '../database/schema.js';
+import { reviewTierOf } from '../cases/review-tier.js';
 import { injectCanaries } from './inject.js';
 import { CANARY_DEFECTS, CANARY_TEMPLATES } from './templates.js';
 
@@ -75,6 +76,10 @@ describe('canary:inject (02 G3)', () => {
         source: string;
         review_tier: string;
         flags: unknown;
+        received_at: Date;
+        started_at: Date;
+        finished_at: Date;
+        latency_ms: number;
         folio: string;
         ticket_id: string;
         text_masked: string;
@@ -90,6 +95,7 @@ describe('canary:inject (02 G3)', () => {
     >`
       select a.id as action_id, c.id as case_id, r.id as run_id, a.is_canary, a.status, a.type,
         c.status as case_status, c.source, c.review_tier, c.flags, c.folio, c.ticket_id,
+        c.received_at, r.started_at, r.finished_at, r.latency_ms,
         c.text_masked, c.customer_id, c.category, r.variant, r.model, r.prompt_version,
         r.status as run_status, r.input_tokens, s.draft_reply
       from proposed_actions a
@@ -114,8 +120,11 @@ describe('canary:inject (02 G3)', () => {
         status: 'proposed',
         case_status: 'needs_review',
         source: 'webhook',
-        review_tier: 'standard',
-        flags: [],
+        review_tier: reviewTierOf(
+          template?.seed.action.type ?? 'none',
+          template?.seed.flags ?? [],
+        ),
+        flags: template?.seed.flags,
         customer_id: template?.seed.customerId,
         text_masked: maskPii(template?.seed.text ?? ''),
         variant: 'v1',
@@ -124,12 +133,38 @@ describe('canary:inject (02 G3)', () => {
         run_status: 'succeeded',
         input_tokens: 5120,
       });
+      expect(row.finished_at.getTime() - row.started_at.getTime()).toBe(
+        row.latency_ms,
+      );
+      expect(row.received_at.getTime()).toBeLessThan(row.started_at.getTime());
       expect(isFolio(row.folio)).toBe(true);
       expect(row.case_id).toMatch(registryIdPattern('case'));
       expect(row.run_id).toMatch(registryIdPattern('run'));
       expect(row.action_id).toMatch(registryIdPattern('act'));
       expect(row.ticket_id).not.toMatch(/canar/i);
     }
+  });
+
+  it('injects all canaries or none', async () => {
+    const [count] = await owner<{ n: string }[]>`
+      select count(*) as n from proposed_actions where is_canary`;
+    const broken = [
+      ...CANARY_TEMPLATES.slice(0, 3),
+      {
+        defect: 'cold_tone',
+        seed: { ...CANARY_TEMPLATES[0]!.seed, category: 'not_a_category' },
+      },
+    ] as unknown as typeof CANARY_TEMPLATES;
+    await expect(
+      injectCanaries(
+        drizzle({ client: api, schema }),
+        { now: () => new Date() },
+        broken,
+      ),
+    ).rejects.toThrow();
+    const [after] = await owner<{ n: string }[]>`
+      select count(*) as n from proposed_actions where is_canary`;
+    expect(after?.n).toBe(count?.n);
   });
 
   it('decides an injected canary like any proposal, and never as approved', async () => {
@@ -143,8 +178,9 @@ describe('canary:inject (02 G3)', () => {
       body: JSON.stringify({
         decision: 'approve',
         final_reply: 'Hola, ya registramos tu aclaración.',
-        acknowledged_flags: [],
-        reviewed_transaction_ids: [],
+        acknowledged_flags: CANARY_TEMPLATES[0]?.seed.flags,
+        reviewed_transaction_ids:
+          CANARY_TEMPLATES[0]?.seed.action.transaction_ids,
       }),
     });
     expect(await response.json()).toEqual({

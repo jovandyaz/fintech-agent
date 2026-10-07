@@ -6,7 +6,8 @@ import {
 } from '@fintech-agent/contracts';
 import { desc, eq } from 'drizzle-orm';
 
-import type { Database } from '../database/index.js';
+import { reviewTierOf } from '../cases/review-tier.js';
+import type { Database, DbTransaction } from '../database/index.js';
 import {
   agentRuns,
   cases,
@@ -16,13 +17,17 @@ import {
 import { CANARY_TEMPLATES, type CanaryTemplate } from './templates.js';
 
 const TICKET_PREFIX = 'tkt-';
+// A real case waits in the queue before its run starts.
+const QUEUE_WAIT_MS = 4_000;
 
 /**
  * Seeds one canary proposal per template (02 G3): its own case, run and
- * resolution, as `copilot_api`, indistinguishable from a real proposal but
- * for `is_canary`. The run copies the identity, tokens, cost and latency of
- * the latest succeeded run; with none to mirror it refuses, since a canary
- * that looks unlike real work would be spotted. Returns the action ids.
+ * resolution, all in one transaction, as `copilot_api`, indistinguishable
+ * from a real proposal but for `is_canary`. Cases get Persist's flags and
+ * tier; runs copy the identity, tokens, cost and latency of the latest
+ * succeeded run, with timestamps to match. With no run to mirror it refuses,
+ * since a canary that looks unlike real work would be spotted. Returns the
+ * action ids.
  */
 export async function injectCanaries(
   db: Database,
@@ -38,29 +43,31 @@ export async function injectCanaries(
   if (!mirror)
     throw new Error('no succeeded run to mirror; run a real case first');
 
-  const actionIds: string[] = [];
-  for (const { seed } of templates) {
-    const now = deps.now();
-    const caseId = newRegistryId('case');
-    const runId = newRegistryId('run');
-    const actionId = newRegistryId('act');
-    const params = {
-      transaction_ids: seed.action.transaction_ids,
-      reason_code: seed.action.reason_code,
-    };
-    await db.transaction(async (tx) => {
+  const latencyMs = mirror.latencyMs ?? 0;
+  return db.transaction(async (tx) => {
+    const actionIds: string[] = [];
+    for (const { seed } of templates) {
+      const now = deps.now();
+      const startedAt = new Date(now.getTime() - latencyMs);
+      const caseId = newRegistryId('case');
+      const runId = newRegistryId('run');
+      const actionId = newRegistryId('act');
+      const params = {
+        transaction_ids: seed.action.transaction_ids,
+        reason_code: seed.action.reason_code,
+      };
       await tx.insert(cases).values({
         id: caseId,
         ticketId: `${TICKET_PREFIX}${newIdPayload()}`,
         folio: newFolio(),
-        receivedAt: now,
+        receivedAt: new Date(startedAt.getTime() - QUEUE_WAIT_MS),
         source: 'webhook',
         customerId: seed.customerId,
         textMasked: maskPii(seed.text),
         status: 'needs_review',
         category: seed.category,
-        flags: [],
-        reviewTier: 'standard',
+        flags: seed.flags,
+        reviewTier: reviewTierOf(seed.action.type, seed.flags),
       });
       await tx.insert(agentRuns).values({
         id: runId,
@@ -75,7 +82,7 @@ export async function injectCanaries(
         cachedInputTokens: mirror.cachedInputTokens,
         costUsd: mirror.costUsd,
         latencyMs: mirror.latencyMs,
-        startedAt: now,
+        startedAt,
         finishedAt: now,
       });
       await tx.insert(resolutions).values({
@@ -96,9 +103,60 @@ export async function injectCanaries(
         params,
         justification: seed.action.justification,
         isCanary: true,
+        proposedAt: now,
       });
-    });
-    actionIds.push(actionId);
+      actionIds.push(actionId);
+    }
+    return actionIds;
+  });
+}
+
+/**
+ * Copies an open canary into a fresh run and proposal on the same case, as a
+ * real re-run would produce a new proposal, so re-running a canary neither
+ * reveals it nor sends its fabricated text to the agent. Returns the new id.
+ */
+export async function cloneCanary(
+  tx: DbTransaction,
+  canary: { runId: string | null; caseId: string },
+  now: Date,
+): Promise<string> {
+  if (!canary.runId) throw new Error('a canary always has its run');
+  const [run] = await tx
+    .select()
+    .from(agentRuns)
+    .where(eq(agentRuns.id, canary.runId));
+  const [resolution] = await tx
+    .select()
+    .from(resolutions)
+    .where(eq(resolutions.runId, canary.runId));
+  const [proposal] = await tx
+    .select()
+    .from(proposedActions)
+    .where(eq(proposedActions.runId, canary.runId));
+  if (!run || !resolution || !proposal) {
+    throw new Error(`canary run ${canary.runId} is incomplete`);
   }
-  return actionIds;
+  const runId = newRegistryId('run');
+  const actionId = newRegistryId('act');
+  await tx.insert(agentRuns).values({
+    ...run,
+    id: runId,
+    startedAt: new Date(now.getTime() - (run.latencyMs ?? 0)),
+    finishedAt: now,
+  });
+  await tx.insert(resolutions).values({ ...resolution, runId });
+  await tx.insert(proposedActions).values({
+    id: actionId,
+    caseId: canary.caseId,
+    runId,
+    agentType: proposal.agentType,
+    agentParams: proposal.agentParams,
+    type: proposal.agentType,
+    params: proposal.agentParams,
+    justification: proposal.justification,
+    isCanary: true,
+    proposedAt: now,
+  });
+  return actionId;
 }

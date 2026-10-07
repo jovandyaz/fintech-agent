@@ -15,6 +15,7 @@ import {
 import { and, eq } from 'drizzle-orm';
 
 import { shapeViolation } from '../actions/allowed.js';
+import { AWAITING_DECISION, resolveTarget } from '../cases/case-transition.js';
 import type { RequestMeta } from '../common/http/request-meta.js';
 import type { Database } from '../database/index.js';
 import {
@@ -23,10 +24,10 @@ import {
   proposedActions,
   resolutions,
 } from '../database/schema.js';
+import type { Operator } from '../operators/operator-tokens.js';
 import { replyViolations } from '../replies/reply-checks.js';
 import { editRatio } from './edit-ratio.js';
-import type { Operator } from '../operators/operator-tokens.js';
-import { transition } from './transition.js';
+import { OPEN_PROPOSAL, transition } from './transition.js';
 
 /** Why a decision was refused; the controller maps each to a status code. */
 export const DECISION_FAILURE = {
@@ -64,19 +65,46 @@ export interface DecisionResult {
   status: ActionStatus;
 }
 
+/** Only `transaction()`: the API reads core-mock for override ownership alone. */
+export type CoreReader = Pick<CoreClient, 'transaction'>;
+
 export interface DecideDeps {
   db: Database;
-  core: CoreClient;
+  core: CoreReader;
   now: () => Date;
 }
+
+const APPROVE = 'approve';
+const REJECT = 'reject';
+const CORRECTED = 'wrong_action';
+
+type Approval = Extract<Decision, { decision: typeof APPROVE }>;
+type Rejection = Extract<Decision, { decision: typeof REJECT }>;
 
 interface Target {
   type: ActionType;
   params: ActionParams;
 }
 
-const OPEN: ActionStatus = 'proposed';
-const APPROVE = 'approve';
+interface Proposal {
+  status: ActionStatus;
+  isCanary: boolean;
+  agent: Target;
+  caseId: string;
+  caseStatus: (typeof cases.$inferSelect)['status'];
+  customerId: string;
+  flags: CaseFlag[];
+  reviewTier: (typeof cases.$inferSelect)['reviewTier'];
+  draftReply: string | null;
+}
+
+/** What one decision writes besides the fields every decision shares. */
+interface Changes {
+  status: ActionStatus;
+  target: Target;
+  columns: Partial<typeof proposedActions.$inferInsert>;
+  audit: Record<string, unknown>;
+}
 
 const sameSet = (a: readonly string[], b: readonly string[]): boolean => {
   const left = new Set(a);
@@ -93,11 +121,11 @@ const sameAction = (a: Target, b: Target): boolean =>
   a.params.transaction_ids.every((id, i) => id === b.params.transaction_ids[i]);
 
 async function readTransactions(
-  core: CoreClient,
+  reader: CoreReader,
   ids: readonly string[],
 ): Promise<(Transaction | null)[]> {
   try {
-    return await Promise.all(ids.map((id) => core.transaction(id)));
+    return await Promise.all(ids.map((id) => reader.transaction(id)));
   } catch (error) {
     if (error instanceof CoreUnavailableError) {
       throw new DecisionError(DECISION_FAILURE.coreUnavailable);
@@ -107,11 +135,11 @@ async function readTransactions(
 }
 
 async function overrideTarget(
-  core: CoreClient,
+  reader: CoreReader,
   customerId: string,
   override: Override,
 ): Promise<Target> {
-  const found = await readTransactions(core, override.transaction_ids);
+  const found = await readTransactions(reader, override.transaction_ids);
   const owned = found.filter(
     (transaction): transaction is Transaction =>
       transaction?.customer_id === customerId,
@@ -132,24 +160,77 @@ async function overrideTarget(
   };
 }
 
-/**
- * Applies an operator's decision to a proposal (02 G3). Every check that can
- * fail runs before the transaction; inside it, conditional updates on the
- * proposal and the case turn a concurrent decision into a conflict, and the
- * G1 trigger refuses anything this code gets wrong.
- */
-export async function decide(
-  deps: DecideDeps,
-  input: DecideInput,
-): Promise<DecisionResult> {
-  const { decision, operator } = input;
-  const [row] = await deps.db
+async function approvalChanges(
+  reader: CoreReader,
+  proposal: Proposal,
+  decision: Approval,
+): Promise<Changes> {
+  if (!sameSet(decision.acknowledged_flags, proposal.flags)) {
+    throw new DecisionError(DECISION_FAILURE.flagsNotAcknowledged);
+  }
+  const target = decision.override
+    ? await overrideTarget(reader, proposal.customerId, decision.override)
+    : proposal.agent;
+  const actionIds = target.params.transaction_ids;
+  const reviewed = decision.reviewed_transaction_ids;
+  // A case Persist left untiered is checked off like a high one: fail closed.
+  const mustCheckOff =
+    decision.override !== undefined ||
+    (proposal.reviewTier !== 'standard' && actionIds.length > 0);
+  const reviewedOk = mustCheckOff
+    ? sameSet(reviewed, actionIds)
+    : reviewed.every((id) => actionIds.includes(id));
+  if (!reviewedOk) {
+    throw new DecisionError(DECISION_FAILURE.transactionsNotReviewed);
+  }
+  // An approve of a canary is a miss, but an override replaces the defective
+  // action instead of passing it, so the operator caught it.
+  const caught = proposal.isCanary && decision.override !== undefined;
+  const status = transition(
+    proposal.status,
+    caught ? REJECT : APPROVE,
+    proposal.isCanary,
+  );
+  if (!status) throw new DecisionError(DECISION_FAILURE.conflict);
+  return {
+    status,
+    target,
+    columns: {
+      reviewedTransactionIds:
+        reviewed.length > 0 ? [...new Set(reviewed)] : null,
+      ...(caught ? { rejectCode: CORRECTED } : {}),
+    },
+    audit: { override: decision.override ?? null },
+  };
+}
+
+function rejectionChanges(proposal: Proposal, decision: Rejection): Changes {
+  // The reason is never sent to the customer, but it is persisted (G6).
+  if (decision.reject_reason && hasPii(decision.reject_reason)) {
+    throw new DecisionError(DECISION_FAILURE.piiInRejectReason);
+  }
+  const status = transition(proposal.status, REJECT, proposal.isCanary);
+  if (!status) throw new DecisionError(DECISION_FAILURE.conflict);
+  return {
+    status,
+    target: proposal.agent,
+    columns: {
+      rejectCode: decision.reject_code,
+      rejectReason: decision.reject_reason ?? null,
+    },
+    audit: { reject_code: decision.reject_code },
+  };
+}
+
+async function loadProposal(db: Database, actionId: string): Promise<Proposal> {
+  const [row] = await db
     .select({
       status: proposedActions.status,
       isCanary: proposedActions.isCanary,
       agentType: proposedActions.agentType,
       agentParams: proposedActions.agentParams,
       caseId: cases.id,
+      caseStatus: cases.status,
       customerId: cases.customerId,
       flags: cases.flags,
       reviewTier: cases.reviewTier,
@@ -158,107 +239,90 @@ export async function decide(
     .from(proposedActions)
     .innerJoin(cases, eq(cases.id, proposedActions.caseId))
     .leftJoin(resolutions, eq(resolutions.runId, proposedActions.runId))
-    .where(eq(proposedActions.id, input.actionId));
+    .where(eq(proposedActions.id, actionId));
   if (!row) throw new DecisionError(DECISION_FAILURE.notFound);
-  if (row.status !== OPEN) throw new DecisionError(DECISION_FAILURE.conflict);
+  const { agentType, agentParams, ...rest } = row;
+  return { ...rest, agent: { type: agentType, params: agentParams } };
+}
 
+/**
+ * Applies an operator's decision to a proposal (02 G3). Every check that can
+ * fail runs before the transaction; inside it, conditional updates on the
+ * case and then the proposal turn a concurrent decision or re-run into a
+ * conflict, and the G1 trigger refuses anything this code gets wrong.
+ */
+export async function decide(
+  deps: DecideDeps,
+  input: DecideInput,
+): Promise<DecisionResult> {
+  const { decision, operator } = input;
+  const proposal = await loadProposal(deps.db, input.actionId);
+  const resolvedCase = resolveTarget(proposal.caseStatus);
+  if (!resolvedCase) throw new DecisionError(DECISION_FAILURE.conflict);
   const codes = replyViolations(decision.final_reply);
   if (codes.length > 0) {
     throw new DecisionError(DECISION_FAILURE.invalidReply, codes);
   }
-
-  const agent: Target = { type: row.agentType, params: row.agentParams };
-  let target = agent;
-  let decided: Partial<typeof proposedActions.$inferInsert>;
-  if (decision.decision === APPROVE) {
-    if (!sameSet(decision.acknowledged_flags, row.flags)) {
-      throw new DecisionError(DECISION_FAILURE.flagsNotAcknowledged);
-    }
-    if (decision.override) {
-      target = await overrideTarget(
-        deps.core,
-        row.customerId,
-        decision.override,
-      );
-    }
-    const mustCheckOff =
-      decision.override !== undefined ||
-      (row.reviewTier === 'high' && target.params.transaction_ids.length > 0);
-    if (
-      mustCheckOff &&
-      !sameSet(decision.reviewed_transaction_ids, target.params.transaction_ids)
-    ) {
-      throw new DecisionError(DECISION_FAILURE.transactionsNotReviewed);
-    }
-    decided = {
-      reviewedTransactionIds: [...new Set(decision.reviewed_transaction_ids)],
-    };
-  } else {
-    // The reason is never sent to the customer, but it is persisted (G6).
-    if (decision.reject_reason && hasPii(decision.reject_reason)) {
-      throw new DecisionError(DECISION_FAILURE.piiInRejectReason);
-    }
-    decided = {
-      rejectCode: decision.reject_code,
-      rejectReason: decision.reject_reason ?? null,
-    };
-  }
-
-  const status = transition(OPEN, decision.decision, row.isCanary);
-  if (!status) throw new DecisionError(DECISION_FAILURE.conflict);
+  const changes =
+    decision.decision === APPROVE
+      ? await approvalChanges(deps.core, proposal, decision)
+      : rejectionChanges(proposal, decision);
   const decidedAt = deps.now();
   const acknowledged: CaseFlag[] = [...new Set(decision.acknowledged_flags)];
 
   return deps.db.transaction(async (tx) => {
+    // The case row is locked first, as a re-run locks it, so the two never deadlock.
+    const resolved = await tx
+      .update(cases)
+      .set({ status: resolvedCase })
+      .where(
+        and(eq(cases.id, proposal.caseId), eq(cases.status, AWAITING_DECISION)),
+      )
+      .returning({ id: cases.id });
+    if (resolved.length === 0) {
+      throw new DecisionError(DECISION_FAILURE.conflict);
+    }
     const updated = await tx
       .update(proposedActions)
       .set({
-        ...decided,
-        status,
+        ...changes.columns,
+        status: changes.status,
         decidedBy: operator.actor,
         decidedAt,
         finalReply: decision.final_reply,
-        replyEditRatio: editRatio(row.draftReply ?? '', decision.final_reply),
+        replyEditRatio: editRatio(
+          proposal.draftReply ?? '',
+          decision.final_reply,
+        ),
         acknowledgedFlags: acknowledged,
-        type: target.type,
-        params: target.params,
-        operatorOverride: !sameAction(target, agent),
+        type: changes.target.type,
+        params: changes.target.params,
+        operatorOverride: !sameAction(changes.target, proposal.agent),
       })
       .where(
         and(
           eq(proposedActions.id, input.actionId),
-          eq(proposedActions.status, OPEN),
+          eq(proposedActions.status, OPEN_PROPOSAL),
         ),
       )
       .returning({ id: proposedActions.id });
-    if (updated.length === 0)
+    if (updated.length === 0) {
       throw new DecisionError(DECISION_FAILURE.conflict);
-
-    const resolved = await tx
-      .update(cases)
-      .set({ status: 'resolved' })
-      .where(and(eq(cases.id, row.caseId), eq(cases.status, 'needs_review')))
-      .returning({ id: cases.id });
-    if (resolved.length === 0)
-      throw new DecisionError(DECISION_FAILURE.conflict);
-
+    }
     await tx.insert(auditLog).values({
       at: decidedAt,
       actor: operator.actor,
       event: `decision.${decision.decision}`,
       ref: input.actionId,
       detailMasked: maskJson({
-        status,
+        status: changes.status,
         acknowledged_flags: acknowledged,
-        override:
-          decision.decision === APPROVE ? (decision.override ?? null) : null,
-        reject_code:
-          decision.decision === APPROVE ? null : decision.reject_code,
+        ...changes.audit,
       }),
       keyId: operator.keyId,
       ip: input.meta.ip,
       userAgent: input.meta.userAgent,
     });
-    return { action_id: input.actionId, status };
+    return { action_id: input.actionId, status: changes.status };
   });
 }

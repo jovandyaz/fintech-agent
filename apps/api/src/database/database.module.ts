@@ -14,6 +14,10 @@ export const DATABASE_CLIENT = 'DATABASE_CLIENT';
 /** Drizzle over that client, with the schema of 01. */
 export const DATABASE = 'DATABASE';
 export type Database = PostgresJsDatabase<typeof schema>;
+/** The handle a `Database.transaction` callback receives. */
+export type DbTransaction = Parameters<
+  Parameters<Database['transaction']>[0]
+>[0];
 
 const POOL_SIZE = 10;
 const IDLE_TIMEOUT_S = 20;
