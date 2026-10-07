@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { OPEN_PROPOSAL, transition } from '../approvals/transition.js';
 import { cloneCanary } from '../canaries/inject.js';
+import { REFUSAL } from '../common/errors/refusal.js';
 import type { RequestMeta } from '../common/http/request-meta.js';
 import type { Database } from '../database/index.js';
 import { auditLog, cases, proposedActions } from '../database/schema.js';
@@ -10,10 +11,7 @@ import type { Operator } from '../operators/operator-tokens.js';
 import { rerunTarget } from './case-transition.js';
 
 /** Why a re-run was refused; the controller maps each to a status code. */
-export const RERUN_FAILURE = {
-  notFound: 'not_found',
-  conflict: 'conflict',
-} as const;
+export const RERUN_FAILURE = REFUSAL;
 export type RerunFailure = (typeof RERUN_FAILURE)[keyof typeof RERUN_FAILURE];
 
 /** A refused re-run. */

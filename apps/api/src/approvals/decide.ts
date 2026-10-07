@@ -16,6 +16,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { shapeViolation } from '../actions/allowed.js';
 import { AWAITING_DECISION, resolveTarget } from '../cases/case-transition.js';
+import { REFUSAL } from '../common/errors/refusal.js';
 import type { RequestMeta } from '../common/http/request-meta.js';
 import type { Database } from '../database/index.js';
 import {
@@ -31,8 +32,7 @@ import { OPEN_PROPOSAL, transition } from './transition.js';
 
 /** Why a decision was refused; the controller maps each to a status code. */
 export const DECISION_FAILURE = {
-  notFound: 'not_found',
-  conflict: 'conflict',
+  ...REFUSAL,
   invalidReply: 'invalid_reply',
   piiInRejectReason: 'pii_in_reject_reason',
   flagsNotAcknowledged: 'flags_not_acknowledged',

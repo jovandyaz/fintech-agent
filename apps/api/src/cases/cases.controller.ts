@@ -1,55 +1,51 @@
+import { CaseIdSchema } from '@fintech-agent/contracts';
 import {
-  ConflictException,
   Controller,
   HttpCode,
   HttpStatus,
   Inject,
-  NotFoundException,
   Param,
   Post,
   Req,
   UseGuards,
-  type HttpException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 
+import { failureException } from '../common/http/failure-status.js';
 import { requestMeta } from '../common/http/request-meta.js';
-import { DATABASE, type Database } from '../database/index.js';
+import { ZodPipe } from '../common/http/zod.pipe.js';
 import { CurrentOperator, OperatorGuard } from '../operators/operator.guard.js';
 import type { Operator } from '../operators/operator-tokens.js';
 import {
-  RERUN_FAILURE,
   RerunError,
   rerunCase,
-  type RerunFailure,
+  type RerunDeps,
   type RerunResult,
 } from './rerun.js';
 
-const HTTP_ERROR: Record<RerunFailure, () => HttpException> = {
-  [RERUN_FAILURE.notFound]: () => new NotFoundException(),
-  [RERUN_FAILURE.conflict]: () => new ConflictException(),
-};
+export const RERUN_DEPS = 'RERUN_DEPS';
 
 /** `POST /cases/:caseId/rerun`: an operator sends a case back to the agent (02 G3). */
 @Controller('cases')
 @UseGuards(OperatorGuard)
 export class CasesController {
-  constructor(@Inject(DATABASE) private readonly db: Database) {}
+  constructor(@Inject(RERUN_DEPS) private readonly deps: RerunDeps) {}
 
   @Post(':caseId/rerun')
   @HttpCode(HttpStatus.OK)
   async rerun(
-    @Param('caseId') caseId: string,
+    @Param('caseId', new ZodPipe(CaseIdSchema)) caseId: string,
     @CurrentOperator() operator: Operator,
     @Req() request: Request,
   ): Promise<RerunResult> {
     try {
-      return await rerunCase(
-        { db: this.db, now: () => new Date() },
-        { caseId, operator, meta: requestMeta(request) },
-      );
+      return await rerunCase(this.deps, {
+        caseId,
+        operator,
+        meta: requestMeta(request),
+      });
     } catch (error) {
-      if (error instanceof RerunError) throw HTTP_ERROR[error.failure]();
+      if (error instanceof RerunError) throw failureException(error.failure);
       throw error;
     }
   }
