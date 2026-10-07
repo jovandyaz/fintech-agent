@@ -8,6 +8,8 @@ const AGENT_TO_EXECUTOR =
   'G1: the agent module must not import the executor (specs/02-security.md).';
 const AGENT_TO_WRITE_CLIENT =
   'G1: only the executor may hold the core-mock write client (specs/02-security.md).';
+const AGENT_TO_CORE_READ =
+  'G4: the agent reads core data only through the MCP tools bound to its case (specs/02-security.md).';
 const EXECUTOR_TO_AGENT =
   'G1: the executor must not import the agent module (specs/02-security.md).';
 
@@ -30,6 +32,10 @@ const MODULE_LOADERS = ['module', 'node:module'].map((name) => ({
   name,
   message: LOAD_THROUGH_IMPORT,
 }));
+const CORE_READ_CLIENT = [
+  "Identifier[name='createCoreClient']",
+  "Literal[value='createCoreClient']",
+].map((selector) => ({ selector, message: AGENT_TO_CORE_READ }));
 const LOADER_SYNTAX = [
   'ImportExpression[source.value=/^(node:)?module$/]',
   "Identifier[name='getBuiltinModule']",
@@ -98,6 +104,7 @@ export default defineConfig(
         dynamicImportOf('core-write-client', AGENT_TO_WRITE_CLIENT),
         COMPUTED_DYNAMIC_IMPORT,
         ...LOADER_SYNTAX,
+        ...CORE_READ_CLIENT,
       ],
     },
   },
