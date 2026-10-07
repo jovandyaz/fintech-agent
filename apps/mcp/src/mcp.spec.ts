@@ -466,6 +466,7 @@ describe('MCP authentication (02 G4)', () => {
       const { tools } = await client.listTools();
       expect(tools).toHaveLength(TOOL_ORDER.length);
       expect((await call(client, 'get_customer')).isError).toBe(false);
+      expect(logs.filter((line) => line.event === 'auth_rejected')).toEqual([]);
       await client.close();
     },
   );
