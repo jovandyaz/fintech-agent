@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
 interface ComposeService {
-  environment?: Record<string, string>;
+  environment?: Record<string, string> | string[];
+  env_file?: unknown;
 }
 
 const compose = parse(
@@ -17,14 +18,23 @@ const compose = parse(
 
 const holders = (variable: string): string[] =>
   Object.entries(compose.services)
-    .filter(([, service]) => variable in (service.environment ?? {}))
+    .filter(([, service]) => Object.hasOwn(service.environment ?? {}, variable))
     .map(([name]) => name)
     .sort();
 
-const env = (service: string): Record<string, string> =>
-  compose.services[service]?.environment ?? {};
+const env = (service: string): Record<string, string> => {
+  const environment = compose.services[service]?.environment ?? {};
+  return Array.isArray(environment) ? {} : environment;
+};
 
 describe('compose process boundary (02 G1)', () => {
+  it('declares every variable in a map, so the checks below see them all', () => {
+    for (const [name, service] of Object.entries(compose.services)) {
+      expect(Array.isArray(service.environment), name).toBe(false);
+      expect(service.env_file, name).toBeUndefined();
+    }
+  });
+
   it('gives CORE_EXECUTOR_KEY only to the executor and core-mock', () => {
     const executorKeyHolders = holders('CORE_EXECUTOR_KEY');
     expect(executorKeyHolders).toContain('core-mock');
