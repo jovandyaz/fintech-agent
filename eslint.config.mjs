@@ -4,6 +4,24 @@ import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+const AGENT_TO_EXECUTOR =
+  'G1: the agent module must not import the executor (specs/02-security.md).';
+const AGENT_TO_WRITE_CLIENT =
+  'G1: only the executor may hold the core-mock write client (specs/02-security.md).';
+const EXECUTOR_TO_AGENT =
+  'G1: the executor must not import the agent module (specs/02-security.md).';
+
+// no-restricted-imports sees only static imports and re-exports.
+const dynamicImportOf = (segment, message) => ({
+  selector: `ImportExpression[source.value=/(^|\\/)${segment}(\\/|\\.js$|$)/]`,
+  message,
+});
+const COMPUTED_DYNAMIC_IMPORT = {
+  selector: "ImportExpression[source.type!='Literal']",
+  message:
+    'G1: a dynamic import here takes a literal path, so the boundary rules can check it (specs/02-security.md).',
+};
+
 export default defineConfig(
   {
     ignores: [
@@ -40,16 +58,24 @@ export default defineConfig(
           patterns: [
             {
               group: ['**/executor', '**/executor/**'],
-              message:
-                'G1: the agent module must not import the executor (specs/02-security.md).',
+              message: AGENT_TO_EXECUTOR,
             },
             {
-              group: ['**/core-write-client', '**/core-write-client/**'],
-              message:
-                'G1: only the executor may hold the core-mock write client (specs/02-security.md).',
+              group: [
+                '**/core-write-client',
+                '**/core-write-client.js',
+                '**/core-write-client/**',
+              ],
+              message: AGENT_TO_WRITE_CLIENT,
             },
           ],
         },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        dynamicImportOf('executor', AGENT_TO_EXECUTOR),
+        dynamicImportOf('core-write-client', AGENT_TO_WRITE_CLIENT),
+        COMPUTED_DYNAMIC_IMPORT,
       ],
     },
   },
@@ -63,11 +89,15 @@ export default defineConfig(
           patterns: [
             {
               group: ['**/agent', '**/agent/**'],
-              message:
-                'G1: the executor must not import the agent module (specs/02-security.md).',
+              message: EXECUTOR_TO_AGENT,
             },
           ],
         },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        dynamicImportOf('agent', EXECUTOR_TO_AGENT),
+        COMPUTED_DYNAMIC_IMPORT,
       ],
     },
   },
