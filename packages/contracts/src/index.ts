@@ -7,3 +7,4 @@ export * from './states.js';
 export * from './redact.js';
 export * from './boot-failure.js';
 export * from './core-client.js';
+export * from './policy.js';
