@@ -22,6 +22,7 @@ import {
   speiRow,
   speiStatus,
 } from '../../test/validator-fixtures.js';
+import { fastestRunMs } from '../../test/timing.js';
 import { CalendarRangeError } from './core/calendar.js';
 import {
   buildEvidence,
@@ -797,14 +798,13 @@ describe('validation time', () => {
       const draft = shape
         .repeat(Math.ceil(MAX_REPLY_CHARS / shape.length))
         .slice(0, MAX_REPLY_CHARS);
-      const started = performance.now();
-      validate(replying(draft), {
-        evidence: buildEvidence(runOf(CARD_DISPUTE_RUN)),
-        stateRules: [],
-      });
-      expect(performance.now() - started, shape).toBeLessThan(
-        VALIDATION_BUDGET_MS,
+      const fastest = fastestRunMs(() =>
+        validate(replying(draft), {
+          evidence: buildEvidence(runOf(CARD_DISPUTE_RUN)),
+          stateRules: [],
+        }),
       );
+      expect(fastest, shape).toBeLessThan(VALIDATION_BUDGET_MS);
     }
   });
 });

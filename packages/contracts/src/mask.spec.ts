@@ -14,6 +14,7 @@ const NBSP = ' ';
 const NARROW_NBSP = ' ';
 const ZWSP = '​';
 const MAX_MASK_MS_FOR_32KB = 250;
+const TIMED_RUNS = 3;
 const SEPARATORS = /[^\d\p{L}•]/gu;
 const EIGHT_DIGITS = /\d{8}/;
 
@@ -424,9 +425,16 @@ describe('maskPii — properties', () => {
     ['repeated labels before one value', `${'tel '.repeat(7_000)}5512345678`],
     ['many typed bullets and digits', '•1 '.repeat(10_000)],
   ])('masks 32 KB of %s in linear time', (_, text) => {
-    const start = performance.now();
-    maskPii(text);
-    expect(performance.now() - start).toBeLessThan(MAX_MASK_MS_FOR_32KB);
+    // The fastest of a few runs: parallel verify runs stall single samples,
+    // but a superlinear regression is slow on every run.
+    const fastest = Math.min(
+      ...Array.from({ length: TIMED_RUNS }, () => {
+        const start = performance.now();
+        maskPii(text);
+        return performance.now() - start;
+      }),
+    );
+    expect(fastest).toBeLessThan(MAX_MASK_MS_FOR_32KB);
   });
 
   const benign = [
