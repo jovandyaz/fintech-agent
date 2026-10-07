@@ -74,4 +74,15 @@ describe('compose process boundary (02 G1)', () => {
       'service_completed_successfully',
     );
   });
+
+  it('restarts the executor and checks it is alive, so the sweeper always comes back (01 failure handling)', () => {
+    const executor = compose.services.executor as {
+      restart?: string;
+      healthcheck?: { test?: unknown };
+    };
+    expect(executor.restart).toBe('unless-stopped');
+    expect(JSON.stringify(executor.healthcheck?.test)).toContain(
+      'executor-alive',
+    );
+  });
 });

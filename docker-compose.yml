@@ -63,6 +63,12 @@ services:
       CORE_MOCK_URL: http://core-mock:3010
       CORE_EXECUTOR_KEY: ${CORE_EXECUTOR_KEY:-dev-core-executor-key}
       EXECUTOR_POLL_MS: ${EXECUTOR_POLL_MS:-1000}
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'find /tmp/executor-alive -mmin -1 | grep -q .']
+      interval: 10s
+      timeout: 3s
+      retries: 6
     depends_on:
       seed:
         condition: service_completed_successfully
