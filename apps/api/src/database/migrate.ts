@@ -6,10 +6,7 @@ import postgres from 'postgres';
 
 const MIGRATIONS_FOLDER = resolve(import.meta.dirname, '../../drizzle');
 
-/**
- * Applies pending migrations as the owner role. Idempotent; `seed` is the only
- * caller in the stack and runs once, so no advisory lock is taken.
- */
+/** Applies pending migrations as the owner role. Idempotent; takes no lock, so never run two at once. */
 export async function migrateDatabase(ownerUrl: string): Promise<void> {
   const client = postgres(ownerUrl, { max: 1, onnotice: () => undefined });
   try {

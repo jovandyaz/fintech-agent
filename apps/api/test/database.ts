@@ -5,7 +5,10 @@ import type { Sql } from 'postgres';
 import { migrateDatabase } from '../src/database/migrate.js';
 import { setRolePasswords } from '../src/database/roles.js';
 
+// The image compose runs (docker-compose.yml `db`).
 const IMAGE = 'postgres:16-alpine';
+/** Upper bound for pulling and starting the container in a test hook. */
+export const CONTAINER_START_MS = 120_000;
 
 export interface TestDatabase {
   ownerUrl: string;
@@ -41,7 +44,6 @@ export async function startTestDatabase(): Promise<TestDatabase> {
   };
 }
 
-/** Inserts a queued case as the owner, for tests that need a row to point at. */
 export async function insertCase(
   sql: Sql,
   id: string,

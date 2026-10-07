@@ -10,7 +10,6 @@ export const CASE_STATUSES = [
 ] as const;
 export type CaseStatus = (typeof CASE_STATUSES)[number];
 
-/** The inbox hides `eval` cases by default. */
 export const CASE_SOURCES = ['webhook', 'console', 'eval'] as const;
 export type CaseSource = (typeof CASE_SOURCES)[number];
 

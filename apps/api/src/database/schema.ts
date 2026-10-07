@@ -47,7 +47,12 @@ const caseIdRef = () =>
     .notNull()
     .references(() => cases.id);
 const runIdRef = () => text('run_id').references(() => agentRuns.id);
-const weighted = (column: PgColumn, weight: 'A' | 'B' | 'D'): SQL =>
+const SEARCH_WEIGHT = { heading: 'A', keywords: 'B', body: 'D' } as const;
+
+const weighted = (
+  column: PgColumn,
+  weight: (typeof SEARCH_WEIGHT)[keyof typeof SEARCH_WEIGHT],
+): SQL =>
   sql`setweight(to_tsvector(${SEARCH_CONFIG}, ${column}), ${sql.raw(`'${weight}'`)})`;
 
 export const caseStatus = pgEnum('case_status', CASE_STATUSES);
@@ -219,7 +224,7 @@ export const policyChunks = pgTable(
       .notNull()
       .generatedAlwaysAs(
         (): SQL =>
-          sql`${weighted(policyChunks.section, 'A')} || ${weighted(policyChunks.keywords, 'B')} || ${weighted(policyChunks.content, 'D')}`,
+          sql`${weighted(policyChunks.section, SEARCH_WEIGHT.heading)} || ${weighted(policyChunks.keywords, SEARCH_WEIGHT.keywords)} || ${weighted(policyChunks.content, SEARCH_WEIGHT.body)}`,
       ),
     stateRules: jsonb('state_rules').notNull().default([]),
     contentHash: text('content_hash').notNull(),

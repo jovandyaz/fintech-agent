@@ -14,7 +14,7 @@ import {
 } from './states.js';
 
 describe('persisted state sets (01 Data model, 02 G1)', () => {
-  it('match the spec', () => {
+  it('keep the members and order the database enums are migrated from', () => {
     expect(CASE_STATUSES).toEqual([
       'queued',
       'investigating',

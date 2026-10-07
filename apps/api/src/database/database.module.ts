@@ -4,22 +4,16 @@ import {
   type DynamicModule,
   type OnApplicationShutdown,
 } from '@nestjs/common';
-import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres, { type Sql } from 'postgres';
 
-import * as schema from './schema.js';
-
-export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
-/** Raw postgres-js client. Inject only to pin work to one connection; everything else uses `DATABASE_CONNECTION`. */
+/** The postgres.js client for this process's role; repositories build on it. */
 export const DATABASE_CLIENT = 'DATABASE_CLIENT';
 
 const POOL_SIZE = 10;
 const IDLE_TIMEOUT_S = 20;
 const CONNECT_TIMEOUT_S = 10;
 
-export type Database = PostgresJsDatabase<typeof schema>;
-
-/** Provides the Drizzle database for one role's connection URL (02 G1). */
+/** Provides the postgres.js client for one role's connection URL (02 G1). */
 @Module({})
 export class DatabaseModule implements OnApplicationShutdown {
   constructor(@Inject(DATABASE_CLIENT) private readonly client: Sql) {}
@@ -39,13 +33,8 @@ export class DatabaseModule implements OnApplicationShutdown {
               onnotice: () => undefined,
             }),
         },
-        {
-          provide: DATABASE_CONNECTION,
-          useFactory: (client: Sql): Database => drizzle(client, { schema }),
-          inject: [DATABASE_CLIENT],
-        },
       ],
-      exports: [DATABASE_CONNECTION, DATABASE_CLIENT],
+      exports: [DATABASE_CLIENT],
     };
   }
 

@@ -1,5 +1,7 @@
+import { Logger } from '@nestjs/common';
 import { z } from 'zod';
 
+import { JsonConsoleLogger } from '../common/logging/json-console-logger.js';
 import { migrateDatabase } from '../database/migrate.js';
 import { setRolePasswords } from '../database/roles.js';
 
@@ -10,6 +12,7 @@ const SeedConfigSchema = z.object({
   MCP_DB_PASSWORD: z.string().min(1),
 });
 
+Logger.overrideLogger(new JsonConsoleLogger());
 const config = SeedConfigSchema.parse(process.env);
 await migrateDatabase(config.DATABASE_URL);
 await setRolePasswords(config.DATABASE_URL, {
@@ -17,4 +20,4 @@ await setRolePasswords(config.DATABASE_URL, {
   copilot_executor: config.EXECUTOR_DB_PASSWORD,
   copilot_mcp: config.MCP_DB_PASSWORD,
 });
-console.log(JSON.stringify({ event: 'seed_done' }));
+new Logger('Seed').log({ event: 'seed_done' });

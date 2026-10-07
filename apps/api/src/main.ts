@@ -5,7 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { assertApiEnv } from './boot.js';
 import { loadApiConfig } from './config.js';
-import { JsonConsoleLogger } from './core/logging/json-console-logger.js';
+import { JsonConsoleLogger } from './common/logging/json-console-logger.js';
 
 assertApiEnv(process.env);
 const config = loadApiConfig(process.env);

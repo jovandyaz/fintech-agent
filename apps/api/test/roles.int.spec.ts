@@ -9,12 +9,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { setRolePasswords } from '../src/database/roles.js';
 import {
+  CONTAINER_START_MS,
   insertCase,
   startTestDatabase,
   type TestDatabase,
 } from './database.js';
 
-const CONTAINER_START_MS = 120_000;
 const OK = 'ok';
 const PERMISSION_DENIED = '42501';
 const TRANSITION_REFUSED = 'P0001';
