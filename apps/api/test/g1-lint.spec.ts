@@ -47,6 +47,14 @@ describe('G1/G4 lint boundary around agent/ and executor/ (02 Process boundary)'
       `export const load = () => import('../../clients/core-write-client.js');\n`,
     ],
     [
+      'a static core-mock import (its server holds the write endpoints)',
+      `import { createCoreMock } from '@fintech-agent/core-mock';\nexport { createCoreMock };\n`,
+    ],
+    [
+      'a dynamic core-mock import',
+      `export const load = () => import('@fintech-agent/core-mock');\n`,
+    ],
+    [
       'a computed dynamic import',
       `export const load = (path: string) => import(path);\n`,
     ],
