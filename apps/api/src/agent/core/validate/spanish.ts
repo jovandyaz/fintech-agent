@@ -1,3 +1,5 @@
+import { foldLookalikes } from '@fintech-agent/contracts';
+
 import { foldNumberWords } from './number-words.js';
 
 const IGNORABLE = /\p{Default_Ignorable_Code_Point}/gu;
@@ -53,16 +55,19 @@ export const alternation = (forms: Readonly<Record<string, unknown>>): string =>
 
 /**
  * The one folding every lexical G5 check reads through, so they cannot
- * drift: accents, invisible characters and case removed, any run of
+ * drift: accents, invisible characters and case removed, look-alike
+ * letters and other scripts' digits made Latin and ASCII, any run of
  * whitespace one space, and Spanish number words as digits.
  */
 export const foldForMatching = (text: string): string =>
   foldNumberWords(
-    text
-      .normalize('NFKD')
-      .replace(DIACRITICS, '')
-      .replace(IGNORABLE, '')
-      .normalize('NFKC')
+    foldLookalikes(
+      text
+        .normalize('NFKD')
+        .replace(DIACRITICS, '')
+        .replace(IGNORABLE, '')
+        .normalize('NFKC'),
+    )
       .toLowerCase()
       .replace(WHITESPACE, ' '),
   );

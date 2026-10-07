@@ -6,20 +6,41 @@ const OBJECT_PRONOUN = String.raw`(?:lo|la|los|las|se|nos|te|le|les)\s`;
 const PRONOUNS = `(?:${OBJECT_PRONOUN}){0,2}`;
 // "devolverte", "abonárselo": pronouns glued to the infinitive.
 const ENCLITICS = '(?:te|le|les|lo|la|los|las|se|nos)*';
-const FUTURE_PROMISES = [
-  'reembolsaremos',
-  'devolveremos',
-  'abonaremos',
-  'depositaremos',
-  'garantizamos',
-];
-const PRESENT_PROMISES = [
-  'devolvemos',
-  'reembolsamos',
-  'abonamos',
-  'depositamos',
-];
 const PROMISED_INFINITIVES = ['reembolsar', 'devolver', 'abonar', 'depositar'];
+const FUTURE_ENDINGS = ['e', 'as', 'a', 'emos', 'eis', 'an'];
+// Every person of the future, and of "garantizar" in the present: "te
+// reembolsarán" promises as much as "te reembolsaremos".
+const FUTURE_PROMISES = [
+  ...PROMISED_INFINITIVES.flatMap((verb) =>
+    FUTURE_ENDINGS.map((ending) => verb + ending),
+  ),
+  'garantizo',
+  'garantizas',
+  'garantiza',
+  'garantizamos',
+  'garantizan',
+];
+// The present promises too ("mañana te devuelven"); the first person
+// singular is left out because it is the noun ("reembolso", "abono").
+const PRESENT_PROMISES = [
+  'devuelves',
+  'devuelve',
+  'devolvemos',
+  'devuelven',
+  'reembolsas',
+  'reembolsa',
+  'reembolsamos',
+  'reembolsan',
+  'abonas',
+  'abona',
+  'abonamos',
+  'abonan',
+  'depositas',
+  'deposita',
+  'depositamos',
+  'depositan',
+];
+const GOING_TO = ['voy', 'vas', 'va', 'vamos', 'van'];
 const DONE_ACTIONS = [
   'abrimos',
   'escalamos',
@@ -45,7 +66,7 @@ const COMMITMENT = new RegExp(
   [
     String.raw`\b${PRONOUNS}(?:${FUTURE_PROMISES.join('|')})\b`,
     String.raw`\b${PRONOUNS}(?:${PRESENT_PROMISES.join('|')})\b`,
-    String.raw`\b${PRONOUNS}vamos\sa\s(?:${PROMISED_INFINITIVES.join('|')})${ENCLITICS}\b`,
+    String.raw`\b${PRONOUNS}(?:${GOING_TO.join('|')})\sa\s(?:${PROMISED_INFINITIVES.join('|')})${ENCLITICS}\b`,
     String.raw`\bya\s${PRONOUNS}(?:${DONE_ACTIONS.join('|')})\b`,
     String.raw`${DEADLINE}(?:${CLITIC}\p{L}+|(?:${OBJECT_PRONOUN})*\p{L}+mos\b|(?:${YOU_WILL.join('|')})\b)`,
   ].join('|'),

@@ -153,3 +153,26 @@ describe('hasCommitment, the forms 02 G5 names', () => {
     }
   });
 });
+
+describe('hasCommitment, any person of the listed verbs', () => {
+  it('finds a promise in the singular, the third person or with "ir a"', () => {
+    for (const text of [
+      'Hola, te reembolsarán el cargo mañana.',
+      'Se te devolverá tu dinero.',
+      'Te reembolsaré el cargo.',
+      'Le abonarán el importe hoy.',
+      'Te lo depositarán el lunes.',
+      'Te garantizo una respuesta.',
+      'Te van a reembolsar el cargo.',
+      'Mañana te devuelven el dinero.',
+      'El banco te abona el monto.',
+    ]) {
+      expect(hasCommitment(text), text).toBe(true);
+    }
+    expect(hasCommitment('No te reembolsarán ese cargo.')).toBe(false);
+  });
+
+  it('reads through letters from another script that look Latin', () => {
+    expect(hasCommitment('te rеembolsaremos')).toBe(true);
+  });
+});

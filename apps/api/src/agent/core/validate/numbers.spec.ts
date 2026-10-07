@@ -282,3 +282,31 @@ describe('groundingAtoms, signed amounts', () => {
     expect(ungroundedAtoms('$1,250.00', grounding)).toEqual([]);
   });
 });
+
+describe('numberAtoms, other currencies and a decimal comma', () => {
+  it('reads dollars, euros and cents as amounts', () => {
+    expect(
+      numberAtoms(
+        'Recibirás 50 dólares, 60 USD, €70, 80 euros, 1500dlls o USD 90.',
+      ),
+    ).toEqual([
+      'amount:5000',
+      'amount:6000',
+      'amount:7000',
+      'amount:8000',
+      'amount:150000',
+      'amount:9000',
+    ]);
+    expect(numberAtoms('una diferencia de 50 centavos')).toEqual(['amount:50']);
+  });
+
+  it('reads a comma before one or two digits as decimal', () => {
+    expect(
+      numberAtoms('un cargo de $1.299,50, otro de 1,5 mil pesos y 3,5%'),
+    ).toEqual(['amount:129950', 'amount:150000', 'pct:3.5']);
+  });
+
+  it('reads digits of other scripts', () => {
+    expect(numberAtoms('Recibirás $٥٠٠٠ de vuelta')).toEqual(['amount:500000']);
+  });
+});

@@ -28,7 +28,12 @@ const MONTH_NUMBER: Readonly<Record<string, number>> = {
 // A dot or a space followed by three digits groups thousands ("$5.000",
 // "50 000"); a dot with one or two digits is cents.
 const PESOS = String.raw`(\d{1,3}(?:[,. ]\d{3})+|\d+)(?:\.(\d{1,2}))?(?!\d)`;
-const CURRENCY_AFTER = String.raw`(?:pesos|mxn|m\.\s?n\.?|mn)(?![a-z])`;
+const CURRENCY_AFTER = String.raw`(?:pesos|mxn|m\.\s?n\.?|mn|dolares|dolar|usd|dlls|dls|euros|euro|eur|€)(?![a-z])`;
+const CURRENCY_BEFORE = String.raw`(?:\b(?:mxn|usd|eur)|€)`;
+// "$1.299,50", "1,5 mil", "3,5%": a comma before one or two final digits is
+// decimal; before three it groups thousands.
+const DECIMAL_COMMA = /\b(\d{1,3}(?:\.\d{3})+|\d+),(\d{1,2})\b/g;
+const DOT = /\./g;
 const ORDINAL = String.raw`(?:°|o|ro)?`;
 const MONTH = `(${alternation(MONTH_NUMBER)})`;
 // A year spelled out folds to "2,026", so a grouped year is a year too.
@@ -90,8 +95,12 @@ const PATTERNS: readonly Pattern[] = [
     ],
   },
   {
-    regex: new RegExp(String.raw`\bmxn\s?${PESOS}`, 'g'),
+    regex: new RegExp(String.raw`${CURRENCY_BEFORE}\s?${PESOS}`, 'g'),
     forms: amountForms,
+  },
+  {
+    regex: /\b(\d+)\s?centavos?\b/g,
+    forms: (m) => [`amount:${Number(m[1])}`],
   },
   {
     regex: new RegExp(String.raw`\b${PESOS}\s?${CURRENCY_AFTER}`, 'g'),
@@ -163,7 +172,11 @@ const PATTERNS: readonly Pattern[] = [
 // Leftmost match first, and a match that overlaps it is dropped, so
 // "$5,000 pesos" is one amount, not two.
 function matchesOf(text: string): string[][] {
-  const normalized = foldForMatching(text);
+  const normalized = foldForMatching(text).replace(
+    DECIMAL_COMMA,
+    (_, whole: string, fraction: string) =>
+      `${whole.replace(DOT, '')}.${fraction}`,
+  );
   const found: { start: number; end: number; forms: string[] }[] = [];
   for (const { regex, forms } of PATTERNS) {
     for (const match of normalized.matchAll(regex)) {
