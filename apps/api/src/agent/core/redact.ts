@@ -3,12 +3,14 @@ import {
   type LanguageModel,
   type LanguageModelUsage,
   NoObjectGeneratedError,
+  type Telemetry,
   Output,
   generateText,
 } from 'ai';
 import { z } from 'zod';
 
 import { asCustomerData } from './prompt.js';
+import { telemetryOf } from './telemetry.js';
 
 /** What replaces each span the redactor returns (02 G6 Step 7). */
 export const REDACTED = '[dato]';
@@ -32,6 +34,8 @@ const SYSTEM = [
 export interface Redactor {
   model: LanguageModel;
   timeoutMs: number;
+  /** The tracing integration of this call; none records no spans. */
+  telemetry?: Telemetry | undefined;
 }
 
 /** The `guard` step the run records for the redactor. */
@@ -84,6 +88,7 @@ export async function redactCase(
       prompt: asCustomerData(textMasked),
       output: Output.object({ schema: SpansSchema }),
       timeout: { totalMs: redactor.timeoutMs },
+      telemetry: telemetryOf(redactor.telemetry),
     });
     const { text, applied } = applySpans(textMasked, result.output.spans);
     return {

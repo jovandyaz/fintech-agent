@@ -8,6 +8,7 @@ import {
   malformedJson,
   objectResponse,
 } from '../../test/mock-model.js';
+import { captureSpans } from '../../test/spans.js';
 import {
   MAX_SPANS,
   REDACTED,
@@ -161,6 +162,16 @@ describe('redactCase (02 G6 Step 7)', () => {
     );
     expect(redaction.text).toBe('Mi apodo es Pelusa.');
     expect({ ...redaction.step, latencyMs: 0 }).toEqual(DEGRADED);
+  });
+
+  it('traces its call with no case text and no span it returned (02 G6, Traces)', async () => {
+    const capture = captureSpans({ masked: false });
+    await redactCase('Mi apodo es Pelusa.', {
+      ...returning(['Pelusa']),
+      telemetry: capture.telemetry,
+    });
+    expect(capture.spans().length).toBeGreaterThan(0);
+    expect(capture.text()).not.toContain('Pelusa');
   });
 
   it('skips the redactor when none is configured (no API key)', async () => {

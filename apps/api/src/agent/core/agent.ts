@@ -18,6 +18,7 @@ import {
   type LanguageModel,
   type ModelMessage,
   type StepResult,
+  type Telemetry,
   type ToolSet,
 } from 'ai';
 import { z } from 'zod';
@@ -31,6 +32,7 @@ import {
 } from './cost.js';
 import { PRICED_PROMPT_TOKENS_MAX, pricingOf } from './prices.js';
 import { SYSTEM_PROMPT, caseMessage } from './prompt.js';
+import { telemetryOf } from './telemetry.js';
 import {
   POLICY_SEARCH_TOOL,
   buildEvidence,
@@ -71,9 +73,6 @@ const VERDICT = { passed: 'passed', failed: 'failed' } as const;
 const TOOL_PART = { result: 'tool-result', error: 'tool-error' } as const;
 const VALIDATOR_ERROR = 'validator_error';
 const TOOL_FAILED = 'tool_failed';
-// The SDK records prompts and outputs in spans by default, and the case text
-// must not reach traces unmasked (02 G6).
-const TELEMETRY = { recordInputs: false, recordOutputs: false } as const;
 
 /** The per-run ceilings beyond which the run falls back (01 §Context policy). */
 export interface AgentBudget {
@@ -118,6 +117,8 @@ export interface AgentInput {
    * seen even when a provider error ends the run.
    */
   trace: StepRecord[];
+  /** The tracing integration of this call; none records no spans. */
+  telemetry?: Telemetry | undefined;
 }
 
 interface Stop {
@@ -375,7 +376,7 @@ export async function runAgent(input: AgentInput): Promise<AgentOutcome> {
       ],
       prepareStep: ({ stepNumber }) =>
         stepNumber === stepsLeft - 1 ? { activeTools: [] } : {},
-      telemetry: TELEMETRY,
+      telemetry: telemetryOf(input.telemetry),
     });
     let output: unknown;
     try {
