@@ -16,7 +16,10 @@ import {
 } from './core/redact.js';
 
 const TIMEOUT_MS = 50;
-// The step a degraded redaction records, latency aside: nothing the model
+// A malformed answer is still billed: mock-model's default usage.
+const DEFAULT_INPUT_TOKENS = 11;
+const DEFAULT_OUTPUT_TOKENS = 7;
+// The step a degraded redaction records, latency aside: no text the model
 // said or the provider answered may reach run_steps.
 const DEGRADED = {
   name: 'redaction',
@@ -128,13 +131,19 @@ describe('redactCase (02 G6 Step 7)', () => {
     expect({ ...redaction.step, latencyMs: 0 }).toEqual(DEGRADED);
   });
 
-  it('continues on the masked text, degraded, when the redactor answers malformed JSON', async () => {
+  it('continues on the masked text, degraded but billed, when the redactor answers malformed JSON', async () => {
     const redaction = await redactCase(
       'Mi apodo es Pelusa.',
       redactorOf(inOrder(malformedJson)),
     );
     expect(redaction.text).toBe('Mi apodo es Pelusa.');
-    expect({ ...redaction.step, latencyMs: 0 }).toEqual(DEGRADED);
+    expect({ ...redaction.step, latencyMs: 0 }).toEqual({
+      ...DEGRADED,
+      usage: expect.objectContaining({
+        inputTokens: DEFAULT_INPUT_TOKENS,
+        outputTokens: DEFAULT_OUTPUT_TOKENS,
+      }) as unknown,
+    });
   });
 
   it('continues on the masked text, degraded, when the redactor times out', async () => {

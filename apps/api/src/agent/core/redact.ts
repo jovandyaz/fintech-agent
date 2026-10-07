@@ -2,6 +2,7 @@ import { type GuardOutcome, maskPii } from '@fintech-agent/contracts';
 import {
   type LanguageModel,
   type LanguageModelUsage,
+  NoObjectGeneratedError,
   Output,
   generateText,
 } from 'ai';
@@ -95,14 +96,17 @@ export async function redactCase(
         latencyMs: latencyMs(),
       },
     };
-  } catch {
+  } catch (error) {
     return {
       text: textMasked,
       step: {
         name: STEP_NAME,
         outcome: 'degraded',
         spans: 0,
-        usage: null,
+        // A malformed answer was still generated, and billed.
+        usage: NoObjectGeneratedError.isInstance(error)
+          ? (error.usage ?? null)
+          : null,
         latencyMs: latencyMs(),
       },
     };
