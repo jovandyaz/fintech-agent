@@ -1,12 +1,16 @@
 import {
   CASE_TOKEN_MAX_CALLS,
+  cardAuthorizationOf,
+  isSpeiRecord,
+  LAST_FOUR_DIGITS,
+  speiStatusOf,
+  transactionRowOf,
   CoreUnavailableError,
   GetCustomerInputSchema,
   ListTransactionsInputSchema,
   MAX_LIST_LIMIT,
   maskJson,
   maskPii,
-  SPEI_TYPES,
   TransactionLookupInputSchema,
   type CardAuthorization,
   type CaseTokenClaims,
@@ -17,9 +21,6 @@ import {
   type SecurityEventKind,
   type SpeiStatus,
   type TransactionPage,
-  type TransactionRow,
-  type CardTx,
-  type SpeiTx,
   type Transaction,
 } from '@fintech-agent/contracts';
 import type {
@@ -32,7 +33,6 @@ import type { z } from 'zod';
 import { READ_ONLY } from './annotations.js';
 import type { SecurityEventSink } from './security-events.js';
 
-const LAST_FOUR = 4;
 const GET_CUSTOMER = 'get_customer' satisfies McpToolName;
 const LIST_TRANSACTIONS = 'list_transactions' satisfies McpToolName;
 const GET_SPEI_STATUS = 'get_spei_status' satisfies McpToolName;
@@ -124,69 +124,6 @@ function parse<T>(schema: z.ZodType<T>, args: unknown): T {
   throw new ToolFailure(TOOL_ERROR.invalidArguments, [...new Set(fields)]);
 }
 
-const firstName = (fullName: string): string =>
-  fullName.trim().split(/\s+/)[0] ?? '';
-
-const isSpei = (tx: Transaction): tx is SpeiTx =>
-  (SPEI_TYPES as readonly string[]).includes(tx.type);
-
-function toRow(tx: Transaction): TransactionRow {
-  const base = {
-    id: tx.id,
-    status: tx.status,
-    amount: tx.amount,
-    created_at: tx.created_at,
-  };
-  if (!isSpei(tx)) {
-    return {
-      ...base,
-      type: tx.type,
-      merchant_descriptor: tx.merchant_descriptor,
-      channel: tx.channel,
-      auth_factors: tx.auth_factors,
-    };
-  }
-  return {
-    ...base,
-    type: tx.type,
-    counterparty_first_name: firstName(tx.counterparty_name),
-    counterparty_clabe: maskPii(tx.counterparty_clabe),
-  };
-}
-
-function toSpeiStatus(tx: SpeiTx): SpeiStatus {
-  return {
-    id: tx.id,
-    type: tx.type,
-    status: tx.status,
-    amount: tx.amount,
-    created_at: tx.created_at,
-    settled_at: tx.settled_at,
-    returned_at: tx.returned_at,
-    tracking_key_last4: tx.tracking_key.slice(-LAST_FOUR),
-    return_reason: tx.return_reason,
-    hold_reason: tx.hold_reason,
-    reject_reason: tx.reject_reason,
-    reversal_credit_id: tx.reversal_credit_id,
-    cep_available: tx.cep_available,
-  };
-}
-
-function toCardAuthorization(tx: CardTx): CardAuthorization {
-  return {
-    id: tx.id,
-    status: tx.status,
-    decision: tx.status === 'rejected' ? 'declined' : 'approved',
-    decline_reason: tx.decline_reason,
-    amount: tx.amount,
-    created_at: tx.created_at,
-    merchant_descriptor: tx.merchant_descriptor,
-    merchant_brand: tx.merchant_brand,
-    channel: tx.channel,
-    auth_factors: tx.auth_factors,
-  };
-}
-
 /**
  * Registers the four read-only tools, in the fixed `tools/list` order, bound
  * to the customer in the verified case token. No tool takes a customer id;
@@ -269,7 +206,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           account_status: customer.account_status,
           kyc_level: customer.kyc_level,
           clabe: maskPii(customer.clabe),
-          card_last4: customer.card_pan.slice(-LAST_FOUR),
+          card_last4: customer.card_pan.slice(-LAST_FOUR_DIGITS),
           card_status: customer.card_status,
         };
       }),
@@ -292,7 +229,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         const page = await core.transactions(claims.sub, query);
         if (page === null) throw new ToolFailure(TOOL_ERROR.notFound);
         return {
-          items: page.items.map(toRow),
+          items: page.items.map(transactionRowOf),
           total: page.total,
           next_cursor: page.next_cursor,
           truncated: page.next_cursor !== null,
@@ -312,8 +249,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       guarded(GET_SPEI_STATUS, async (): Promise<SpeiStatus> => {
         const { transaction_id } = parse(TransactionLookupInputSchema, args);
         const tx = await ownTransaction(transaction_id);
-        if (!isSpei(tx)) throw new ToolFailure(TOOL_ERROR.wrongType);
-        return toSpeiStatus(tx);
+        if (!isSpeiRecord(tx)) throw new ToolFailure(TOOL_ERROR.wrongType);
+        return speiStatusOf(tx);
       }),
   );
 
@@ -329,8 +266,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       guarded(GET_CARD_AUTHORIZATION, async (): Promise<CardAuthorization> => {
         const { transaction_id } = parse(TransactionLookupInputSchema, args);
         const tx = await ownTransaction(transaction_id);
-        if (isSpei(tx)) throw new ToolFailure(TOOL_ERROR.wrongType);
-        return toCardAuthorization(tx);
+        if (isSpeiRecord(tx)) throw new ToolFailure(TOOL_ERROR.wrongType);
+        return cardAuthorizationOf(tx);
       }),
   );
 }
