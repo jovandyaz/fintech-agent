@@ -310,8 +310,42 @@ describe('maskPii — folios whose groups spell an auth keyword', () => {
     );
   });
 
-  it('reads pwd and pass only as whole words', () => {
-    expect(maskPii('mi pwdW-8NYN')).toBe('mi pwdW-8NYN');
+  it.each([
+    ['passHunter2!', 'Hunter2!'],
+    ['pwdHunter2!', 'Hunter2!'],
+    ['passwordXy9!', 'Xy9!'],
+    ['contraseñaXy9!', 'Xy9!'],
+    ['mi pwdW-8NYN', 'W-8NYN'],
+  ])('masks a password glued to its keyword: %s', (text, secret) => {
+    expect(maskPii(text)).not.toContain(secret);
+  });
+
+  it.each([
+    ['el SMS para AC-KMQX-PDRT es 482193', '482193'],
+    ['mi OTP de AC-KMQX-PDRT es 482193', '482193'],
+    ['CVV de la tarjeta AC-KMQX-PDRT = 123', '= 123'],
+    ['token AC-HJKM-NPQR, 99 1234', '99 1234'],
+    ['AC-KMQX-PASS es 4821', '4821'],
+  ])(
+    'masks an auth factor with a folio between it and its keyword: %s',
+    (text, secret) => {
+      const masked = maskPii(text);
+      expect(masked).not.toContain(secret);
+      expect(masked).toMatch(/AC-[A-Z]{4}-[A-Z]{4}/);
+    },
+  );
+
+  it.each([
+    ['pass:Hunter2!,AC-7K2M-Q9XD', 'Hunter2!'],
+    ['contraseña:Hunter2!/AC-7K2M-Q9XD', 'Hunter2!'],
+    ['pwd=Xy9#abcd;AC-7K2M-Q9XD', 'Xy9#abcd'],
+    ['pass:AC-KMQX-PDRT,Hunter2!', 'Hunter2!'],
+    ['clave de acceso AC-KMQX-PDRT/xY9#', 'xY9#'],
+    ['AC-KMQX-PDR1,4821 es mi NIP', '4821'],
+    ['pass:!@#$AC-KMQX-PDRT', '!@#$'],
+    ['pass:AC-KMQX-PDRT!@#$', '!@#$'],
+  ])('masks a secret glued to a folio: %s', (text, secret) => {
+    expect(maskPii(text)).not.toContain(secret);
   });
 });
 
