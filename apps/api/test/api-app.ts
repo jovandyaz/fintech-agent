@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type {
   ActionType,
   CaseFlag,
@@ -33,6 +35,9 @@ export const NO_CORE: CoreClient = {
   transaction: () => Promise.resolve(null),
   transactions: () => Promise.resolve(null),
 };
+
+// A worker's lease on a case seeded mid-investigation, long enough to outlast a test.
+const CLAIM_LEASE_MS = 300_000;
 
 export const DRAFT = 'Hola Ana, registramos tu aclaración con folio {{folio}}.';
 
@@ -85,14 +90,17 @@ export async function seedProposal(
   const runId = `run_${key}`;
   const actionId = `act_${key}`;
   const type = fixture.type ?? 'open_dispute';
+  const claimed = fixture.caseStatus === 'investigating';
   const params = {
     transaction_ids: fixture.transactionIds ?? ['tx_c1'],
     reason_code: 'unrecognized_charge',
   };
   await owner`
-    insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked, status, flags, review_tier, category)
+    insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked, status, flags, review_tier, category, claim_token, locked_until)
     values (${caseId}, ${`T-${caseId}`}, ${`AC-${key.toUpperCase().padStart(4, '0')}-TEST`}, now(), 'webhook', 'cus_01', 'hola',
-      ${fixture.caseStatus ?? 'needs_review'}, ${owner.json(fixture.flags ?? [])}, ${fixture.tier === undefined ? 'standard' : fixture.tier}, 'unrecognized_card_charge')`;
+      ${fixture.caseStatus ?? 'needs_review'}, ${owner.json(fixture.flags ?? [])}, ${fixture.tier === undefined ? 'standard' : fixture.tier}, 'unrecognized_card_charge',
+      ${claimed ? randomUUID() : null}, ${claimed ? new Date(Date.now() + CLAIM_LEASE_MS) : null})`;
+
   await owner`
     insert into agent_runs (id, case_id, variant, model, prompt_version)
     values (${runId}, ${caseId}, 'v1', 'model', 'p1')`;

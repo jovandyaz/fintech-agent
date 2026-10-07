@@ -104,6 +104,11 @@ export const cases = pgTable(
   (t) => [
     index('cases_claimable').on(t.status, t.nextAttemptAt),
     check('cases_flags_closed_set', closedFlagSet(t.flags)),
+    // An investigating case with no lease could never be reclaimed.
+    check(
+      'cases_investigating_claimed',
+      sql`${t.status} <> 'investigating' or (${t.claimToken} is not null and ${t.lockedUntil} is not null)`,
+    ),
   ],
 );
 

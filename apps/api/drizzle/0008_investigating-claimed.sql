@@ -1,0 +1,1 @@
+ALTER TABLE "cases" ADD CONSTRAINT "cases_investigating_claimed" CHECK ("cases"."status" <> 'investigating' or ("cases"."claim_token" is not null and "cases"."locked_until" is not null));
