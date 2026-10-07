@@ -536,6 +536,28 @@ describe('canaries (02 G3)', () => {
     });
   });
 
+  it("counts an override that only reorders a canary's transactions as a miss", async () => {
+    const id = await proposal({
+      canary: true,
+      transactionIds: ['tx_c1', 'tx_c2'],
+    });
+    const response = await decide(
+      id,
+      approve({
+        override: {
+          type: 'open_dispute',
+          transaction_ids: ['tx_c2', 'tx_c1'],
+          reason_code: 'unrecognized_charge',
+        },
+        reviewed_transaction_ids: ['tx_c1', 'tx_c2'],
+      }),
+    );
+    expect(await response.json()).toEqual({
+      action_id: id,
+      status: 'canary_missed',
+    });
+  });
+
   it('exposes is_canary in no contracts schema', () => {
     const schemas = Object.values(contracts as Record<string, unknown>).filter(
       (value): value is z.ZodType => value instanceof z.ZodType,
