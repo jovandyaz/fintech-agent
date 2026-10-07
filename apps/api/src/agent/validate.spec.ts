@@ -1,4 +1,5 @@
 import {
+  MAX_REPLY_CHARS,
   MS_PER_HOUR,
   SPEI_DISPUTE_AFTER_HOURS,
   type Resolution,
@@ -21,6 +22,7 @@ import {
   speiRow,
   speiStatus,
 } from '../../test/validator-fixtures.js';
+import { CalendarRangeError } from './core/calendar.js';
 import {
   buildEvidence,
   type RunFacts,
@@ -28,6 +30,7 @@ import {
 } from './core/validate/evidence.js';
 import { factFlags } from './core/validate/flags.js';
 import { validate } from './core/validate/index.js';
+import type { ChunkStateRules } from './core/validate/state-rules.js';
 
 const CARD_DISPUTE_RUN: ToolResult[] = [
   customerSeen,
@@ -42,6 +45,7 @@ const codesOf = (
 ): readonly string[] => {
   const outcome = validate(raw, {
     evidence: buildEvidence(runOf(toolResults)),
+    stateRules: [],
   });
   return outcome.ok ? [] : outcome.codes;
 };
@@ -62,6 +66,7 @@ describe('validate', () => {
     expect(
       validate(resolution, {
         evidence: buildEvidence(runOf(CARD_DISPUTE_RUN)),
+        stateRules: [],
       }),
     ).toEqual({ ok: true, resolution, conflicts: [] });
   });
@@ -249,7 +254,10 @@ const proposing = (
 });
 
 const codesIn = (raw: unknown, run: RunFacts): readonly string[] => {
-  const outcome = validate(raw, { evidence: buildEvidence(run) });
+  const outcome = validate(raw, {
+    evidence: buildEvidence(run),
+    stateRules: [],
+  });
   return outcome.ok ? [] : outcome.codes;
 };
 
@@ -552,5 +560,287 @@ describe('factFlags', () => {
       'first_party_signal',
     ]);
     expect(flagsOf(resolutionOf(), CARD_DISPUTE_RUN, 2)).toEqual([]);
+  });
+});
+
+const replying = (draft_reply: string): Resolution =>
+  resolutionOf({ draft_reply });
+
+describe('reply checks', () => {
+  it('fails a Markdown image in the reply (LINK_IN_REPLY)', () => {
+    expect(
+      codesOf(replying('Mira aquí: ![x](https://evil.example/p.png?d=1)')),
+    ).toEqual(['LINK_IN_REPLY']);
+  });
+
+  it('fails a request for the CVV (AUTH_FACTOR_REQUEST)', () => {
+    expect(
+      codesOf(replying('Para continuar, compártenos el CVV de tu tarjeta.')),
+    ).toEqual(['AUTH_FACTOR_REQUEST']);
+  });
+
+  it('fails a CLABE in the reply (PII_IN_REPLY)', () => {
+    expect(
+      codesOf(replying('Tu cuenta 002010077777777771 está activa.')),
+    ).toContain('PII_IN_REPLY');
+  });
+});
+
+describe('UNGROUNDED_NUMBER', () => {
+  it('fails "$5,000" that only the customer wrote', () => {
+    expect(
+      codesOf(replying('Revisamos el cargo de $5,000 que mencionas.')),
+    ).toEqual(['UNGROUNDED_NUMBER']);
+  });
+
+  it('accepts an amount and a date from a tool output', () => {
+    expect(
+      codesOf(replying('Revisamos el cargo de $1,299.50 del 5 de octubre.')),
+    ).toEqual([]);
+  });
+
+  it('grounds on cited chunks, never on a retrieved chunk left uncited', () => {
+    expect(codesOf(replying('El dictamen se entrega en 45 días.'))).toEqual([]);
+    const uncited = policyChunk({
+      chunk_id: 'chunk_p05s1',
+      doc_id: 'pol-05',
+      section: 'Comisiones',
+      content: 'La comisión por aclaración improcedente es de 3%.',
+    });
+    expect(
+      codesOf(replying('Podría aplicar una comisión de 3%.'), [
+        ...CARD_DISPUTE_RUN,
+        searched(uncited),
+      ]),
+    ).toEqual(['UNGROUNDED_NUMBER']);
+  });
+});
+
+describe('COMMITMENT_IN_REPLY', () => {
+  it('fails "te reembolsaremos" and passes "no podemos hacer un reembolso"', () => {
+    expect(codesOf(replying('Tranquila, te reembolsaremos.'))).toEqual([
+      'COMMITMENT_IN_REPLY',
+    ]);
+    expect(
+      codesOf(replying('Por ahora no podemos hacer un reembolso.')),
+    ).toEqual([]);
+  });
+
+  it('renders {{compromiso_abono}} only for a one-factor card dispute', () => {
+    const abono = replying('Hola {{nombre}}. {{compromiso_abono}}');
+    expect(codesOf(abono)).toEqual([]);
+    expect(
+      codesOf(abono, [
+        ...CARD_DISPUTE_RUN,
+        {
+          tool: 'get_card_authorization',
+          output: cardAuth({ auth_factors: 2 }),
+        },
+      ]),
+    ).toEqual(['COMMITMENT_IN_REPLY']);
+  });
+
+  it('renders {{compromiso_dictamen}} only with open_dispute', () => {
+    expect(
+      codesOf(
+        resolutionOf({
+          draft_reply: 'Hola {{nombre}}. {{compromiso_dictamen}}',
+          proposed_action: {
+            type: 'none',
+            transaction_ids: [],
+            reason_code: 'informational',
+            justification: 'Consulta.',
+          },
+        }),
+      ),
+    ).toEqual(['COMMITMENT_IN_REPLY']);
+  });
+});
+
+describe('placeholders', () => {
+  it('fails a placeholder outside the approved set (SCHEMA)', () => {
+    expect(codesOf(replying('Tu saldo es {{saldo}}.'))).toEqual(['SCHEMA']);
+  });
+
+  it('fails {{nombre}} when the run never read the customer', () => {
+    expect(
+      codesOf(
+        replying('Hola {{nombre}}, folio {{folio}}.'),
+        CARD_DISPUTE_RUN.filter((result) => result !== customerSeen),
+      ),
+    ).toEqual(['EVIDENCE_UNSEEN']);
+  });
+});
+
+describe('POLICY_DATA_CONFLICT', () => {
+  const CONFLICT_RULES: ChunkStateRules[] = [
+    {
+      chunk_id: 'chunk_p02s3',
+      quarantined: false,
+      rules: [
+        {
+          id: 'return_credit_same_day',
+          applies_to: {
+            type: 'spei_out',
+            status: 'returned',
+            returned_business_days_ago: '>=1',
+          },
+          requires: { field: 'reversal_credit_id', not_null: true },
+        },
+      ],
+    },
+  ];
+  const returnedRun: ToolResult[] = [
+    ...CARD_DISPUTE_RUN,
+    {
+      tool: 'get_spei_status',
+      output: speiStatus({
+        status: 'returned',
+        returned_at: '2026-10-02T17:00:00Z',
+        return_reason: 'cuenta_inexistente',
+      }),
+    },
+  ];
+
+  it('forces none on a rule of an uncited, unretrieved chunk', () => {
+    const outcome = validate(resolutionOf({ draft_reply: NEUTRAL_REPLY }), {
+      evidence: buildEvidence(runOf(returnedRun)),
+      stateRules: CONFLICT_RULES,
+    });
+    expect(outcome).toMatchObject({
+      ok: true,
+      resolution: {
+        proposed_action: { type: 'none', transaction_ids: [] },
+      },
+      conflicts: [
+        {
+          rule_id: 'return_credit_same_day',
+          chunk_id: 'chunk_p02s3',
+          transaction_id: SPEI_TX,
+          field: 'reversal_credit_id',
+        },
+      ],
+    });
+  });
+
+  it('holds the reply to the forced none', () => {
+    expect(
+      validate(resolutionOf(), {
+        evidence: buildEvidence(runOf(returnedRun)),
+        stateRules: CONFLICT_RULES,
+      }),
+    ).toEqual({ ok: false, codes: ['COMMITMENT_IN_REPLY'] });
+  });
+});
+
+describe('validation time', () => {
+  const VALIDATION_BUDGET_MS = 100;
+  const ADVERSARIAL_SHAPES = [
+    '1',
+    '1.',
+    '$1',
+    '1 mil ',
+    'en 1 dias ',
+    'no te ',
+    'no te devolveremos ',
+    '1,111',
+    '1 111 ',
+    '1 de ',
+  ];
+
+  it('stays within budget on a maximal adversarial draft', () => {
+    for (const shape of ADVERSARIAL_SHAPES) {
+      const draft = shape
+        .repeat(Math.ceil(MAX_REPLY_CHARS / shape.length))
+        .slice(0, MAX_REPLY_CHARS);
+      const started = performance.now();
+      validate(replying(draft), {
+        evidence: buildEvidence(runOf(CARD_DISPUTE_RUN)),
+        stateRules: [],
+      });
+      expect(performance.now() - started, shape).toBeLessThan(
+        VALIDATION_BUDGET_MS,
+      );
+    }
+  });
+});
+
+describe('date placeholders and their commitments', () => {
+  const informational = (draft_reply: string): Resolution =>
+    resolutionOf({
+      draft_reply,
+      proposed_action: {
+        type: 'none',
+        transaction_ids: [],
+        reason_code: 'informational',
+        justification: 'Consulta.',
+      },
+    });
+
+  it('holds a bare deadline to the predicate of its commitment', () => {
+    expect(
+      codesOf(
+        informational(
+          'Recibirás tu abono a más tardar el {{fecha_limite_abono}}.',
+        ),
+      ),
+    ).toEqual(['COMMITMENT_IN_REPLY']);
+    expect(
+      codesOf(informational('Te responderemos el {{fecha_limite_dictamen}}.')),
+    ).toEqual(['COMMITMENT_IN_REPLY']);
+    expect(
+      codesOf(
+        replying('Hola {{nombre}}, el abono llega el {{fecha_limite_abono}}.'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('fails a placeholder glued to a letter or a digit (SCHEMA)', () => {
+    expect(codesOf(replying('Ref 12{{fecha_recepcion}} registrada.'))).toEqual([
+      'SCHEMA',
+    ]);
+    expect(codesOf(replying('Folio{{folio}} registrado.'))).toEqual(['SCHEMA']);
+  });
+});
+
+describe('calendar coverage', () => {
+  it('throws instead of guessing a business day outside the listed years', () => {
+    const lateReturn: ChunkStateRules[] = [
+      {
+        chunk_id: 'chunk_p02s3',
+        quarantined: false,
+        rules: [
+          {
+            id: 'return_credit_same_day',
+            applies_to: {
+              type: 'spei_out',
+              status: 'returned',
+              returned_business_days_ago: '>=1',
+            },
+            requires: { field: 'reversal_credit_id', not_null: true },
+          },
+        ],
+      },
+    ];
+    expect(() =>
+      validate(resolutionOf({ draft_reply: NEUTRAL_REPLY }), {
+        evidence: buildEvidence(
+          runOf(
+            [
+              ...CARD_DISPUTE_RUN,
+              {
+                tool: 'get_spei_status',
+                output: speiStatus({
+                  status: 'returned',
+                  returned_at: '2025-12-30T17:00:00Z',
+                }),
+              },
+            ],
+            { receivedAt: new Date('2026-01-02T17:00:00Z') },
+          ),
+        ),
+        stateRules: lateReturn,
+      }),
+    ).toThrow(CalendarRangeError);
   });
 });
