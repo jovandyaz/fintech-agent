@@ -222,6 +222,31 @@ describe('re-runs of a canary case (02 G3)', () => {
     });
   });
 
+  it('gives the fresh canary copy the audit row a real proposal gets', async () => {
+    const { caseId } = await seeded('needs_review', true);
+    expect((await rerun(caseId)).status).toBe(HTTP.ok);
+    const fresh = (await proposalsOf(caseId)).find(
+      ({ status }) => status === 'proposed',
+    );
+    const [run] = await owner<{ run_id: string }[]>`
+      select run_id from proposed_actions where id = ${fresh!.id}`;
+    expect(
+      await owner`
+        select actor, event, detail_masked from audit_log where ref = ${fresh!.id}`,
+    ).toEqual([
+      {
+        actor: 'agent:case-copilot/v1@p1',
+        event: 'proposal.create',
+        detail_masked: {
+          run_id: run!.run_id,
+          type: 'open_dispute',
+          flags: [],
+          review_tier: 'standard',
+        },
+      },
+    ]);
+  });
+
   it('refuses to re-run a canary that was already decided', async () => {
     const { caseId, actionId } = await seeded('needs_review', true);
     expect((await decide(actionId)).status).toBe(HTTP.ok);
