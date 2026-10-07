@@ -46,6 +46,24 @@ export const MCP_TOOL_NAMES = [
 ] as const;
 export type McpToolName = (typeof MCP_TOOL_NAMES)[number];
 
+export const MAX_LIST_LIMIT = 25;
+export const DEFAULT_LIST_LIMIT = 10;
+
+/**
+ * What `tools/list` tells the model about each tool. The server registers
+ * these and the harness hashes them into `prompt_version` before a run can
+ * reach the server.
+ */
+export const MCP_TOOL_DESCRIPTIONS: Readonly<Record<McpToolName, string>> = {
+  get_customer:
+    'The case customer: first name, account status, KYC level, masked CLABE, card last four and card status.',
+  list_transactions: `The case customer’s transactions, newest first, as compact rows. Filter by type, status, an inclusive date range (from/to, ISO 8601 datetimes with offset such as 2026-10-02T00:00:00-06:00), amount range or a text query on the merchant or counterparty; page with limit (max ${MAX_LIST_LIMIT}) and cursor. \`total\` says how many match.`,
+  get_spei_status:
+    'State of one SPEI transfer of the case customer: timestamps, last four of the tracking key, return, hold or reject reason, the reversal credit of a returned outgoing transfer, and whether a CEP is available.',
+  get_card_authorization:
+    'Authorization of one card purchase of the case customer: decision, decline reason, merchant descriptor and brand, channel and the number of independent authentication factors (3DS counts here).',
+};
+
 export const MCP_TOOL_ERRORS = [
   'NOT_FOUND',
   'WRONG_TYPE',
@@ -56,8 +74,6 @@ export const MCP_TOOL_ERRORS = [
 ] as const;
 export type McpToolError = (typeof MCP_TOOL_ERRORS)[number];
 
-export const MAX_LIST_LIMIT = 25;
-export const DEFAULT_LIST_LIMIT = 10;
 const MAX_QUERY_CHARS = 64;
 const DIGITS_ONLY = /^\d+$/;
 
@@ -161,3 +177,27 @@ export const CardAuthorizationSchema = z.strictObject({
   auth_factors: z.number().int(),
 });
 export type CardAuthorization = z.infer<typeof CardAuthorizationSchema>;
+
+const MCP_INPUT_SCHEMAS = {
+  get_customer: GetCustomerInputSchema,
+  list_transactions: ListTransactionsInputSchema,
+  get_spei_status: TransactionLookupInputSchema,
+  get_card_authorization: TransactionLookupInputSchema,
+} as const satisfies Record<McpToolName, z.ZodType>;
+
+const JSON_SCHEMA_TARGET = 'draft-2020-12';
+
+/** A tool's input schema as JSON Schema, rendered the way the MCP server publishes it. */
+export function toolInputJsonSchema(
+  schema: z.ZodType,
+): Record<string, unknown> {
+  return schema['~standard'].jsonSchema.input({ target: JSON_SCHEMA_TARGET });
+}
+
+/**
+ * A tool's input schema as `tools/list` publishes it: the server registers
+ * this rendering and the harness hashes it into `prompt_version`.
+ */
+export function mcpInputJsonSchema(name: McpToolName): Record<string, unknown> {
+  return toolInputJsonSchema(MCP_INPUT_SCHEMAS[name]);
+}

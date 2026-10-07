@@ -6,10 +6,13 @@ import {
   CASE_TOKEN_SCOPE,
   CardAuthorizationSchema,
   CustomerViewSchema,
+  MCP_TOOL_DESCRIPTIONS,
   MCP_TOOL_NAMES,
+  mcpInputJsonSchema,
   SpeiStatusSchema,
   TransactionPageSchema,
   type CardTx,
+  type McpToolName,
   type Customer,
   type SpeiTx,
   type Transaction,
@@ -433,6 +436,26 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
     });
     expect(spei?.inputSchema).toMatchObject({ required: ['transaction_id'] });
     expect(JSON.stringify(spei?.inputSchema)).toContain('"pattern":"^tx_');
+    await client.close();
+  });
+
+  it('advertises each input schema exactly as the contract renders it, which prompt_version hashes', async () => {
+    const client = await connect(await mint());
+    const { tools } = await client.listTools();
+    for (const tool of tools) {
+      expect(tool.inputSchema, tool.name).toEqual(
+        mcpInputJsonSchema(tool.name as McpToolName),
+      );
+    }
+    await client.close();
+  });
+
+  it('describes each tool with its contract description, which prompt_version hashes', async () => {
+    const client = await connect(await mint());
+    const { tools } = await client.listTools();
+    expect(
+      Object.fromEntries(tools.map((t) => [t.name, t.description])),
+    ).toEqual(MCP_TOOL_DESCRIPTIONS);
     await client.close();
   });
 

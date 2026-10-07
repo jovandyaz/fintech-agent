@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { SearchPoliciesOutputSchema, StateRuleSchema } from './policy.js';
+import {
+  SEARCH_POLICIES_MAX_K,
+  SearchPoliciesInputSchema,
+  SearchPoliciesOutputSchema,
+  StateRuleSchema,
+} from './policy.js';
 
 const returnCreditRule = {
   id: 'return_credit_same_day',
@@ -84,5 +89,37 @@ describe('SearchPoliciesOutputSchema', () => {
       ],
     };
     expect(SearchPoliciesOutputSchema.parse(output)).toEqual(output);
+  });
+});
+
+describe('SearchPoliciesInputSchema (01 §Tools)', () => {
+  it('asks for at most 4 chunks and defaults to 4', () => {
+    expect(SEARCH_POLICIES_MAX_K).toBe(4);
+    expect(SearchPoliciesInputSchema.parse({ query: 'devolución' })).toEqual({
+      query: 'devolución',
+      k: SEARCH_POLICIES_MAX_K,
+    });
+    expect(
+      SearchPoliciesInputSchema.safeParse({ query: 'spei', k: 5 }).success,
+    ).toBe(false);
+    expect(
+      SearchPoliciesInputSchema.safeParse({ query: 'spei', k: 0 }).success,
+    ).toBe(false);
+  });
+
+  it('narrows to one doc when asked', () => {
+    expect(
+      SearchPoliciesInputSchema.parse({ query: 'cep', k: 2, doc_id: 'pol-02' }),
+    ).toEqual({ query: 'cep', k: 2, doc_id: 'pol-02' });
+  });
+
+  it('refuses an empty query, an overlong one and any other key', () => {
+    for (const input of [
+      { query: '' },
+      { query: 'x'.repeat(201) },
+      { query: 'spei', customer_id: 'cus_1' },
+    ]) {
+      expect(SearchPoliciesInputSchema.safeParse(input).success).toBe(false);
+    }
   });
 });

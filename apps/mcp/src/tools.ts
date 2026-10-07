@@ -8,7 +8,7 @@ import {
   CoreUnavailableError,
   GetCustomerInputSchema,
   ListTransactionsInputSchema,
-  MAX_LIST_LIMIT,
+  MCP_TOOL_DESCRIPTIONS,
   maskJson,
   maskPii,
   TransactionLookupInputSchema,
@@ -191,8 +191,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     GET_CUSTOMER,
     {
-      description:
-        'The case customer: first name, account status, KYC level, masked CLABE, card last four and card status.',
+      description: MCP_TOOL_DESCRIPTIONS[GET_CUSTOMER],
       inputSchema: advertised(GetCustomerInputSchema),
       annotations: READ_ONLY,
     },
@@ -215,7 +214,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     LIST_TRANSACTIONS,
     {
-      description: `The case customer’s transactions, newest first, as compact rows. Filter by type, status, an inclusive date range (from/to, ISO 8601 datetimes with offset such as 2026-10-02T00:00:00-06:00), amount range or a text query on the merchant or counterparty; page with limit (max ${MAX_LIST_LIMIT}) and cursor. \`total\` says how many match.`,
+      description: MCP_TOOL_DESCRIPTIONS[LIST_TRANSACTIONS],
       inputSchema: advertised(ListTransactionsInputSchema),
       annotations: READ_ONLY,
     },
@@ -240,8 +239,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     GET_SPEI_STATUS,
     {
-      description:
-        'State of one SPEI transfer of the case customer: timestamps, last four of the tracking key, return, hold or reject reason, the reversal credit of a returned outgoing transfer, and whether a CEP is available.',
+      description: MCP_TOOL_DESCRIPTIONS[GET_SPEI_STATUS],
       inputSchema: advertised(TransactionLookupInputSchema),
       annotations: READ_ONLY,
     },
@@ -257,8 +255,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     GET_CARD_AUTHORIZATION,
     {
-      description:
-        'Authorization of one card purchase of the case customer: decision, decline reason, merchant descriptor and brand, channel and the number of independent authentication factors (3DS counts here).',
+      description: MCP_TOOL_DESCRIPTIONS[GET_CARD_AUTHORIZATION],
       inputSchema: advertised(TransactionLookupInputSchema),
       annotations: READ_ONLY,
     },
