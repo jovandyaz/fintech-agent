@@ -53,4 +53,22 @@ export default defineConfig(
       ],
     },
   },
+  {
+    // 02 G1, the other direction: the executor never imports the agent module.
+    files: ['apps/api/src/executor/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/agent', '**/agent/**'],
+              message:
+                'G1: the executor must not import the agent module (specs/02-security.md).',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
