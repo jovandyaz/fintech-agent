@@ -45,12 +45,38 @@ const SECRET_KEY_PARTS = [
   'jwt',
   'apikey',
 ];
-const SECRET_KEY_ENDINGS = ['key', 'keys'];
+const SECRET_KEY_ENDINGS = [
+  'apikey',
+  'privatekey',
+  'signingkey',
+  'secretkey',
+  'executorkey',
+  'readkey',
+  'tokenkey',
+  'accesskey',
+  'sessionkey',
+];
 const SECRET_KEY_NAMES = new Set(['auth']);
 const PAIR_NAME_FIELDS = ['name', 'key', 'field', 'header'] as const;
-const CREDENTIAL_IN_TEXT = /\b(Bearer|Basic|Token)\s+[^\s"',;]+/gi;
+const PAIR_RECORD_KEYS = new Set<string>([
+  ...PAIR_NAME_FIELDS,
+  'type',
+  'kind',
+  'value',
+  'val',
+  'values',
+  'data',
+]);
+const MIN_SCHEME_CREDENTIAL_CHARS = 8;
+const SCHEME_CREDENTIAL = new RegExp(
+  String.raw`\b(Bearer|Basic)\s+[^\s"',;]{${MIN_SCHEME_CREDENTIAL_CHARS},}`,
+  'gi',
+);
+// "Token" is also an English word, so only a credential-shaped value counts.
+const TOKEN_SCHEME_CREDENTIAL =
+  /\b(Token)\s+(?=[^\s"',;]*[\d._-])[A-Za-z0-9._~+/=-]{12,}/g;
 const CREDENTIAL_ASSIGNMENT =
-  /\b([a-z_]*(?:token|password|passwd|secret|jwt|api_?key)|auth|key)(\s*[:=]\s*)[^\s&#,;"']+/gi;
+  /\b([a-z_]*(?:token|password|passwd|secret|jwt|api_?key)|auth)(\s*[:=]\s*)[^\s&#,;"']+/gi;
 const UNLOGGABLE = '[unloggable log call]';
 
 type WriteStream = 'stdout' | 'stderr';
@@ -93,7 +119,10 @@ function isSecretKey(key: unknown): boolean {
   return (
     SECRET_KEY_NAMES.has(normalized) ||
     SECRET_KEY_PARTS.some((part) => normalized.includes(part)) ||
-    SECRET_KEY_ENDINGS.some((ending) => normalized.endsWith(ending))
+    SECRET_KEY_ENDINGS.some(
+      (ending) =>
+        normalized.endsWith(ending) || normalized.endsWith(`${ending}s`),
+    )
   );
 }
 
@@ -134,7 +163,8 @@ function toPlainData(
 
 const redactText = (text: string): string =>
   text
-    .replace(CREDENTIAL_IN_TEXT, `$1 ${MARKER.redacted}`)
+    .replace(SCHEME_CREDENTIAL, `$1 ${MARKER.redacted}`)
+    .replace(TOKEN_SCHEME_CREDENTIAL, `$1 ${MARKER.redacted}`)
     .replace(CREDENTIAL_ASSIGNMENT, `$1$2${MARKER.redacted}`);
 
 // Runs before maskJson, which could split a token apart, and again after it,
@@ -151,7 +181,14 @@ function redactSecrets(value: unknown): unknown {
     );
   }
   if (!isPlainObject(value)) return value;
-  const naming = PAIR_NAME_FIELDS.find((field) => isSecretKey(value[field]));
+  // Only a bare name/value record is a pair; an event or an error that merely
+  // has a `name` field keeps its other fields.
+  const isPairRecord = Object.keys(value).every((key) =>
+    PAIR_RECORD_KEYS.has(key),
+  );
+  const naming = isPairRecord
+    ? PAIR_NAME_FIELDS.find((field) => isSecretKey(value[field]))
+    : undefined;
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => {
       const pairValue = naming !== undefined && key !== naming;
@@ -163,13 +200,8 @@ function redactSecrets(value: unknown): unknown {
 
 // The whole stack is one message to the masker: its digit budget then spans
 // every frame, a "Caused by" tail and any text a message left behind, at the
-// cost of line numbers in logs.
-function maskedStack(error: Error): string {
-  const stack: unknown = stackOf(error);
-  return maskPii(
-    redactText(typeof stack === 'string' ? stack : reasonOf(error)),
-  );
-}
+// cost of line numbers in logs. Credentials go first so masking cannot split them.
+const maskStackText = (stack: string): string => maskPii(redactText(stack));
 
 /**
  * Writes each log call as one JSON line: a non-empty string `message`, a
@@ -243,14 +275,10 @@ export class JsonConsoleLogger extends ConsoleLogger {
     };
     const stack =
       errorStack !== undefined
-        ? maskPii(
-            redactText(
-              typeof errorStack === 'string'
-                ? errorStack
-                : reasonOf(errorStack),
-            ),
+        ? maskStackText(
+            typeof errorStack === 'string' ? errorStack : reasonOf(errorStack),
           )
-        : error && maskedStack(error);
+        : error && maskStackText(stackOf(error));
     const extras = details.length > 0 ? { details } : {};
     const entry = toPlainData(
       { ...fields, ...extras, ...envelope },

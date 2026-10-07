@@ -547,6 +547,58 @@ describe('JsonConsoleLogger behind Nest Logger', () => {
       expect(JSON.stringify(onlyEntry(stdout))).not.toContain('SECRETPART');
     });
 
+    it('keeps the envelope and fields of an event whose name looks like a secret', () => {
+      new Logger('Worker').warn({
+        event: 'case.claimed',
+        name: 'tokenRefresh',
+        case_id: 'case_a1',
+        attempts: 2,
+      });
+
+      expect(onlyEntry(stdout)).toMatchObject({
+        level: 'warn',
+        message: 'case.claimed',
+        event: 'case.claimed',
+        case_id: 'case_a1',
+        attempts: 2,
+        context: 'Worker',
+      });
+    });
+
+    it('keeps the message of an error named like a token failure', () => {
+      const expired = Object.assign(
+        new Error('"exp" claim timestamp check failed'),
+        {
+          name: 'JWTExpired',
+          code: 'ERR_JWT_EXPIRED',
+        },
+      );
+
+      new Logger('Mcp').warn('case token rejected', expired);
+
+      expect(onlyEntry(stdout)).toMatchObject({
+        message: 'case token rejected',
+        error: {
+          name: 'JWTExpired',
+          code: 'ERR_JWT_EXPIRED',
+          message: '"exp" claim timestamp check failed',
+        },
+      });
+    });
+
+    it('keeps an idempotency key, which correlates an execution', () => {
+      new Logger('Executor').log({
+        event: 'execution.started',
+        idempotencyKey: 'act_a1b2',
+        note: 'idempotency key=act_a1b2',
+      });
+
+      expect(onlyEntry(stdout)).toMatchObject({
+        idempotencyKey: 'act_a1b2',
+        note: 'idempotency key=act_a1b2',
+      });
+    });
+
     it('keeps token counts, which are not credentials', () => {
       new Logger('Probe').log({
         event: 'run.step',
