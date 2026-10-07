@@ -212,7 +212,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         return failure(error.code, error.fields);
       }
       if (error instanceof CoreUnavailableError) {
-        ctx.log({ event: 'core_unavailable', tool, run_id: claims.run_id });
+        ctx.log({
+          event: 'core_unavailable',
+          tool,
+          run_id: claims.run_id,
+          reason: maskPii(error.message),
+        });
         return failure(TOOL_ERROR.upstream);
       }
       // The SDK would put the raw message in the tool result, unmasked (G6).

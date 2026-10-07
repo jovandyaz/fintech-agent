@@ -795,6 +795,19 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
     await client.close();
   });
 
+  it('answers a transaction page outside the contract with UPSTREAM_UNAVAILABLE', async () => {
+    const client = await connect(await mint());
+    stubbed = () =>
+      Promise.resolve(
+        Response.json({ items: [{ id: PLANTED_PAN }], total: 1 }),
+      );
+    expect(await call(client, 'list_transactions')).toEqual({
+      isError: true,
+      body: { error: 'UPSTREAM_UNAVAILABLE' },
+    });
+    await client.close();
+  });
+
   it('never turns an ownerless core record into a fraud signal', async () => {
     const client = await connect(await mint());
     const ownerless = Object.fromEntries(
