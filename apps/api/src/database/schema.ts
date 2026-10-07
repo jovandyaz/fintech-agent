@@ -2,8 +2,11 @@ import {
   ACTION_STATUSES,
   ACTION_TYPES,
   CASE_CATEGORIES,
+  CASE_FLAGS,
   CASE_SOURCES,
   CASE_STATUSES,
+  type ActionParams,
+  type CaseFlag,
   EXECUTION_STATUSES,
   REJECT_CODES,
   REVIEW_TIERS,
@@ -15,6 +18,7 @@ import {
 import { sql, type SQL } from 'drizzle-orm';
 import {
   boolean,
+  check,
   customType,
   index,
   integer,
@@ -32,6 +36,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 const SEARCH_CONFIG = sql.raw(`'es_unaccent'`);
+const CASE_FLAGS_JSON = sql.raw(`'${JSON.stringify(CASE_FLAGS)}'::jsonb`);
 const USD_PRECISION = 12;
 const USD_SCALE = 6;
 
@@ -40,6 +45,10 @@ const tsvector = customType<{ data: string }>({
 });
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
+
+// A NULL column passes a CHECK, so the same rule serves the nullable acknowledgment.
+const closedFlagSet = (column: PgColumn): SQL =>
+  sql`jsonb_typeof(${column}) = 'array' AND ${column} <@ ${CASE_FLAGS_JSON}`;
 const usd = (name: string) =>
   numeric(name, { precision: USD_PRECISION, scale: USD_SCALE });
 const caseIdRef = () =>
@@ -89,10 +98,13 @@ export const cases = pgTable(
     claimToken: uuid('claim_token'),
     nextAttemptAt: timestamptz('next_attempt_at').notNull().defaultNow(),
     category: caseCategory(),
-    flags: jsonb().notNull().default([]),
+    flags: jsonb().$type<CaseFlag[]>().notNull().default([]),
     reviewTier: reviewTier('review_tier'),
   },
-  (t) => [index('cases_claimable').on(t.status, t.nextAttemptAt)],
+  (t) => [
+    index('cases_claimable').on(t.status, t.nextAttemptAt),
+    check('cases_flags_closed_set', closedFlagSet(t.flags)),
+  ],
 );
 
 export const webhookEvents = pgTable('webhook_events', {
@@ -156,9 +168,9 @@ export const proposedActions = pgTable(
     caseId: caseIdRef(),
     runId: runIdRef(),
     agentType: actionType('agent_type').notNull(),
-    agentParams: jsonb('agent_params').notNull(),
+    agentParams: jsonb('agent_params').$type<ActionParams>().notNull(),
     type: actionType().notNull(),
-    params: jsonb().notNull(),
+    params: jsonb().$type<ActionParams>().notNull(),
     justification: text().notNull(),
     status: actionStatus().notNull().default('proposed'),
     proposedAt: timestamptz('proposed_at').notNull().defaultNow(),
@@ -168,8 +180,8 @@ export const proposedActions = pgTable(
     rejectCode: rejectCode('reject_code'),
     rejectReason: text('reject_reason'),
     replyEditRatio: real('reply_edit_ratio'),
-    acknowledgedFlags: jsonb('acknowledged_flags'),
-    reviewedTransactionIds: jsonb('reviewed_transaction_ids'),
+    acknowledgedFlags: jsonb('acknowledged_flags').$type<CaseFlag[]>(),
+    reviewedTransactionIds: jsonb('reviewed_transaction_ids').$type<string[]>(),
     operatorOverride: boolean('operator_override').notNull().default(false),
     isCanary: boolean('is_canary').notNull().default(false),
   },
@@ -177,6 +189,10 @@ export const proposedActions = pgTable(
     uniqueIndex('one_open_proposal_per_case')
       .on(t.caseId)
       .where(sql`${t.status} = 'proposed'`),
+    check(
+      'proposed_actions_acknowledged_flags_closed_set',
+      closedFlagSet(t.acknowledgedFlags),
+    ),
   ],
 );
 

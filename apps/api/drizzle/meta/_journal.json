@@ -43,6 +43,13 @@
       "when": 1791354690751,
       "tag": "0005_superseded-unchanged",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791357262998,
+      "tag": "0006_flags-closed-set",
+      "breakpoints": true
     }
   ]
 }
