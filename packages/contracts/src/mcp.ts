@@ -53,7 +53,8 @@ export const MAX_LIST_LIMIT = 25;
 const DEFAULT_LIST_LIMIT = 10;
 const MAX_QUERY_CHARS = 64;
 
-const isoInstant = z.union([z.iso.datetime({ offset: true }), z.iso.date()]);
+// A bare date would be read as UTC midnight and drop most of a Mexico City day.
+const isoInstant = z.iso.datetime({ offset: true });
 const transactionId = z.string().min(1).max(MAX_QUERY_CHARS);
 
 export const ListTransactionsInputSchema = z.strictObject({

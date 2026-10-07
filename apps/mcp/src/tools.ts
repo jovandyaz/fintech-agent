@@ -222,7 +222,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     'list_transactions',
     {
       description:
-        'The case customer’s transactions, newest first, as compact rows. Filter by type, status, date range (from/to), amount range or a text query on the merchant or counterparty; page with limit (max 25) and cursor. `total` says how many match.',
+        'The case customer’s transactions, newest first, as compact rows. Filter by type, status, an inclusive date range (from/to, ISO 8601 datetimes with offset such as 2026-10-02T00:00:00-06:00), amount range or a text query on the merchant or counterparty; page with limit (max 25) and cursor. `total` says how many match.',
       inputSchema: ListTransactionsInputSchema,
       annotations: READ_ONLY,
     },

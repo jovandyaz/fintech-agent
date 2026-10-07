@@ -466,6 +466,21 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
     await client.close();
   });
 
+  it('filters by an inclusive range of offset datetimes and refuses a bare date', async () => {
+    const client = await connect(await mint());
+    const day = await call(client, 'list_transactions', {
+      from: '2026-10-02T00:00:00-06:00',
+      to: '2026-10-02T23:59:59-06:00',
+    });
+    expect(day.body).toMatchObject({ total: 1, items: [{ id: speiOut.id }] });
+    const bareDate = await client.callTool({
+      name: 'list_transactions',
+      arguments: { from: '2026-10-02', to: '2026-10-02' },
+    });
+    expect(bareDate.isError).toBe(true);
+    await client.close();
+  });
+
   it('rejects a customer_id argument instead of honoring it', async () => {
     const client = await connect(await mint());
     const outcome = await client.callTool({
