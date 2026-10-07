@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   NOW,
+  RECEIVED_AT,
   CARD_TX,
   POLICY_CHUNK_ID,
   SPEI_TX,
@@ -23,6 +24,7 @@ import {
   speiStatus,
 } from '../../test/validator-fixtures.js';
 import { fastestRunMs } from '../../test/timing.js';
+import { replyViolations } from '../replies/reply-checks.js';
 import { CalendarRangeError } from './core/calendar.js';
 import {
   buildEvidence,
@@ -31,6 +33,7 @@ import {
 } from './core/validate/evidence.js';
 import { factFlags } from './core/validate/flags.js';
 import { validate } from './core/validate/index.js';
+import { fillPlaceholders } from './core/validate/placeholders.js';
 import {
   RepairEvidenceError,
   validateWithRepair,
@@ -850,6 +853,38 @@ describe('date placeholders and their commitments', () => {
     expect(
       codesOf(replying('Hola {{nombre}}, folio {{folio}}{{fecha_recepcion}}.')),
     ).toEqual(['SCHEMA']);
+  });
+});
+
+describe('validate, then fill', () => {
+  const DRAFT =
+    'Hola {{nombre}}, tu folio es {{folio}}. {{compromiso_dictamen}} {{compromiso_abono}}';
+  const FOLIO = 'AC-K7Q3-M9X2';
+  const filledFor = (receivedAt: Date): string => {
+    const outcome = validate(replying(DRAFT), {
+      evidence: buildEvidence(runOf(CARD_DISPUTE_RUN, { receivedAt })),
+      stateRules: [],
+    });
+    if (!outcome.ok) throw new Error(outcome.codes.join(', '));
+    return fillPlaceholders(outcome.resolution.draft_reply, {
+      receivedAt,
+      folio: FOLIO,
+      firstName: 'Ana',
+    });
+  };
+
+  it('fills an accepted draft with the approved wording and its dates', () => {
+    const filled = filledFor(RECEIVED_AT);
+    expect(filled).toBe(
+      'Hola Ana, tu folio es AC-K7Q3-M9X2. Te daremos una respuesta por escrito a más tardar el 21 de noviembre de 2026. Si no estás de acuerdo con ella, puedes acudir a la CONDUSEF. Te abonaremos el importe del cargo a más tardar el 9 de octubre de 2026, mientras resolvemos tu aclaración.',
+    );
+    expect(replyViolations(filled)).toEqual([]);
+  });
+
+  it('skips a weekend and a bank holiday in the credit deadline', () => {
+    expect(filledFor(new Date('2026-10-30T18:00:00Z'))).toContain(
+      'a más tardar el 4 de noviembre de 2026, mientras',
+    );
   });
 });
 
