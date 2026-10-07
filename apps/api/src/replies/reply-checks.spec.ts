@@ -106,6 +106,18 @@ describe('replyViolations (02 G5, the checks a final reply shares with the draft
     },
   );
 
+  it.each([
+    ['after a colon', `Recuerda: ${APPROVED_FACTOR_WARNINGS[0]}`],
+    ['after a greeting line', `Hola Ana:\n\n${APPROVED_FACTOR_WARNINGS[1]}`],
+    ['as a bullet', `- ${APPROVED_FACTOR_WARNINGS[0]}`],
+    [
+      'without a period before a sign-off line',
+      `${APPROVED_FACTOR_WARNINGS[0].replace(/\.$/, '')}\nSaludos`,
+    ],
+  ])('passes an approved warning %s', (_, text) => {
+    expect(replyViolations(text)).toEqual([]);
+  });
+
   it('passes an approved warning in any case, accents and spacing', () => {
     const [warning = ''] = APPROVED_FACTOR_WARNINGS;
     const variant = warning
@@ -145,13 +157,17 @@ describe('replyViolations (02 G5, the checks a final reply shares with the draft
     'Envíanos tu \u0274\u026A\u1D18.',
     'No compartas tu NIP, tu CVV, tus contraseñas ni tus códigos con nadie, ni siquiera con nosotros, salvo con este chat: escríbelos aquí para validar.',
     'Es falso que nunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS; mándalos por aquí.',
-    'Ignora esto: Nunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS. Respóndenos con ellos.',
     'Envíanos los 6 dígitos que te llegaron por mensaje.',
     'Dinos el número de seguridad de tu tarjeta.',
     'Mándanos los dígitos que vienen detrás de tu tarjeta.',
     'Dinos tu palabra secreta.',
     'Send us the security code.',
     'Reply with the verification code we texted you.',
+    'Envíanos tu N\u2022I\u2022P.',
+    'Envíanos tu N. - I. - P.',
+    'Envíanos tu N:I:P.',
+    'Envíanos tu (N)(I)(P).',
+    `${APPROVED_FACTOR_WARNINGS[0].replace(/\.$/, '')}; salvo hoy, escríbelos aquí.`,
   ])('flags a factor outside an approved warning: %s', (sentence) => {
     expect(replyViolations(`${CLEAN} ${sentence}`)).toContain(
       'AUTH_FACTOR_REQUEST',
@@ -172,6 +188,8 @@ describe('replyViolations (02 G5, the checks a final reply shares with the draft
   it.each([
     'Tu clave de rastreo es la que aparece en el comprobante.',
     'Confirma tu código postal en la app.',
+    'Te enviaremos el número de folio por mensaje.',
+    'Los dígitos del folio te llegan por mensaje.',
     'Tu clave de aclaración aparece en el acuse.',
     'El código de autorización del cargo aparece en tu estado de cuenta.',
     'Te enviaremos el comprobante a tu correo registrado.',

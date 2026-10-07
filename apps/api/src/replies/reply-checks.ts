@@ -80,8 +80,9 @@ const LOOKALIKES: Record<string, string> = {
 };
 const LOOKALIKE = new RegExp(`[${Object.keys(LOOKALIKES).join('')}]`, 'gu');
 const SPELLED_OUT =
-  /(?<![\p{L}\d])(?:[\p{L}\d][.\s\-·_,/|\u2800]{1,3}){1,7}[\p{L}\d](?![\p{L}\d])/gu;
-const SPELLING_SEPARATOR = /[.\s\-·_,/|\u2800]/g;
+  /(?<![\p{L}\p{N}])(?:[\p{L}\p{N}][^\p{L}\p{N}]{1,4}){1,7}[\p{L}\p{N}](?![\p{L}\p{N}])/gu;
+const SPELLING_SEPARATOR = /[^\p{L}\p{N}]/gu;
+const LINE_BREAK = /\s*\n\s*/g;
 const LEET: Record<string, string> = {
   '0': 'o',
   '1': 'i',
@@ -122,7 +123,7 @@ const NOT_A_FACTOR_AFTER: Partial<
 const FACTOR_PHRASES = [
   'llaves? dinamicas?',
   '(?:numeros?|numeritos?|palabras?|claves?|codigos?) secret[oa]s?',
-  '(?:digitos|numeros?|numeritos) [^.!?;]{0,30}?\\b(?:reverso|atras|detras|seguridad|sms|mensaje)',
+  '(?:digitos|numeros?|numeritos)(?! del? (?:folio|caso|aclaracion|rastreo)) [^.!?;]{0,30}?\\b(?:reverso|atras|detras|seguridad|sms|mensaje)',
   'one[- ]time (?:code|password)',
   '(?:security|verification|access) codes?',
   'mensajes? de texto',
@@ -169,6 +170,7 @@ const normalize = (text: string): string =>
     .normalize('NFKD')
     .replace(DIACRITICS, '')
     .toLowerCase()
+    .replace(LINE_BREAK, '. ')
     .replace(WHITESPACE, ' ')
     .replace(SPELLED_OUT, spelledRun);
 
@@ -185,12 +187,13 @@ const unleetFactors = (text: string): string =>
 const escapeRegExp = (text: string): string =>
   text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// Only a whole sentence counts as the warning: "Es falso que <warning>" or
-// "<warning>, salvo con este chat" says the opposite of what it quotes.
+// Only a whole sentence counts as the warning, so "Es falso que <warning>"
+// or "<warning>; salvo hoy, escríbelos" fails; a lead-in such as
+// "Recuerda:", a bullet or a quote may open it, as a line break may close it.
 const APPROVED = APPROVED_FACTOR_WARNINGS.map(
   (warning) =>
     new RegExp(
-      `(?:^|(?<=[.!?;]\\s*))${escapeRegExp(normalize(warning).replace(/[.!]+$/, ''))}(?=\\s*(?:[.!?;]|$))`,
+      `(?<=(?:^|[.!?:])\\s*(?:[-•*"'«(]\\s*)?)${escapeRegExp(normalize(warning).replace(/[.!]+$/, ''))}(?=\\s*["'»)]?\\s*(?:[.!?]|$))`,
       'g',
     ),
 );
