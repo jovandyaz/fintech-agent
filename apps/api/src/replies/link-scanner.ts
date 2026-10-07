@@ -23,6 +23,9 @@ const EMAIL_HOST = /[\w.+-]+@([\w-]+(?:\.[\w-]+)+)/g;
 // so a missing space after a period ("Listo.Saludos") is flagged too.
 const BARE_HOST =
   /(?<![\w@./-])([a-z0-9][a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})(?![\w-])/gi;
+// Spanish writes plurals of initials as doubled capitals ("EE.UU.", "RR.HH."),
+// which no registrable domain looks like.
+const INITIALS = /^(?:[A-Z]{1,2}\.)+[A-Z]{1,2}$/;
 // NFKC leaves these as they are, and browsers read each one as a dot in a host.
 const DOT_LOOKALIKES = /[\u3002\uFF61\uFE52]/g;
 
@@ -91,7 +94,9 @@ export function hasLinkOutsideAllowList(
   const hosts = [
     ...[...normalized.matchAll(WWW_HOST)].map((match) => match[1] ?? ''),
     ...[...normalized.matchAll(EMAIL_HOST)].map((match) => match[1] ?? ''),
-    ...[...normalized.matchAll(BARE_HOST)].map((match) => match[1] ?? ''),
+    ...[...normalized.matchAll(BARE_HOST)]
+      .map((match) => match[1] ?? '')
+      .filter((host) => !INITIALS.test(host)),
   ];
   return hosts.some((host) => !isAllowedHost(host, allowed));
 }

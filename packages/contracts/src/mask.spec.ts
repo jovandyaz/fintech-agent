@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { maskJson, maskPii } from './mask.js';
+import { hasPii, maskJson, maskPii } from './mask.js';
 
 const CLABE = '012180001234567899';
 const CLABE_PASSING_LUHN = '012180001234500267';
@@ -946,5 +946,30 @@ describe('maskJson — attack review, round 4', () => {
       number
     >;
     expect(Object.values(masked).sort()).toEqual([1, 2]);
+  });
+});
+
+describe('hasPii (02 G5 PII_IN_REPLY)', () => {
+  it.each([
+    ['an ellipsis', 'Gracias… te escribimos pronto.'],
+    ['a no-break space', 'Hola Ana, ya quedó.'],
+    ['an ordinal sign', 'Tu aclaración Nº 5 sigue abierta.'],
+    ['an emoji with a variation selector', 'Gracias ❤️'],
+    ['decomposed accents', 'aclaración'.normalize('NFD')],
+    ['number words', 'Sigue los pasos uno, dos y tres.'],
+  ])('ignores %s, which only folding changes', (_, text) => {
+    expect(hasPii(text)).toBe(false);
+  });
+
+  it.each([
+    ['a CLABE', 'Tu CLABE es 012180001234567891.'],
+    ['a card number', 'Tarjeta 4111 1111 1111 1111.'],
+    ['a phone in pairs', 'Llámanos al 55 12 34 56 78.'],
+    [
+      'a CLABE in number words',
+      'cero uno dos uno ocho cero cero cero uno dos tres cuatro',
+    ],
+  ])('finds %s', (_, text) => {
+    expect(hasPii(text)).toBe(true);
   });
 });
