@@ -2,11 +2,12 @@ import {
   CoreUnavailableError,
   hasPii,
   maskJson,
+  readTransactions,
   type ActionParams,
   type ActionStatus,
   type ActionType,
   type CaseFlag,
-  type CoreClient,
+  type CoreReader,
   type Decision,
   type Override,
   type ReplyCheckCode,
@@ -65,9 +66,6 @@ export interface DecisionResult {
   status: ActionStatus;
 }
 
-/** Only `transaction()`: the API reads core-mock for override ownership alone. */
-export type CoreReader = Pick<CoreClient, 'transaction'>;
-
 export interface DecideDeps {
   db: Database;
   core: CoreReader;
@@ -119,12 +117,12 @@ const sameAction = (a: Target, b: Target): boolean =>
   a.params.transaction_ids.length === b.params.transaction_ids.length &&
   a.params.transaction_ids.every((id, i) => id === b.params.transaction_ids[i]);
 
-async function readTransactions(
+async function readOrRefuse(
   reader: CoreReader,
   ids: readonly string[],
 ): Promise<(Transaction | null)[]> {
   try {
-    return await Promise.all(ids.map((id) => reader.transaction(id)));
+    return await readTransactions(reader, ids);
   } catch (error) {
     if (error instanceof CoreUnavailableError) {
       throw new DecisionError(DECISION_FAILURE.coreUnavailable);
@@ -138,7 +136,7 @@ async function overrideTarget(
   customerId: string,
   override: Override,
 ): Promise<Target> {
-  const found = await readTransactions(reader, override.transaction_ids);
+  const found = await readOrRefuse(reader, override.transaction_ids);
   const owned = found.filter(
     (transaction): transaction is Transaction =>
       transaction?.customer_id === customerId,

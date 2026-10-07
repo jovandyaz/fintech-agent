@@ -9,7 +9,8 @@ import {
   type Transaction,
 } from './core.js';
 
-const CORE_TIMEOUT_MS = 5_000;
+/** How long any call to core-mock may take before it counts as unavailable. */
+export const CORE_TIMEOUT_MS = 5_000;
 const NOT_FOUND = 404;
 
 export type FetchLike = (
@@ -78,3 +79,13 @@ export function createCoreClient(options: {
       ),
   };
 }
+
+/** The one read a caller outside the MCP server needs: a transaction by id. */
+export type CoreReader = Pick<CoreClient, 'transaction'>;
+
+/** Reads each id, in order; throws `CoreUnavailableError` if core cannot answer. */
+export const readTransactions = (
+  reader: CoreReader,
+  ids: readonly string[],
+): Promise<(Transaction | null)[]> =>
+  Promise.all(ids.map((id) => reader.transaction(id)));

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MAX_ACTION_TRANSACTIONS, REASON_CODES } from './schemas.js';
+
 export const SPEI_TYPES = ['spei_in', 'spei_out'] as const;
 export const CARD_TYPES = ['card_purchase'] as const;
 export const TX_TYPES = [...SPEI_TYPES, ...CARD_TYPES] as const;
@@ -121,12 +123,25 @@ export const CORE_WRITE_PATHS = {
 } as const;
 export type WritableAction = keyof typeof CORE_WRITE_PATHS;
 
-/** The body of every core-mock write: ids and a reason, no value field (02 G2). */
+/** Whether an action type has an effect core-mock can write (`none` has none). */
+export const isWritableAction = (type: string): type is WritableAction =>
+  Object.hasOwn(CORE_WRITE_PATHS, type);
+
+/** The headers of a core-mock write: who may write, and the key that makes it happen once. */
+export const CORE_WRITE_HEADERS = {
+  executorKey: 'x-executor-key',
+  idempotencyKey: 'idempotency-key',
+} as const;
+
+/** Where core-mock answers the effect stored under an idempotency key. */
+export const CORE_EFFECTS_PATH = '/effects';
+
+/** The body of every core-mock write: ids and a closed reason, no value or free text (02 G2). */
 export const CoreWriteBodySchema = z.strictObject({
   action_id: z.string().min(1),
   customer_id: z.string().min(1),
-  transaction_ids: z.array(z.string().min(1)),
-  reason_code: z.string().min(1),
+  transaction_ids: z.array(z.string().min(1)).max(MAX_ACTION_TRANSACTIONS),
+  reason_code: z.enum(REASON_CODES),
 });
 export type CoreWriteBody = z.infer<typeof CoreWriteBodySchema>;
 
@@ -146,9 +161,15 @@ export const CORE_WRITE_REFUSALS = [
 ] as const;
 export type CoreWriteRefusal = (typeof CORE_WRITE_REFUSALS)[number];
 
+/** core-mock's answer to a final refusal. */
+export const CoreRefusalSchema = z.object({
+  error: z.enum(CORE_WRITE_REFUSALS),
+});
+
 /**
  * How long a settled outgoing SPEI must sit before a dispute is allowed: the
  * "policy window" of the 02 G2 table. The "Tiempos SPEI" policy states the
  * same figure.
  */
 export const SPEI_DISPUTE_AFTER_HOURS = 24;
+export const MS_PER_HOUR = 3_600_000;

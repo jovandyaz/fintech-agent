@@ -1,32 +1,32 @@
 import {
+  MS_PER_HOUR,
   SPEI_DISPUTE_AFTER_HOURS,
   type ActionType,
   type Transaction,
 } from '@fintech-agent/contracts';
 
-import { shapeViolation } from '../actions/allowed.js';
+import { shapeViolation, type G2Violation } from '../actions/allowed.js';
 
-const MS_PER_HOUR = 3_600_000;
 const SPEI_WINDOW_MS = SPEI_DISPUTE_AFTER_HOURS * MS_PER_HOUR;
 
-/** Why an approved action may no longer execute; it is marked `failed` with it. */
+/** Why an approved action may no longer execute, besides a G2 row violation. */
 export const REVALIDATION_FAILURES = [
   'missing',
   'not_owned',
-  'shape',
   'spei_window',
 ] as const;
-export type RevalidationFailure = (typeof REVALIDATION_FAILURES)[number];
+export type RevalidationFailure =
+  (typeof REVALIDATION_FAILURES)[number] | G2Violation;
 
-const insideSpeiWindow = (transaction: Transaction, now: Date): boolean =>
-  transaction.type === 'spei_out' &&
-  (transaction.settled_at === null ||
-    now.getTime() - Date.parse(transaction.settled_at) < SPEI_WINDOW_MS);
+// Negated so a settlement time that does not parse (NaN) fails closed.
+const pastSpeiWindow = (settledAt: string | null, now: Date): boolean =>
+  settledAt !== null && now.getTime() - Date.parse(settledAt) >= SPEI_WINDOW_MS;
 
 /**
  * Re-checks an approved action against core data read just now (02 G2, G3):
  * every transaction exists, belongs to the case's customer, fits the action's
- * G2 row, and a SPEI dispute is past the policy window. Null means execute.
+ * G2 row, and a SPEI dispute is past the policy window. Null means execute;
+ * a G2 failure names the rule it broke.
  */
 export function revalidate(
   action: { type: ActionType; transaction_ids: readonly string[] },
@@ -41,10 +41,15 @@ export function revalidate(
   if (found.some(({ customer_id }) => customer_id !== customerId)) {
     return 'not_owned';
   }
-  if (shapeViolation(action.type, found) !== null) return 'shape';
+  const violation = shapeViolation(action.type, found);
+  if (violation) return violation;
   if (
     action.type === 'open_dispute' &&
-    found.some((transaction) => insideSpeiWindow(transaction, now))
+    found.some(
+      (transaction) =>
+        transaction.type === 'spei_out' &&
+        !pastSpeiWindow(transaction.settled_at, now),
+    )
   ) {
     return 'spei_window';
   }

@@ -1,6 +1,9 @@
 import {
+  CORE_EFFECTS_PATH,
+  CORE_TIMEOUT_MS,
+  CORE_WRITE_HEADERS,
   CORE_WRITE_PATHS,
-  CORE_WRITE_REFUSALS,
+  CoreRefusalSchema,
   CoreUnavailableError,
   CoreWriteResultSchema,
   type CoreWriteBody,
@@ -10,7 +13,7 @@ import {
   type WritableAction,
 } from '@fintech-agent/contracts';
 
-const CORE_TIMEOUT_MS = 5_000;
+const NOT_FOUND = 404;
 const UNPROCESSABLE = 422;
 
 export type WriteOutcome =
@@ -23,10 +26,9 @@ export interface CoreWriteClient {
     body: CoreWriteBody,
     idempotencyKey: string,
   ) => Promise<WriteOutcome>;
+  /** The effect core-mock stored under the key, or null when there is none. */
+  effectOf: (idempotencyKey: string) => Promise<CoreWriteResult | null>;
 }
-
-const isRefusal = (value: unknown): value is CoreWriteRefusal =>
-  (CORE_WRITE_REFUSALS as readonly unknown[]).includes(value);
 
 async function bodyOf(response: Response): Promise<unknown> {
   try {
@@ -36,50 +38,72 @@ async function bodyOf(response: Response): Promise<unknown> {
   }
 }
 
+function resultOf(body: unknown, idempotencyKey: string): CoreWriteResult {
+  const parsed = CoreWriteResultSchema.safeParse(body);
+  if (!parsed.success || parsed.data.action_id !== idempotencyKey) {
+    throw new CoreUnavailableError('core answered outside its contract');
+  }
+  return parsed.data;
+}
+
 /**
  * The only write path to core-mock (02 G1): the executor key and the
- * action's idempotency key on every call. A 422 is a final refusal; any other
- * failure throws `CoreUnavailableError`, which leaves the execution `started`
- * for the sweeper to retry with the same key.
+ * action's idempotency key on every call. A 422 refusal is final; any other
+ * failure, or an answer for another action, throws `CoreUnavailableError`,
+ * which leaves the execution `started` for the sweeper.
  */
 export function createCoreWriteClient(options: {
   baseUrl: string;
   executorKey: string;
   fetch: FetchLike;
 }): CoreWriteClient {
+  async function call(path: string, init: RequestInit): Promise<Response> {
+    try {
+      return await options.fetch(new URL(path, options.baseUrl), {
+        ...init,
+        signal: AbortSignal.timeout(CORE_TIMEOUT_MS),
+      });
+    } catch (error) {
+      throw new CoreUnavailableError(String(error));
+    }
+  }
+
   return {
     async write(type, body, idempotencyKey) {
-      let response: Response;
-      try {
-        response = await options.fetch(
-          new URL(CORE_WRITE_PATHS[type], options.baseUrl),
-          {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-              'x-executor-key': options.executorKey,
-              'idempotency-key': idempotencyKey,
-            },
-            body: JSON.stringify(body),
-            signal: AbortSignal.timeout(CORE_TIMEOUT_MS),
-          },
-        );
-      } catch (error) {
-        throw new CoreUnavailableError(String(error));
-      }
+      const response = await call(CORE_WRITE_PATHS[type], {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          [CORE_WRITE_HEADERS.executorKey]: options.executorKey,
+          [CORE_WRITE_HEADERS.idempotencyKey]: idempotencyKey,
+        },
+        body: JSON.stringify(body),
+      });
       if (response.status === UNPROCESSABLE) {
-        const refused = await bodyOf(response);
-        const reason = (refused as { error?: unknown } | null)?.error;
-        if (isRefusal(reason)) return { outcome: 'refused', reason };
+        const refusal = CoreRefusalSchema.safeParse(await bodyOf(response));
+        if (refusal.success) {
+          return { outcome: 'refused', reason: refusal.data.error };
+        }
       }
       if (!response.ok) {
         throw new CoreUnavailableError(`core answered ${response.status}`);
       }
-      const parsed = CoreWriteResultSchema.safeParse(await bodyOf(response));
-      if (!parsed.success) {
-        throw new CoreUnavailableError('core answered outside its contract');
+      return {
+        outcome: 'accepted',
+        result: resultOf(await bodyOf(response), idempotencyKey),
+      };
+    },
+
+    async effectOf(idempotencyKey) {
+      const response = await call(
+        `${CORE_EFFECTS_PATH}/${encodeURIComponent(idempotencyKey)}`,
+        { headers: { [CORE_WRITE_HEADERS.executorKey]: options.executorKey } },
+      );
+      if (response.status === NOT_FOUND) return null;
+      if (!response.ok) {
+        throw new CoreUnavailableError(`core answered ${response.status}`);
       }
-      return { outcome: 'accepted', result: parsed.data };
+      return resultOf(await bodyOf(response), idempotencyKey);
     },
   };
 }

@@ -203,6 +203,7 @@ export const actionExecutions = pgTable('action_executions', {
   status: executionStatus().notNull(),
   attempts: integer().notNull().default(1),
   startedAt: timestamptz('started_at').notNull().defaultNow(),
+  lastAttemptAt: timestamptz('last_attempt_at'),
   finishedAt: timestamptz('finished_at'),
   result: jsonb(),
 });

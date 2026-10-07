@@ -36,25 +36,28 @@ describe('compose process boundary (02 G1)', () => {
   });
 
   it('gives CORE_EXECUTOR_KEY only to the executor and core-mock', () => {
-    const executorKeyHolders = holders('CORE_EXECUTOR_KEY');
-    expect(executorKeyHolders).toContain('core-mock');
-    expect(['core-mock', 'executor']).toEqual(
-      expect.arrayContaining(executorKeyHolders),
-    );
+    expect(holders('CORE_EXECUTOR_KEY').sort()).toEqual([
+      'core-mock',
+      'executor',
+    ]);
   });
 
   it('gives the owner database URL only to seed', () => {
     expect(holders('DATABASE_URL')).toEqual(['seed']);
   });
 
-  it('connects api and mcp each with its own role', () => {
+  it('connects api, executor and mcp each with its own role', () => {
     expect(env('api').API_DATABASE_URL).toMatch(/^postgresql:\/\/copilot_api:/);
+    expect(env('executor').EXECUTOR_DATABASE_URL).toMatch(
+      /^postgresql:\/\/copilot_executor:/,
+    );
+    expect(holders('EXECUTOR_DATABASE_URL')).toEqual(['executor']);
     expect(env('mcp').MCP_DATABASE_URL).toMatch(/^postgresql:\/\/copilot_mcp:/);
     expect(holders('API_DATABASE_URL')).toEqual(['api']);
     expect(holders('MCP_DATABASE_URL')).toEqual(['mcp']);
   });
 
-  it('starts api and mcp only after seed has migrated', () => {
+  it('starts api, executor and mcp only after seed has migrated', () => {
     const dependsOn = (service: string) =>
       (
         compose.services[service] as {
@@ -66,6 +69,20 @@ describe('compose process boundary (02 G1)', () => {
     );
     expect(dependsOn('mcp').seed?.condition).toBe(
       'service_completed_successfully',
+    );
+    expect(dependsOn('executor').seed?.condition).toBe(
+      'service_completed_successfully',
+    );
+  });
+
+  it('restarts the executor and checks it is alive, so the sweeper always comes back (01 failure handling)', () => {
+    const executor = compose.services.executor as {
+      restart?: string;
+      healthcheck?: { test?: unknown };
+    };
+    expect(executor.restart).toBe('unless-stopped');
+    expect(JSON.stringify(executor.healthcheck?.test)).toContain(
+      'executor-alive',
     );
   });
 });
