@@ -37,6 +37,7 @@ const RUN_ID = 'run_cd34';
 const TOKEN_TTL_S = 300;
 const TOO_LONG_TTL_S = 601;
 const PAST_S = 3600;
+const EXPIRED_AGO_S = 30;
 const MODERN = '2026-07-28';
 const LEGACY = '2025-11-25';
 type ProtocolEra = typeof MODERN | typeof LEGACY;
@@ -359,6 +360,15 @@ describe('MCP authentication (02 G4)', () => {
     expect(response.status).toBe(200);
   });
 
+  it('reads the Bearer scheme case-insensitively (RFC 7235)', async () => {
+    const answer = await rawRequest({
+      'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
+      authorization: `bearer ${await mint()}`,
+    });
+    expect(answer.status).toBe(200);
+  });
+
   it('refuses a request without a bearer token', async () => {
     const response = await rawPost();
     expect(response.status).toBe(401);
@@ -367,6 +377,10 @@ describe('MCP authentication (02 G4)', () => {
 
   const rejected: [string, () => Promise<string>][] = [
     ['an expired token', () => mint({ issuedAt: now() - PAST_S })],
+    [
+      'a recently issued token whose exp has passed',
+      () => mint({ issuedAt: now() - EXPIRED_AGO_S, expiresAt: now() - 1 }),
+    ],
     [
       'a token for another resource',
       () => mint({ audience: 'http://other.internal/mcp' }),
@@ -513,6 +527,23 @@ describe('MCP tools (01 §Tools, 02 G4)', () => {
       arguments: { from: '2026-10-02', to: '2026-10-02' },
     });
     expect(bareDate.isError).toBe(true);
+    await client.close();
+  });
+
+  it('refuses a transaction id outside the registry format without calling core', async () => {
+    const client = await connect(await mint());
+    for (const transaction_id of [
+      '..',
+      'tx_../customers',
+      '4111111111111111',
+    ]) {
+      const outcome = await client.callTool({
+        name: 'get_spei_status',
+        arguments: { transaction_id },
+      });
+      expect(outcome.isError, transaction_id).toBe(true);
+    }
+    expect(upstream).toEqual([]);
     await client.close();
   });
 

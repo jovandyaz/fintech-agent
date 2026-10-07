@@ -24,7 +24,7 @@ const MCP_PATH = '/mcp';
 const HEALTH_PATH = '/health';
 const SERVER_INFO = { name: 'case-copilot-mcp', version: '1.0.0' } as const;
 const STATUS = { ok: 200, unauthorized: 401, notFound: 404 } as const;
-const BEARER = /^Bearer ([A-Za-z0-9._~+/-]+=*)$/;
+const BEARER = /^Bearer ([A-Za-z0-9._~+/-]+=*)$/i;
 const CHALLENGE = {
   missing: 'Bearer',
   invalid: 'Bearer error="invalid_token"',

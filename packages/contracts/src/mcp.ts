@@ -12,6 +12,7 @@ import {
   TX_STATUSES,
   TX_TYPES,
 } from './core.js';
+import { ID_PAYLOAD_PATTERN } from './ids.js';
 
 export const CASE_TOKEN_ISSUER = 'case-copilot-api';
 export const CASE_TOKEN_SCOPE = 'case:read';
@@ -56,7 +57,10 @@ const MAX_QUERY_CHARS = 64;
 
 // A bare date would be read as UTC midnight and drop most of a Mexico City day.
 const isoInstant = z.iso.datetime({ offset: true });
-const transactionId = z.string().min(1).max(MAX_QUERY_CHARS);
+const transactionId = z
+  .string()
+  .max(MAX_QUERY_CHARS)
+  .regex(new RegExp(String.raw`^tx_${ID_PAYLOAD_PATTERN}$`));
 
 export const ListTransactionsInputSchema = z.strictObject({
   type: z.enum(TX_TYPES).optional(),
