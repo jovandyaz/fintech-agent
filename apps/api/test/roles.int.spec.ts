@@ -376,3 +376,28 @@ describe('database roles (02 G1)', () => {
     }
   });
 });
+
+describe('webhook intake order (01 Webhook and queue)', () => {
+  const intake = (sql: postgres.Sql, eventId: string, caseId: string) =>
+    sql.begin(async (tx) => {
+      const recorded = await tx`
+        insert into webhook_events (event_id, payload_hash, case_id)
+        values (${eventId}, 'hash', ${caseId})
+        on conflict (event_id) do nothing
+        returning event_id`;
+      if (recorded.length === 0) return false;
+      await tx`
+        insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked)
+        values (${caseId}, ${`T-${caseId}`}, 'AC-WHKA-0001', now(), 'webhook', 'cus_01', 'hola')`;
+      return true;
+    });
+
+  it('records the event before its case in one transaction, as copilot_api', async () => {
+    const api = as('copilot_api');
+    expect(await intake(api, 'evt_w1', 'case_w1')).toBe(true);
+    expect(await intake(api, 'evt_w1', 'case_w1')).toBe(false);
+    const [row] = await owner<{ count: string }[]>`
+      select count(*) from cases where id = 'case_w1'`;
+    expect(row?.count).toBe('1');
+  });
+});
