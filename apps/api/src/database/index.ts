@@ -1,1 +1,6 @@
-export { DATABASE_CLIENT, DatabaseModule } from './database.module.js';
+export {
+  DATABASE,
+  DATABASE_CLIENT,
+  DatabaseModule,
+  type Database,
+} from './database.module.js';

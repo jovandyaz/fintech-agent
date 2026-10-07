@@ -4,10 +4,16 @@ import {
   type DynamicModule,
   type OnApplicationShutdown,
 } from '@nestjs/common';
+import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres, { type Sql } from 'postgres';
+
+import * as schema from './schema.js';
 
 /** The postgres.js client for this process's role; repositories build on it. */
 export const DATABASE_CLIENT = 'DATABASE_CLIENT';
+/** Drizzle over that client, with the schema of 01. */
+export const DATABASE = 'DATABASE';
+export type Database = PostgresJsDatabase<typeof schema>;
 
 const POOL_SIZE = 10;
 const IDLE_TIMEOUT_S = 20;
@@ -33,8 +39,13 @@ export class DatabaseModule implements OnApplicationShutdown {
               onnotice: () => undefined,
             }),
         },
+        {
+          provide: DATABASE,
+          inject: [DATABASE_CLIENT],
+          useFactory: (client: Sql): Database => drizzle({ client, schema }),
+        },
       ],
-      exports: [DATABASE_CLIENT],
+      exports: [DATABASE_CLIENT, DATABASE],
     };
   }
 
