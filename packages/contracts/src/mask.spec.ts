@@ -290,6 +290,31 @@ describe('maskPii — system ids, dates, times and amounts stay intact', () => {
   });
 });
 
+describe('maskPii — folios whose groups spell an auth keyword', () => {
+  it.each([
+    'AC-PWDW-8NYN',
+    'AC-PASS-W0RD',
+    'AC-8NYN-PWD4',
+    'AC-CVV2-8NYN',
+    'AC-SMS4-PASS',
+    'AC-2FA3-MFA7',
+    'AC-TKN5-CVC2',
+  ])('keeps %s whole, alone and in a sentence', (folio) => {
+    expect(maskPii(folio)).toBe(folio);
+    expect(maskPii(`Tu folio es ${folio}.`)).toBe(`Tu folio es ${folio}.`);
+  });
+
+  it('still masks a password that follows a folio', () => {
+    expect(maskPii('folio AC-PWDW-8NYN, pass: Xy9!abcd')).toBe(
+      'folio AC-PWDW-8NYN, pass: [factor]',
+    );
+  });
+
+  it('reads pwd and pass only as whole words', () => {
+    expect(maskPii('mi pwdW-8NYN')).toBe('mi pwdW-8NYN');
+  });
+});
+
 describe('maskPii — number-like ids that could hide personal data', () => {
   it.each([
     '08bc9b76-6326-4987-8f2a-1c2d3e4f5a6b',

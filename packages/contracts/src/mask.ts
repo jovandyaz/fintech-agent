@@ -421,7 +421,7 @@ const AUTH_FACTOR_BEFORE = new RegExp(
   'giu',
 );
 const SECRET_AFTER =
-  /(?<!\p{L})(password|passcode|contrase[ñn]a|clave de acceso|pwd|pass)(\s*(?:es|is|:|=)?\s*)(\S{4,64})/giu;
+  /(?<!\p{L})(password|passcode|contrase[ñn]a|clave de acceso|pwd|pass)(?!\p{L})(\s*(?:es|is|:|=)?\s*)(\S{4,64})/giu;
 const STRONG_SECRET = /[\d\p{P}\p{S}]|\p{Lu}.*\p{Ll}|\p{Ll}.*\p{Lu}/u;
 const NOT_AN_AUTH_FACTOR =
   /postal|rastreo|referencia|folio|interbancaria|error/i;
@@ -889,23 +889,55 @@ function absorbEchoes(text: string): string {
   return out.join('');
 }
 
+type Replacer = (match: string, ...groups: string[]) => string;
+
+// A folio such as AC-PWDW-8NYN is a system id whose groups can spell a
+// keyword; the keyword patterns would otherwise read its tail as a secret.
+function replaceOutsideFolios(
+  text: string,
+  pattern: RegExp,
+  replace: Replacer,
+): string {
+  const folios = [...text.matchAll(FOLIO)].map(
+    (m) => [m.index, m.index + m[0].length] as const,
+  );
+  if (folios.length === 0) return text.replace(pattern, replace);
+  return text.replace(pattern, (match: string, ...rest: unknown[]) => {
+    const at = rest.findIndex((arg) => typeof arg === 'number');
+    const start = rest[at] as number;
+    const end = start + match.length;
+    const overlaps = folios.some(([from, to]) => start < to && end > from);
+    return overlaps
+      ? match
+      : replace(match, ...(rest.slice(0, at) as string[]));
+  });
+}
+
 function maskSegment(text: string): string {
-  const patterned = text
+  const identified = text
     .replace(CURP, `CURP ${MASK}`)
     .replace(CURP_LOOSE, `CURP ${MASK}`)
     .replace(RFC_COMPACT, `RFC ${MASK}`)
-    .replace(RFC_LOOSE, `RFC ${MASK}`)
-    .replace(
-      SECRET_AFTER,
-      (match, keyword: string, gap: string, secret: string) =>
-        secret === FACTOR || !STRONG_SECRET.test(secret)
-          ? match
-          : `${keyword}${gap}${FACTOR}`,
-    )
-    .replace(AUTH_FACTOR_AFTER, (match, keyword: string, gap: string) =>
+    .replace(RFC_LOOSE, `RFC ${MASK}`);
+  const withoutSecrets = replaceOutsideFolios(
+    identified,
+    SECRET_AFTER,
+    (match, keyword = '', gap = '', secret = '') =>
+      secret === FACTOR || !STRONG_SECRET.test(secret)
+        ? match
+        : `${keyword}${gap}${FACTOR}`,
+  );
+  const withoutFactorsAfter = replaceOutsideFolios(
+    withoutSecrets,
+    AUTH_FACTOR_AFTER,
+    (match, keyword = '', gap = '') =>
       NOT_AN_AUTH_FACTOR.test(gap) ? match : `${keyword}${gap}${FACTOR}`,
-    )
-    .replace(AUTH_FACTOR_BEFORE, (_, rest: string) => `${FACTOR}${rest}`)
+  );
+  const patterned = replaceOutsideFolios(
+    withoutFactorsAfter,
+    AUTH_FACTOR_BEFORE,
+    (_, rest = '') => `${FACTOR}${rest}`,
+  )
     .replace(EMAIL_LOCAL_PART, (_, first: string) => `${first}•••`)
     .replace(
       EMAIL_WORDS,
