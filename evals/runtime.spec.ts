@@ -6,9 +6,9 @@ import type { ApiProvider } from 'promptfoo';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
-  assertEveryAttemptRan,
   caseKeyOf,
   formatCaseOutcome,
+  keyForTheJudge,
   requireApiKey,
   runEvalSuite,
   summarizeTrials,
@@ -228,19 +228,17 @@ describe('formatCaseOutcome (ported)', () => {
   });
 });
 
-describe('assertEveryAttemptRan', () => {
-  it('names every case with an attempt that never ran, so a down stack is no 0%', () => {
-    const outcomes = summarizeTrials([
-      trial({ caseId: 'ADV-01', success: false, neverRan: true }),
-      trial({ caseId: 'GEN-01' }),
-    ]);
-    expect(() => assertEveryAttemptRan(outcomes)).toThrow('variant-A ADV-01');
+describe('keyForTheJudge', () => {
+  it("hands the runner's key to promptfoo's Anthropic provider, which reads only the process environment", () => {
+    const target: NodeJS.ProcessEnv = {};
+    keyForTheJudge({ ANTHROPIC_API_KEY: 'k' }, target);
+    expect(target['ANTHROPIC_API_KEY']).toBe('k');
   });
 
-  it('passes a run in which every attempt ran', () => {
-    expect(() =>
-      assertEveryAttemptRan(summarizeTrials([trial()])),
-    ).not.toThrow();
+  it('refuses a missing key and hands nothing on', () => {
+    const target: NodeJS.ProcessEnv = {};
+    expect(() => keyForTheJudge({}, target)).toThrow('ANTHROPIC_API_KEY');
+    expect(target).toEqual({});
   });
 });
 

@@ -2,12 +2,13 @@
 
 The groundedness judge counts toward the variant decision only after a person agrees with it (specs/03-evals.md §Judge validation). These files hold that check.
 
-| File              | Written by            | Holds                                                                                                                                              |
-| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `to-label.jsonl`  | `pnpm eval:judgments` | One row per draft, shuffled, under an opaque id: the first attempt of each case and variant, and about 14 of those drafts with one injected defect |
-| `judgments.jsonl` | `pnpm eval:judgments` | The judge's verdict on each row. **Do not open it until you have labeled every row.**                                                              |
-| `labels.jsonl`    | you                   | Your verdict on each row                                                                                                                           |
-| `key.jsonl`       | `pnpm eval:judgments` | What each opaque id stands for (case, variant, injected defect), read by the scripts. **Do not open it until you have labeled every row.**         |
+| File              | Written by            | Holds                                                                                                                                                                                    |
+| ----------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `to-label.jsonl`  | `pnpm eval:judgments` | One row per draft, shuffled, under an opaque id: the first attempt of each case and variant, and about 14 of those drafts with one injected defect                                       |
+| `judgments.jsonl` | `pnpm eval:judgments` | The judge's verdict on each row. **Do not open it until you have labeled every row.**                                                                                                    |
+| `labels.jsonl`    | you                   | Your verdict on each row                                                                                                                                                                 |
+| `key.jsonl`       | `pnpm eval:judgments` | What each opaque id stands for (case, variant, injected defect), read by the scripts. **Do not open it until you have labeled every row.**                                               |
+| `controls.json`   | `pnpm eval:judgments` | The judge's verdict on each of the 7 known-bad controls and the fingerprint of the rubric it judged under. The judge counts only if it failed all 7 and the rubric has not changed since |
 
 ## How to label
 
@@ -23,4 +24,4 @@ The groundedness judge counts toward the variant decision only after a person ag
 
 4. Run `pnpm eval:agreement`. It reports TPR (the judge fails a draft you failed) and TNR (the judge passes a draft you passed) with 95% intervals, kappa as a secondary number, and every disagreement.
 
-The judge counts toward the decision only if it failed all 7 known-bad controls, TPR ≥ 0.8 and TNR ≥ 0.9. Changing the rubric after seeing the agreement makes the judge informational for that run.
+The judge counts toward the decision only if it failed all 7 known-bad controls, TPR ≥ 0.8 and TNR ≥ 0.9. `pnpm eval:report` checks all of this and rewrites the EVALS.md summary with the judge counted or informational. Changing the rubric after seeing the agreement makes the judge informational for that run. `pnpm eval:judgments` refuses to run while `labels.jsonl` exists, because new row ids would label the wrong drafts.

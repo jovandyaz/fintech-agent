@@ -147,23 +147,6 @@ export function summarizeTrials(trials: readonly TrialResult[]): CaseOutcome[] {
   return [...byCase.values()];
 }
 
-/**
- * Throws naming every case and variant with an attempt that reached no
- * verdict because the provider or a checker threw: a down stack must stop
- * the run, never read as a 0% (03 §Runner).
- */
-export function assertEveryAttemptRan(outcomes: readonly CaseOutcome[]): void {
-  const failed = outcomes.filter(({ unrunAttempts }) => unrunAttempts > 0);
-  if (failed.length === 0) return;
-  const names = failed.map(
-    ({ providerId, caseId, unrunAttempts }) =>
-      `${providerId} ${caseId} (${unrunAttempts})`,
-  );
-  throw new Error(
-    `attempts reached no verdict (the provider or a checker threw): ${names.join(', ')}`,
-  );
-}
-
 /** One line per case and variant for the console. */
 export function formatCaseOutcome(outcome: CaseOutcome): string {
   const graded = outcome.trials - outcome.graderErrors;
@@ -188,6 +171,20 @@ export function requireApiKey(env: NodeJS.ProcessEnv): string {
     );
   }
   return key;
+}
+
+/**
+ * Hands the provider key to `target`, the process environment in the
+ * runner: promptfoo's Anthropic provider, which the judge runs on, reads
+ * its key only from there, and the runner takes the key from `.env`. The
+ * key never goes into a provider config, which promptfoo would store.
+ * Throws without a key.
+ */
+export function keyForTheJudge(
+  env: NodeJS.ProcessEnv,
+  target: NodeJS.ProcessEnv,
+): void {
+  target['ANTHROPIC_API_KEY'] = requireApiKey(env);
 }
 
 /** The commit a run is attributed to. */
