@@ -4,7 +4,7 @@ Snapshot of where the build stands against `specs/04-build-plan.md`, for resumin
 
 ## Where things are
 
-All work is on `main`. Steps 0–3 are done, and Step 4 is done through 4e Task 10 (`runCase`, the worker loop without the Nest wiring, and masking at every PII sink, tested end to end through the real MCP server). Every commit passed `pnpm verify` on Node 24 and 22, plus the integration suite on G-path commits.
+All work is on `main`. Steps 0–3 are done, and Step 4 is done (4a–4e and its close-out): the gate, executor, validator, agent loop, Persist, `runCase`, the worker loop and masking at every PII sink, with `docker compose up` healthy. The worker is not wired into `api` yet (Task 9c, after Step 5). Every commit passed `pnpm verify` on Node 24 and 22, plus the integration suite on G-path commits.
 
 The remote branch `wip/step-4e-persist` (8f013a1) is a superseded snapshot of Task 8 with two failing tests. The reviewed version landed on `main` as c7c1b9b and 9afd6a5. Delete that branch when convenient.
 
@@ -12,19 +12,16 @@ The remote branch `wip/step-4e-persist` (8f013a1) is a superseded snapshot of Ta
 
 ## Remaining work
 
-### Step 4e: Agent loop, Intake, Persist and the worker (`build-log/step-4e-plan.md`)
+### Next: Step 5, then Task 9c
 
-1. **Close-out.**
-   - Spec docs for anything the code made untrue.
-   - A fresh verifier, including `docker compose up` (seed → api → executor).
-   - A live probe with `ANTHROPIC_API_KEY` for ruling I5: `activeTools: []` with `tool_use` blocks in history. If the API rejects it, change the last-step strategy in a `docs:` commit.
-   - Update `AI_NOTES`.
+1. **Step 5, policies and retrieval** (plan in `.superpowers/sdd/04-build-plan/step-5-plan.md`, to be written): 10 policy docs, ingestion with the ported guard and quarantine, full-text search, `retrieval.spec.ts` recall@4 ≥ 0.9; the real `Retrieval` and injection scan for `runCase`.
+2. **Task 9c, right after Step 5:** wire `runWorker` in `main.ts` (`claimNextCase`, `runCase` deps from config, `createAnthropic({ apiKey })` or null, `connectCaseTools`, an `AbortController` on shutdown; `sleep` swallows aborts and `onError` masks, as `executor/main.ts` does); compose env (`REDACTOR_MODEL` etc.); `api` depends_on `mcp` healthy; compose.spec asserts only `api` and `mcp` hold `CASE_TOKEN_KEY`; if tracing is wired here, its exporter sits behind `maskingSpanProcessor` with a test.
 
 ### Then, in the order the user chose (4e → 5 → 7, then 6 → 8 → 9)
 
 | Step                               | Plan estimate | Outcome                                                                                                              |
 | ---------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 5 Policies and retrieval           | 60 min        | 10 policy docs, ingestion with the ported guard and quarantine, full-text search, `retrieval.spec.ts` recall@4 ≥ 0.9 |
+| 5 Policies and retrieval (next)    | 60 min        | 10 policy docs, ingestion with the ported guard and quarantine, full-text search, `retrieval.spec.ts` recall@4 ≥ 0.9 |
 | 7 Webhook, queue, console          | 135 min       | Webhook, `POST /cases`, `demo:post`, React console; **first end-to-end test through the UI**                         |
 | 6 Evals                            | 130 min       | Labels before the first run, runner, judge calibration, first run of both variants                                   |
 | 8 Traces, alerts, variant decision | 45 min        | `ops/alerts.sql`, `ops/scan-logs.mjs`, the 03 decision rule                                                          |
