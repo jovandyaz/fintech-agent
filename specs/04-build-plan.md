@@ -101,7 +101,7 @@ Done when: every 02 required test for gate, operator identity, override and forc
 
 - `seed` gains ingestion. Chunker by section, ingestion with the ported guard (`feat(port): bring injection guard and corpus from knowtis`), manifest check, scan on raw and normalized text, quarantine on Unicode Tags, bidi controls or HTML comments (02 G8). Runs inside `seed`.
 - Full-text search per 01 §Retrieval: `es_unaccent` config, OR query of lexemes, `ts_rank_cd`, weighted heading and keywords, optional `doc_id` filter, catalog in the tool description. No vector leg and no RRF (00).
-- `retrieval.spec.ts` (Testcontainers): 25 Spanish paraphrases of customer complaints, each with its expected `doc_id`.
+- `retrieval.int.spec.ts` (Testcontainers): 25 Spanish paraphrases of customer complaints, each with its expected `doc_id`.
 
 Done when: recall@4 ≥ 0.9 on the paraphrases, "cuánto tarda un SPEI en llegar" returns the SPEI-times doc first and "devolucion" finds "devolución"; 09 is quarantined and never returned; 09b is returned (that is the point of ADV-05); the ingestion tests from 02 pass.
 

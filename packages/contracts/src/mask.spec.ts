@@ -541,7 +541,7 @@ describe('maskJson', () => {
 
 const MAX_DIGITS_SHOWN = 4;
 const digitsLeft = (masked: string): number => masked.replace(/\D/g, '').length;
-const KEYCAP = '️⃣';
+const KEYCAP = '\uFE0F\u20E3';
 
 describe('maskPii — attack review, round 3', () => {
   it.each([
@@ -962,7 +962,7 @@ describe('hasPii (02 G5 PII_IN_REPLY)', () => {
     ['an ellipsis', 'Gracias… te escribimos pronto.'],
     ['a no-break space', 'Hola\u00a0Ana, ya quedó.'],
     ['an ordinal sign', 'Tu aclaración Nº 5 sigue abierta.'],
-    ['an emoji with a variation selector', 'Gracias ❤️'],
+    ['an emoji with a variation selector', 'Gracias ❤\uFE0F'],
     ['decomposed accents', 'aclaración'.normalize('NFD')],
     ['number words', 'Sigue los pasos uno, dos y tres.'],
   ])('ignores %s, which only folding changes', (_, text) => {
