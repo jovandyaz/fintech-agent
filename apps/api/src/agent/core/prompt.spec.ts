@@ -27,7 +27,7 @@ const TOOLS: ToolDefinition[] = [
 ];
 
 describe('SYSTEM_PROMPT (01 §Context policy, 02 G7)', () => {
-  it('stays near its 600-token budget', () => {
+  it('stays within its 700-token budget', () => {
     expect(SYSTEM_PROMPT.length).toBeLessThanOrEqual(
       PROMPT_TOKEN_BUDGET * CHARS_PER_TOKEN,
     );

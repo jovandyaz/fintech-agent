@@ -49,6 +49,7 @@ import {
   pricingOf,
 } from './core/prices.js';
 import { SYSTEM_PROMPT, caseMessage } from './core/prompt.js';
+import { isProviderOutage, providerErrorOf } from './core/provider-errors.js';
 import { searchPoliciesTool } from './core/tools.js';
 import type { ChunkStateRules } from './core/validate/state-rules.js';
 
@@ -736,9 +737,13 @@ describe('runAgent verifier gaps', () => {
         }),
     });
     let settled: string | undefined;
+    let failure: unknown;
     void run(inputOf(model)).then(
       () => (settled = 'resolved'),
-      (error: unknown) => (settled = (error as Error).message),
+      (error: unknown) => {
+        failure = error;
+        settled = (error as Error).message;
+      },
     );
     // setImmediate is not faked, so it drains the rejection chain without
     // moving the clock; a wrong timeout then fails here instead of hanging.
@@ -749,6 +754,10 @@ describe('runAgent verifier gaps', () => {
     await vi.advanceTimersByTimeAsync(1);
     await drain();
     expect(settled).toContain('Step timeout of 60000ms');
+    // The worker reads this error as it leaves runAgent: a retryable
+    // provider failure that is not an outage (01 §Failure handling).
+    expect(providerErrorOf(failure)).toBe('provider_unavailable');
+    expect(isProviderOutage(failure)).toBe(false);
   });
 
   it('records cached input tokens and the latency of model and tool steps', async () => {

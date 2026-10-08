@@ -8,7 +8,7 @@ Copied verbatim on 2026-10-05; personal tooling (notifications, terminal multipl
 
 | Path | What it is | How it is used here |
 | --- | --- | --- |
-| `agents/implementer-judgment.md` | Opus, high effort: multi-file work with open design decisions, money and approval paths | Gate, executor, validator, harness wiring |
+| `agents/implementer-judgment.md` | Opus, `xhigh` effort: multi-file work with open design decisions, money and approval paths | Gate, executor, validator, harness wiring |
 | `agents/implementer-spec.md` | Sonnet: work whose brief already contains the exact code and tests | Mechanical ports, fixtures, docs tables |
 | `agents/task-reviewer.md` | Opus: review gate on one task's diff | After each judgment-heavy step |
 | `agents/re-reviewer.md` | Sonnet: scoped re-check of a fix round | After fixing review findings |
@@ -28,7 +28,7 @@ The main session orchestrates and dispatches by role, not by model name. Two sch
 - **Scheme A**, a top-tier model orchestrates: the roster as listed; money-path reviews may go to the highest tier.
 - **Scheme B**, Opus orchestrates (this build): no highest-tier model; final and money-path reviews are overridden to Opus at dispatch; escalation caps at Opus.
 
-Effort: high effort only for demanding implementers; reviews never run at the highest effort, because it measurably degraded review quality.
+Effort: `xhigh` only for demanding implementers; reviews never run at `xhigh`, because it measurably degraded review quality; nothing runs below the `high` default.
 
 ## Skills by phase
 
