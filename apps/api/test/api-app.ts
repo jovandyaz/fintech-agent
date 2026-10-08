@@ -55,6 +55,7 @@ export async function startApiApp(
           OPERATOR_TOKENS,
           CORE_MOCK_URL: 'http://core-mock.invalid',
           CORE_READ_KEY: 'unused-in-tests',
+          AGENT_WORKER: 'off',
           MCP_URL: 'http://mcp.invalid/mcp',
           MCP_AUDIENCE: 'http://mcp:3020/mcp',
           CASE_TOKEN_KEY: 'unused-in-tests-case-token-key-0123',
