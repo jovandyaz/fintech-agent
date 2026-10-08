@@ -134,4 +134,25 @@ describe('runCaseDepsOf', () => {
     expect(deps.models).toBeNull();
     expect(deps.config.modelId).toBe(SONNET_MODEL);
   });
+
+  it.each([
+    ['A', SONNET_MODEL],
+    ['B', HAIKU_MODEL],
+  ] as const)(
+    'gives a canary the redactor and variant %s agent scripts by role, fresh for each run',
+    (variant, agentModel) => {
+      const deps = runCaseDepsOf({
+        config: agentConfigOf(
+          testApiConfig({ AGENT_VARIANT: variant, AGENT_MODEL_B: HAIKU_MODEL }),
+        ),
+        db: {} as Database,
+        catalog: loadCatalog(POLICIES_DIR),
+        log: () => undefined,
+      });
+      const first = deps.canaryModels('cold_tone');
+      expect(first.redactor.modelId).toBe(HAIKU_MODEL);
+      expect(first.agent.modelId).toBe(agentModel);
+      expect(first.agent).not.toBe(deps.canaryModels('cold_tone').agent);
+    },
+  );
 });

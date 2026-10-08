@@ -11,7 +11,7 @@ import {
 import { eq } from 'drizzle-orm';
 
 import { isUniqueViolation } from '../common/errors/unique-violation.js';
-import type { Database } from '../database/index.js';
+import type { Database, DbTransaction } from '../database/index.js';
 import { auditLog, cases, webhookEvents } from '../database/schema.js';
 
 const TICKET_UNIQUE = 'cases_ticket_id_unique';
@@ -58,72 +58,81 @@ export const payloadHashOf = (rawBody: Buffer): string =>
  * repeat of the same bytes returns the case it opened; the same event id with
  * other bytes, or a new event reusing a ticket id, is refused.
  */
-export async function intakeEvent(
-  db: Database,
-  input: {
-    event: WebhookEvent;
-    payloadHash: string;
-    source: Extract<CaseSource, 'webhook' | 'console'>;
-    opener: Opener;
-    now: Date;
-  },
+export function intakeEvent(db: Database, input: IntakeInput): Promise<Intake> {
+  return db.transaction((tx) => recordIntake(tx, input));
+}
+
+/** One event to record, with who opened its case. */
+export interface IntakeInput {
+  event: WebhookEvent;
+  payloadHash: string;
+  source: Extract<CaseSource, 'webhook' | 'console'>;
+  opener: Opener;
+  now: Date;
+}
+
+/**
+ * `intakeEvent`'s writes inside a transaction the caller holds, for a caller
+ * whose own writes must commit with the case (the canary marker, 02 G3).
+ */
+export async function recordIntake(
+  tx: DbTransaction,
+  input: IntakeInput,
 ): Promise<Intake> {
   const { event, payloadHash, source, opener, now } = input;
-  return db.transaction(async (tx) => {
-    const caseId = newRegistryId('case');
-    const recorded = await tx
-      .insert(webhookEvents)
-      .values({
-        eventId: event.event_id,
-        payloadHash,
-        caseId,
-        receivedAt: now,
+  const caseId = newRegistryId('case');
+  const recorded = await tx
+    .insert(webhookEvents)
+    .values({
+      eventId: event.event_id,
+      payloadHash,
+      caseId,
+      receivedAt: now,
+    })
+    .onConflictDoNothing()
+    .returning({ caseId: webhookEvents.caseId });
+  if (recorded.length === 0) {
+    const [earlier] = await tx
+      .select({
+        payloadHash: webhookEvents.payloadHash,
+        caseId: cases.id,
+        folio: cases.folio,
       })
-      .onConflictDoNothing()
-      .returning({ caseId: webhookEvents.caseId });
-    if (recorded.length === 0) {
-      const [earlier] = await tx
-        .select({
-          payloadHash: webhookEvents.payloadHash,
-          caseId: cases.id,
-          folio: cases.folio,
-        })
-        .from(webhookEvents)
-        .innerJoin(cases, eq(cases.id, webhookEvents.caseId))
-        .where(eq(webhookEvents.eventId, event.event_id));
-      if (!earlier || earlier.payloadHash !== payloadHash) {
-        throw new IntakeConflictError('event_conflict');
-      }
-      return {
-        outcome: 'replayed',
-        case_id: earlier.caseId,
-        folio: earlier.folio,
-      };
+      .from(webhookEvents)
+      .innerJoin(cases, eq(cases.id, webhookEvents.caseId))
+      .where(eq(webhookEvents.eventId, event.event_id));
+    if (!earlier || earlier.payloadHash !== payloadHash) {
+      throw new IntakeConflictError('event_conflict');
     }
-    const folio = newFolio();
-    try {
-      await tx.insert(cases).values({
-        id: caseId,
-        ticketId: event.ticket_id,
-        folio,
-        receivedAt: now,
-        source,
-        customerId: event.customer_id,
-        textMasked: maskPii(event.text),
-      });
-    } catch (error) {
-      if (isUniqueViolation(error, TICKET_UNIQUE)) {
-        throw new IntakeConflictError('ticket_conflict');
-      }
-      throw error;
-    }
-    await tx.insert(auditLog).values({
-      at: now,
-      ...opener,
-      event: ACKNOWLEDGED,
-      ref: caseId,
-      detailMasked: maskJson({ folio }),
+    return {
+      outcome: 'replayed',
+      case_id: earlier.caseId,
+      folio: earlier.folio,
+    };
+  }
+  const folio = newFolio();
+  try {
+    await tx.insert(cases).values({
+      id: caseId,
+      ticketId: event.ticket_id,
+      folio,
+      receivedAt: now,
+      source,
+      customerId: event.customer_id,
+      textMasked: maskPii(event.text),
     });
-    return { outcome: 'created', case_id: caseId, folio };
+  } catch (error) {
+    if (isUniqueViolation(error, TICKET_UNIQUE)) {
+      throw new IntakeConflictError('ticket_conflict');
+    }
+    throw error;
+  }
+  await tx.insert(auditLog).values({
+    at: now,
+    ...opener,
+    event: ACKNOWLEDGED,
+    ref: caseId,
+    detailMasked: maskJson({ folio }),
   });
+  return { outcome: 'created', case_id: caseId, folio };
 }

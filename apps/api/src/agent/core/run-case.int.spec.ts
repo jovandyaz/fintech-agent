@@ -131,6 +131,9 @@ function harness(
           },
         };
       },
+      canaryModels: () => {
+        throw new Error('not a canary case');
+      },
       clock: () => T0.getTime(),
       random: MIDDLE,
       log: (event) => logs.push(event),
@@ -201,6 +204,112 @@ afterAll(async () => {
   await apiSql?.end();
   await owner?.end();
   await testDb?.stop();
+});
+
+const proposalsOf = (caseId: string) =>
+  owner<{ agent_type: string; is_canary: boolean }[]>`
+    select agent_type, is_canary from proposed_actions where case_id = ${caseId}`;
+
+async function markedCanary(): Promise<Claim> {
+  const claim = await claimed();
+  await owner`insert into canary_cases (case_id, defect) values (${claim.caseId}, 'cold_tone')`;
+  return claim;
+}
+
+const providerNeverCalled = (calls: string[]) => (modelId: string) => {
+  calls.push(modelId);
+  throw new Error('the provider model was reached');
+};
+
+describe('runCase on a canary case (02 G3)', () => {
+  it('runs on the defect script, never on the provider, and marks the proposal', async () => {
+    const claim = await markedCanary();
+    const provider: string[] = [];
+    const scripted: string[] = [];
+    const agent = resolved();
+    const h = harness(agent, {
+      models: providerNeverCalled(provider),
+      canaryModels: (defect) => {
+        scripted.push(defect);
+        return { redactor: redactor([]), agent };
+      },
+    });
+    expect(await runCase(h.deps, claim)).toEqual({
+      kind: 'persisted',
+      runStatus: 'succeeded',
+    });
+    expect(provider).toEqual([]);
+    expect(scripted).toEqual(['cold_tone']);
+    expect(await proposalsOf(claim.caseId)).toEqual([
+      { agent_type: 'open_dispute', is_canary: true },
+    ]);
+    const kase = await caseOf(claim.caseId);
+    expect(kase.status).toBe('needs_review');
+    expect(kase.text_redacted).toBe(CASE_TEXT);
+    const [run] = await runsOf(claim.caseId);
+    expect(
+      (await stepsOf(run!.id)).slice(0, 2).map(({ name }) => name),
+    ).toEqual(['redaction', 'injection_scan']);
+  });
+
+  it('gives the agent its script even when it shares the redactor model id (variant B)', async () => {
+    const claim = await markedCanary();
+    const agent = resolved();
+    const h = harness(agent, {
+      config: { ...CONFIG, modelId: HAIKU_MODEL },
+      models: providerNeverCalled([]),
+      canaryModels: () => ({ redactor: redactor([]), agent }),
+    });
+    expect(await runCase(h.deps, claim)).toEqual({
+      kind: 'persisted',
+      runStatus: 'succeeded',
+    });
+    expect(await proposalsOf(claim.caseId)).toEqual([
+      { agent_type: 'open_dispute', is_canary: true },
+    ]);
+  });
+
+  it('never marks a real case proposal as a canary', async () => {
+    const claim = await claimed();
+    await runCase(harness(resolved()).deps, claim);
+    expect(
+      (await proposalsOf(claim.caseId)).map(({ is_canary }) => is_canary),
+    ).toEqual([false]);
+  });
+
+  it('applies the kill switch to a canary as to any case, without its script', async () => {
+    const claim = await markedCanary();
+    const scripted: string[] = [];
+    const h = harness(resolved(), {
+      config: { ...CONFIG, mode: 'off' },
+      canaryModels: (defect) => {
+        scripted.push(defect);
+        throw new Error('the script was reached');
+      },
+    });
+    expect(await runCase(h.deps, claim)).toMatchObject({ kind: 'persisted' });
+    expect(scripted).toEqual([]);
+    expect(await proposalsOf(claim.caseId)).toEqual([
+      { agent_type: 'none', is_canary: true },
+    ]);
+  });
+
+  it('fails a canary without an API key as any case, without its script', async () => {
+    const claim = await markedCanary();
+    const scripted: string[] = [];
+    const h = harness(resolved(), {
+      models: null,
+      canaryModels: (defect) => {
+        scripted.push(defect);
+        throw new Error('the script was reached');
+      },
+    });
+    expect(await runCase(h.deps, claim)).toMatchObject({
+      kind: 'failed',
+      errorCode: 'no_api_key',
+    });
+    expect(scripted).toEqual([]);
+  });
 });
 
 describe('runCase (01 §Agent pipeline)', () => {

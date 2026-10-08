@@ -1,11 +1,18 @@
 import type {
   CaseCategory,
   CaseFlag,
+  McpToolName,
   ProposedAction,
   Resolution,
 } from '@fintech-agent/contracts';
 
 type Citation = Resolution['citations'][number];
+
+/** The MCP tools that read one transaction's state, as an investigation calls them. */
+export type LookupTool = Extract<
+  McpToolName,
+  'get_card_authorization' | 'get_spei_status'
+>;
 
 /** The six defects of 02 G3 a canary carries, each one the validator cannot catch by construction. */
 export const CANARY_DEFECTS = [
@@ -30,6 +37,8 @@ export interface CanarySeed {
   /** The flags Persist would compute for this action on this data (01). */
   flags: CaseFlag[];
   action: ProposedAction;
+  /** The transactions the investigation reads one by one, and with which tool. */
+  lookups: { tool: LookupTool; transaction_id: string }[];
 }
 
 export interface CanaryTemplate {
@@ -48,7 +57,7 @@ const SPEI_NOT_RECEIVED = [
   'Transferí 12,000 por SPEI y el beneficiario no lo ve, necesito el comprobante.',
 ] as const;
 const DISPUTE_REPLY =
-  'Hola, registramos tu aclaración por el cargo que no reconoces con folio {{folio}}. Te responderemos por escrito a más tardar el {{fecha_limite_dictamen}}.';
+  'Hola, registramos tu aclaración por el cargo que no reconoces con folio {{folio}}. {{compromiso_dictamen}}';
 
 const DICTAMEN: Citation = {
   chunk_id: 'chunk_p03s2',
@@ -103,6 +112,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         justification:
           'Cargo no reconocido con un solo factor de autenticación.',
       },
+      lookups: [{ tool: 'get_card_authorization', transaction_id: 'tx_f059' }],
     },
   },
   {
@@ -123,6 +133,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         reason_code: 'informational',
         justification: 'El movimiento aparece liquidado.',
       },
+      lookups: [{ tool: 'get_card_authorization', transaction_id: 'tx_cu01a' }],
     },
   },
   {
@@ -132,7 +143,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
       category: 'spei_outgoing_not_received',
       text: SPEI_NOT_RECEIVED[0],
       draftReply:
-        'Hola, registramos una aclaración por tu transferencia con folio {{folio}}. Te responderemos por escrito a más tardar el {{fecha_limite_dictamen}}.',
+        'Hola, registramos una aclaración por tu transferencia con folio {{folio}}. {{compromiso_dictamen}}',
       reasoningSummary:
         'La transferencia aparece liquidada y el beneficiario dice no haberla recibido.',
       citations: [SPEI_DISPUTE],
@@ -144,6 +155,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         justification:
           'Transferencia liquidada que el beneficiario no reconoce.',
       },
+      lookups: [{ tool: 'get_spei_status', transaction_id: 'tx_so02a' }],
     },
   },
   {
@@ -164,6 +176,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         reason_code: 'customer_requested_receipt',
         justification: 'Transferencia liquidada con comprobante disponible.',
       },
+      lookups: [{ tool: 'get_spei_status', transaction_id: 'tx_so02a' }],
     },
   },
   {
@@ -184,6 +197,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         justification:
           'Cargo no reconocido con un solo factor de autenticación.',
       },
+      lookups: [{ tool: 'get_card_authorization', transaction_id: 'tx_cu01a' }],
     },
   },
   {
@@ -193,7 +207,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
       category: 'unrecognized_card_charge',
       text: UNRECOGNIZED_CHARGE[3],
       draftReply:
-        'Aclaración registrada con folio {{folio}}. Espera la respuesta en el plazo de ley.',
+        'Aclaración registrada con folio {{folio}}. {{compromiso_dictamen}}',
       reasoningSummary:
         'El cliente no reconoce un cargo con tarjeta no presente y un solo factor de autenticación.',
       citations: [CARD_CREDIT, DICTAMEN],
@@ -205,6 +219,14 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         justification:
           'Cargo no reconocido con un solo factor de autenticación.',
       },
+      lookups: [{ tool: 'get_card_authorization', transaction_id: 'tx_cu01a' }],
     },
   },
 ];
+
+/** The template of one defect; every defect has exactly one. */
+export function canaryTemplateOf(defect: CanaryDefect): CanaryTemplate {
+  const template = CANARY_TEMPLATES.find((each) => each.defect === defect);
+  if (!template) throw new Error(`no template for defect ${defect}`);
+  return template;
+}

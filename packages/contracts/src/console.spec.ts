@@ -54,88 +54,115 @@ function objectNodesOf(schema: unknown): Record<string, unknown>[] {
   ];
 }
 
-// Every key a console DTO may carry, at any depth. A new field lands here on
-// purpose, where a reviewer weighs whether it tells a canary apart (02 G3).
-const ALLOWED_KEYS: Record<keyof typeof CONSOLE_DTOS, string[]> = {
-  OperatorViewSchema: ['id'],
-  StatusSchema: ['agent'],
-  CustomerOptionSchema: ['first_name', 'id'],
+// Every path a console DTO may carry. A new field lands here on purpose, where
+// a reviewer weighs whether it tells a canary apart (02 G3); a path, not a bare
+// name, so a nested field reusing an existing name is still a new entry.
+const ALLOWED_PATHS: Record<keyof typeof CONSOLE_DTOS, string[]> = {
+  OperatorViewSchema: ['.id'],
+  StatusSchema: ['.agent'],
+  CustomerOptionSchema: ['.first_name', '.id'],
   InboxItemSchema: [
-    'case_id',
-    'category',
-    'flags',
-    'folio',
-    'received_at',
-    'review_tier',
-    'status',
+    '.case_id',
+    '.category',
+    '.flags',
+    '.folio',
+    '.received_at',
+    '.review_tier',
+    '.status',
   ],
   CaseDetailSchema: [
-    'abstained',
-    'action_id',
-    'actions',
-    'amount',
-    'auth_factors',
-    'case',
-    'case_id',
-    'category',
-    'channel',
-    'chunk_id',
-    'citations',
-    'cost_usd',
-    'counterparty_clabe',
-    'counterparty_first_name',
-    'created_at',
-    'doc_id',
-    'draft_reply',
-    'error_code',
-    'flags',
-    'folio',
-    'id',
-    'idx',
-    'input',
-    'input_tokens',
-    'justification',
-    'kind',
-    'latency_ms',
-    'manual_reruns',
-    'max',
-    'merchant_descriptor',
-    'min',
-    'model',
-    'name',
-    'output',
-    'output_tokens',
-    'override_options',
-    'params',
-    'proposal',
-    'quote',
-    'reason_code',
-    'reasoning_summary',
-    'received_at',
-    'resolution',
-    'review_tier',
-    'run_id',
-    'runs',
-    'section',
-    'status',
-    'steps',
-    'stop_reason',
-    'text',
-    'transaction_ids',
-    'transactions',
-    'type',
+    '.case',
+    '.case.case_id',
+    '.case.category',
+    '.case.flags',
+    '.case.folio',
+    '.case.manual_reruns',
+    '.case.received_at',
+    '.case.review_tier',
+    '.case.status',
+    '.case.text',
+    '.override_options',
+    '.override_options.actions',
+    '.override_options.actions[].max',
+    '.override_options.actions[].min',
+    '.override_options.actions[].transaction_ids',
+    '.override_options.actions[].type',
+    '.override_options.transactions',
+    '.override_options.transactions[].amount',
+    '.override_options.transactions[].auth_factors',
+    '.override_options.transactions[].channel',
+    '.override_options.transactions[].counterparty_clabe',
+    '.override_options.transactions[].counterparty_first_name',
+    '.override_options.transactions[].created_at',
+    '.override_options.transactions[].id',
+    '.override_options.transactions[].merchant_descriptor',
+    '.override_options.transactions[].status',
+    '.override_options.transactions[].type',
+    '.proposal',
+    '.proposal.action_id',
+    '.proposal.justification',
+    '.proposal.params',
+    '.proposal.params.reason_code',
+    '.proposal.params.transaction_ids',
+    '.proposal.status',
+    '.proposal.type',
+    '.resolution',
+    '.resolution.abstained',
+    '.resolution.category',
+    '.resolution.citations',
+    '.resolution.citations[].chunk_id',
+    '.resolution.citations[].doc_id',
+    '.resolution.citations[].quote',
+    '.resolution.citations[].section',
+    '.resolution.draft_reply',
+    '.resolution.reasoning_summary',
+    '.runs',
+    '.runs[].cost_usd',
+    '.runs[].error_code',
+    '.runs[].input_tokens',
+    '.runs[].latency_ms',
+    '.runs[].model',
+    '.runs[].output_tokens',
+    '.runs[].run_id',
+    '.runs[].status',
+    '.runs[].steps',
+    '.runs[].steps[].cost_usd',
+    '.runs[].steps[].idx',
+    '.runs[].steps[].input',
+    '.runs[].steps[].kind',
+    '.runs[].steps[].latency_ms',
+    '.runs[].steps[].name',
+    '.runs[].steps[].output',
+    '.runs[].stop_reason',
   ],
 };
 
+function pathsOf(schema: unknown, prefix = ''): string[] {
+  if (typeof schema !== 'object' || schema === null) return [];
+  const node = schema as Record<string, unknown>;
+  const properties =
+    typeof node.properties === 'object' && node.properties !== null
+      ? Object.entries(node.properties).flatMap(([key, child]) => [
+          `${prefix}.${key}`,
+          ...pathsOf(child, `${prefix}.${key}`),
+        ])
+      : [];
+  const variants = ['anyOf', 'oneOf', 'allOf'].flatMap((key) => {
+    const options = node[key];
+    return Array.isArray(options)
+      ? options.flatMap((option) => pathsOf(option, prefix))
+      : [];
+  });
+  return [...properties, ...pathsOf(node.items, `${prefix}[]`), ...variants];
+}
+
 describe('console DTOs (02 G3, G6)', () => {
   it.each(Object.entries(CONSOLE_DTOS))(
-    '%s carries exactly the reviewed keys',
+    '%s carries exactly the reviewed paths',
     (name, schema) => {
-      const names = new Set(
-        propertyNamesOf(z.toJSONSchema(schema, { io: 'output' })),
-      );
-      expect([...names].sort()).toEqual(
-        ALLOWED_KEYS[name as keyof typeof CONSOLE_DTOS],
+      const paths = new Set(pathsOf(z.toJSONSchema(schema, { io: 'output' })));
+      expect([...paths].sort()).toEqual(
+        ALLOWED_PATHS[name as keyof typeof CONSOLE_DTOS],
       );
     },
   );

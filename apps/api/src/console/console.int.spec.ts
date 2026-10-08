@@ -8,19 +8,17 @@ import {
   type SpeiTx,
 } from '@fintech-agent/contracts';
 import type { INestApplication } from '@nestjs/common';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ANA, HTTP, seedProposal, startApiApp } from '../../test/api-app.js';
+import { keyPathsOf } from '../../test/key-paths.js';
 import {
   CONTAINER_START_MS,
   insertCase,
   startTestDatabase,
   type TestDatabase,
 } from '../../test/database.js';
-import { injectCanaries } from '../canaries/inject.js';
-import * as schema from '../database/schema.js';
 
 const CUSTOMER_OPTIONS = [
   { id: 'cus_01', first_name: 'Ana' },
@@ -97,20 +95,17 @@ const core: CoreClient = {
 
 let testDb: TestDatabase;
 let owner: postgres.Sql;
-let api: postgres.Sql;
 let app: INestApplication;
 let base: string;
 
 beforeAll(async () => {
   testDb = await startTestDatabase();
   owner = postgres(testDb.ownerUrl, { max: 2, onnotice: () => undefined });
-  api = postgres(testDb.urlFor('copilot_api'), { max: 1 });
   ({ app, base } = await startApiApp(testDb, core));
 }, CONTAINER_START_MS);
 
 afterAll(async () => {
   await app?.close();
-  await api?.end();
   await owner?.end();
   await testDb?.stop();
 });
@@ -148,21 +143,6 @@ const detailOf = async (caseId: string): Promise<CaseDetail> => {
   expect(response.status).toBe(HTTP.ok);
   return CaseDetailSchema.parse(await response.json());
 };
-
-// Every key path in a JSON value with its leaf type, array elements folded
-// into one `[]` segment, so two values compare by shape and not by contents.
-function keyPathsOf(value: unknown, prefix = ''): string[] {
-  if (Array.isArray(value)) {
-    return value.length === 0
-      ? [`${prefix}[]`]
-      : value.flatMap((item) => keyPathsOf(item, `${prefix}[]`));
-  }
-  if (value === null) return [`${prefix}:null`];
-  if (typeof value !== 'object') return [`${prefix}:${typeof value}`];
-  return Object.entries(value).flatMap(([key, item]) =>
-    keyPathsOf(item, `${prefix}.${key}`),
-  );
-}
 
 describe('console read API (04 Step 7, 02 G3)', () => {
   it.each(['/me', '/status', '/customers', '/cases', '/cases/case_abc'])(
@@ -392,53 +372,48 @@ describe('console read API (04 Step 7, 02 G3)', () => {
     expect((await get('/cases/not-a-case')).status).toBe(HTTP.badRequest);
   });
 
-  it('serializes a canary like a real case of the same shape until it is decided (02 G3)', async () => {
-    const real = await seedProposal(owner, 'mirror', {
-      flags: ['action_fact_mismatch'],
-      tier: 'high',
-    });
-    await owner`
-      update agent_runs set status = 'succeeded', stop_reason = 'completed',
-        latency_ms = 18000, finished_at = now()
-      where id = 'run_mirror'`;
-    await owner`
-      update resolutions set citations = ${owner.json([
-        {
-          chunk_id: 'chunk_p04s2',
-          doc_id: 'pol-04',
-          section: 'Cargos no reconocidos',
-          quote: 'Puedes objetar un cargo no reconocido.',
-        },
-      ])}
-      where run_id = 'run_mirror'`;
-    const [canaryAction] = await injectCanaries(
-      drizzle({ client: api, schema }),
-      { now: () => new Date() },
-    );
-    const [canary] = await owner<{ case_id: string }[]>`
-      select case_id from proposed_actions where id = ${canaryAction!}`;
-
-    const realDetail = await (await get(`/cases/${real.caseId}`)).text();
-    const canaryDetail = await (await get(`/cases/${canary!.case_id}`)).text();
+  it('serializes a canary proposal like a real one until it is decided (02 G3)', async () => {
+    const citations = owner.json([
+      {
+        chunk_id: 'chunk_p04s2',
+        doc_id: 'pol-04',
+        section: 'Cargos no reconocidos',
+        quote: 'Puedes objetar un cargo no reconocido.',
+      },
+    ]);
+    const seen = async (key: string, canary: boolean) => {
+      const seeded = await seedProposal(owner, key, {
+        flags: ['action_fact_mismatch'],
+        tier: 'high',
+        canary,
+      });
+      await owner`
+        update agent_runs set status = 'succeeded', stop_reason = 'completed',
+          latency_ms = 18000, finished_at = now()
+        where id = ${`run_${key}`}`;
+      await owner`update resolutions set citations = ${citations} where run_id = ${`run_${key}`}`;
+      return (await get(`/cases/${seeded.caseId}`)).text();
+    };
+    const realDetail = await seen('mirror', false);
+    const canaryDetail = await seen('mirrortwin', true);
     expect(canaryDetail).not.toMatch(/canary/i);
-    expect(
-      CaseDetailSchema.parse(JSON.parse(canaryDetail)).case.text,
-    ).not.toBeNull();
     expect(new Set(keyPathsOf(JSON.parse(canaryDetail)))).toEqual(
       new Set(keyPathsOf(JSON.parse(realDetail))),
     );
   });
 
-  it('shows a re-run canary as its fresh clone, open, after the first run', async () => {
-    const [actionId] = await injectCanaries(drizzle({ client: api, schema }), {
-      now: () => new Date(),
+  it('shows a re-run canary case queued again, its canary superseded, like any re-run', async () => {
+    const { caseId, actionId } = await seedProposal(owner, 'twinrerun', {
+      canary: true,
     });
-    const [canary] = await owner<{ case_id: string }[]>`
-      select case_id from proposed_actions where id = ${actionId!}`;
-    expect((await rerun(canary!.case_id)).status).toBe(HTTP.ok);
-    const detail = await detailOf(canary!.case_id);
-    expect(detail.runs).toHaveLength(2);
-    expect(detail.proposal?.status).toBe('proposed');
-    expect(detail.proposal?.action_id).not.toBe(actionId);
+    await owner`insert into canary_cases (case_id, defect) values (${caseId}, 'cold_tone')`;
+    expect((await rerun(caseId)).status).toBe(HTTP.ok);
+    const detail = await detailOf(caseId);
+    expect(detail.case.status).toBe('queued');
+    expect(detail.proposal).toMatchObject({
+      action_id: actionId,
+      status: 'superseded',
+    });
+    expect(detail.override_options).toBeNull();
   });
 });

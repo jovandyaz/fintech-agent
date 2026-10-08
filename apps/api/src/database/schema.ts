@@ -35,6 +35,8 @@ import {
   type PgColumn,
 } from 'drizzle-orm/pg-core';
 
+import { CANARY_DEFECTS, type CanaryDefect } from '../canaries/templates.js';
+
 /** The full-text configuration of migration 0000: Spanish stems over unaccented words. */
 export const SEARCH_CONFIG = sql.raw(`'es_unaccent'`);
 const CASE_FLAGS_JSON = sql.raw(`'${JSON.stringify(CASE_FLAGS)}'::jsonb`);
@@ -225,6 +227,26 @@ export const auditLog = pgTable('audit_log', {
   ip: text(),
   userAgent: text('user_agent'),
 });
+
+// Only the injector writes a marker, with its case; the worker reads it to run
+// that case scripted, so a canary's text never reaches the provider (02 G3).
+export const canaryCases = pgTable(
+  'canary_cases',
+  {
+    caseId: text('case_id')
+      .primaryKey()
+      .references(() => cases.id),
+    defect: text().$type<CanaryDefect>().notNull(),
+  },
+  (t) => [
+    // A defect with no template could not be scripted; DDL takes no bound
+    // values, and the list comes from the constant, never from input.
+    check(
+      'canary_cases_defect_known',
+      sql`${t.defect} in (${sql.raw(CANARY_DEFECTS.map((defect) => `'${defect}'`).join(', '))})`,
+    ),
+  ],
+);
 
 export const securityEvents = pgTable('security_events', {
   id: uuid().primaryKey().defaultRandom(),

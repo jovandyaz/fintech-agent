@@ -46,9 +46,31 @@ const decide = (actionId: string) =>
     }),
   });
 
+const approve = (actionId: string) =>
+  fetch(`${base}/actions/${actionId}/decision`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${ANA}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      decision: 'approve',
+      final_reply: FINAL,
+      acknowledged_flags: [],
+      reviewed_transaction_ids: [],
+    }),
+  });
+
 async function seeded(caseStatus: CaseStatus = 'needs_review', canary = false) {
   sequence += 1;
-  return seedProposal(owner, `r${sequence}`, { caseStatus, canary });
+  const proposal = await seedProposal(owner, `r${sequence}`, {
+    caseStatus,
+    canary,
+  });
+  if (canary) {
+    await owner`insert into canary_cases (case_id, defect) values (${proposal.caseId}, 'cold_tone')`;
+  }
+  return proposal;
 }
 
 const proposalsOf = (caseId: string) =>
@@ -200,7 +222,7 @@ describe('manual re-runs (02 G3)', () => {
 });
 
 describe('re-runs of a canary case (02 G3)', () => {
-  it('answers like a real re-run but never queues the case for the agent', async () => {
+  it('queues a canary case again like any re-run, for the worker to replay its script', async () => {
     const { caseId, actionId } = await seeded('needs_review', true);
     const response = await rerun(caseId);
     expect(response.status).toBe(HTTP.ok);
@@ -209,42 +231,51 @@ describe('re-runs of a canary case (02 G3)', () => {
       status: 'queued',
       manual_reruns: 1,
     });
-    const [row] = await owner<{ status: string }[]>`
-      select status from cases where id = ${caseId}`;
-    expect(row?.status).toBe('needs_review');
-    const proposals = await proposalsOf(caseId);
-    expect(proposals).toHaveLength(2);
-    expect(proposals[0]).toMatchObject({ id: actionId, status: 'superseded' });
-    expect(proposals[1]).toMatchObject({
-      status: 'proposed',
-      is_canary: true,
-      type: 'open_dispute',
-    });
+    const [row] = await owner<
+      { status: string; attempts: number; claim_token: string | null }[]
+    >`select status, attempts, claim_token from cases where id = ${caseId}`;
+    expect(row).toEqual({ status: 'queued', attempts: 0, claim_token: null });
+    expect(await proposalsOf(caseId)).toEqual([
+      expect.objectContaining({ id: actionId, status: 'superseded' }),
+    ]);
   });
 
-  it('gives the fresh canary copy the audit row a real proposal gets', async () => {
+  it('audits a canary re-run exactly as a real one', async () => {
+    const real = await seeded('needs_review', false);
+    const canary = await seeded('needs_review', true);
+    expect((await rerun(real.caseId)).status).toBe(HTTP.ok);
+    expect((await rerun(canary.caseId)).status).toBe(HTTP.ok);
+    const eventsOf = (caseId: string, actionId: string) =>
+      owner<{ event: string; detail_masked: unknown }[]>`
+        select event, detail_masked from audit_log
+        where ref in (${caseId}, ${actionId}) order by event`;
+    expect(await eventsOf(canary.caseId, canary.actionId)).toEqual(
+      await eventsOf(real.caseId, real.actionId),
+    );
+  });
+
+  it('re-runs a failed canary case whose canary was only superseded, as a real one', async () => {
     const { caseId } = await seeded('needs_review', true);
     expect((await rerun(caseId)).status).toBe(HTTP.ok);
-    const fresh = (await proposalsOf(caseId)).find(
-      ({ status }) => status === 'proposed',
-    );
-    const [run] = await owner<{ run_id: string }[]>`
-      select run_id from proposed_actions where id = ${fresh!.id}`;
-    expect(
-      await owner`
-        select actor, event, detail_masked from audit_log where ref = ${fresh!.id}`,
-    ).toEqual([
-      {
-        actor: 'agent:case-copilot/v1@p1',
-        event: 'proposal.create',
-        detail_masked: {
-          run_id: run!.run_id,
-          type: 'open_dispute',
-          flags: [],
-          review_tier: 'standard',
-        },
-      },
-    ]);
+    await owner`update cases set status = 'failed' where id = ${caseId}`;
+    const again = await rerun(caseId);
+    expect(again.status).toBe(HTTP.ok);
+    expect(await again.json()).toMatchObject({ status: 'queued' });
+  });
+
+  it('refuses to re-run a canary that has no marker, which the worker would never claim', async () => {
+    sequence += 1;
+    const { caseId } = await seedProposal(owner, `r${sequence}`, {
+      canary: true,
+    });
+    expect((await rerun(caseId)).status).toBe(HTTP.conflict);
+  });
+
+  it('refuses to re-run a canary the operator approved', async () => {
+    const { caseId, actionId } = await seeded('needs_review', true);
+    expect((await approve(actionId)).status).toBe(HTTP.ok);
+    expect((await proposalsOf(caseId))[0]?.status).toBe('canary_missed');
+    expect((await rerun(caseId)).status).toBe(HTTP.conflict);
   });
 
   it('refuses to re-run a canary that was already decided', async () => {

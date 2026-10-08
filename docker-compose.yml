@@ -60,6 +60,7 @@ services:
       MCP_AUDIENCE: ${MCP_AUDIENCE:-http://mcp:3020/mcp}
       CASE_TOKEN_KEY: ${CASE_TOKEN_KEY:-dev-case-token-key-0123456789abcdef}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-whsec_ZGV2LXdlYmhvb2stc2VjcmV0LTAxMjM0NTY3ODlhYmNkZWY=}
+      CANARY_SPREAD_MS: ${CANARY_SPREAD_MS:-300000}
     ports:
       - '${API_PORT:-3000}:3000'
     depends_on:

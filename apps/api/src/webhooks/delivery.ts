@@ -20,6 +20,14 @@ import {
   type Opener,
 } from './intake.js';
 
+/** Who opens a webhook case: the sender, authenticated by its signature alone. */
+export const WEBHOOK_SENDER: Opener = {
+  actor: 'intake:webhook',
+  keyId: null,
+  ip: null,
+  userAgent: null,
+};
+
 /** The provider of what the webhook and the console form need. */
 export const WEBHOOK_DEPS = 'WEBHOOK_DEPS';
 

@@ -1,14 +1,27 @@
-import { maskJson, type CaseStatus } from '@fintech-agent/contracts';
+import {
+  maskJson,
+  type ActionStatus,
+  type CaseStatus,
+} from '@fintech-agent/contracts';
 import { and, eq } from 'drizzle-orm';
 
 import { OPEN_PROPOSAL, transition } from '../approvals/transition.js';
-import { cloneCanary } from '../canaries/inject.js';
 import { REFUSAL } from '../common/errors/refusal.js';
 import type { RequestMeta } from '../common/http/request-meta.js';
 import type { Database } from '../database/index.js';
-import { auditLog, cases, proposedActions } from '../database/schema.js';
+import {
+  auditLog,
+  canaryCases,
+  cases,
+  proposedActions,
+} from '../database/schema.js';
 import type { Operator } from '../operators/operator-tokens.js';
 import { rerunTarget } from './case-transition.js';
+
+const DECIDED_CANARY: ReadonlySet<ActionStatus> = new Set([
+  'canary_caught',
+  'canary_missed',
+]);
 
 /** Why a re-run was refused; the controller maps each to a status code. */
 export const RERUN_FAILURE = REFUSAL;
@@ -36,9 +49,9 @@ export interface RerunDeps {
  * An operator's manual re-run (02 G3): the case goes back to `queued` and its
  * open proposal becomes `superseded`, through `transition()`, with an audit
  * row for each; decided proposals are never touched. The case row is locked
- * first, as a decision locks it. A case holding a canary answers the same but
- * stays out of the queue: its open canary is replaced by a fresh copy, and a
- * decided one cannot be re-run.
+ * first, as a decision locks it. A canary's case re-runs the same way, so the
+ * worker replays its script; one whose canary was decided, or that lacks its
+ * marker, cannot be re-run.
  */
 export async function rerunCase(
   deps: RerunDeps,
@@ -57,33 +70,38 @@ export async function rerunCase(
     const proposals = await tx
       .select({
         id: proposedActions.id,
-        runId: proposedActions.runId,
         status: proposedActions.status,
         isCanary: proposedActions.isCanary,
       })
       .from(proposedActions)
       .where(eq(proposedActions.caseId, input.caseId))
       .for('update');
-    const holdsCanary = proposals.some(({ isCanary }) => isCanary);
     const open = proposals.find(({ status }) => status === OPEN_PROPOSAL);
-    if (holdsCanary && !open) throw new RerunError(RERUN_FAILURE.conflict);
+    if (proposals.some(({ status }) => DECIDED_CANARY.has(status))) {
+      throw new RerunError(RERUN_FAILURE.conflict);
+    }
+    // A canary without its marker would wait in the queue forever: the claim
+    // never takes it, so it cannot reach the provider (02 G3).
+    if (proposals.some(({ isCanary }) => isCanary)) {
+      const [marker] = await tx
+        .select({ caseId: canaryCases.caseId })
+        .from(canaryCases)
+        .where(eq(canaryCases.caseId, input.caseId));
+      if (!marker) throw new RerunError(RERUN_FAILURE.conflict);
+    }
 
     const now = deps.now();
     const manualReruns = row.manualReruns + 1;
     await tx
       .update(cases)
-      .set(
-        holdsCanary
-          ? { manualReruns }
-          : {
-              status: target,
-              manualReruns,
-              attempts: 0,
-              nextAttemptAt: now,
-              lockedUntil: null,
-              claimToken: null,
-            },
-      )
+      .set({
+        status: target,
+        manualReruns,
+        attempts: 0,
+        nextAttemptAt: now,
+        lockedUntil: null,
+        claimToken: null,
+      })
       .where(eq(cases.id, input.caseId));
     const audit = {
       at: now,
@@ -117,9 +135,6 @@ export async function rerunCase(
         ref: open.id,
         detailMasked: maskJson({ from: OPEN_PROPOSAL, to: superseded }),
       });
-      if (holdsCanary) {
-        await cloneCanary(tx, { runId: open.runId, caseId: input.caseId }, now);
-      }
     }
     return {
       case_id: input.caseId,
