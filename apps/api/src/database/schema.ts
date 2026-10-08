@@ -35,7 +35,8 @@ import {
   type PgColumn,
 } from 'drizzle-orm/pg-core';
 
-const SEARCH_CONFIG = sql.raw(`'es_unaccent'`);
+/** The full-text configuration of migration 0000: Spanish stems over unaccented words. */
+export const SEARCH_CONFIG = sql.raw(`'es_unaccent'`);
 const CASE_FLAGS_JSON = sql.raw(`'${JSON.stringify(CASE_FLAGS)}'::jsonb`);
 const USD_PRECISION = 12;
 const USD_SCALE = 6;

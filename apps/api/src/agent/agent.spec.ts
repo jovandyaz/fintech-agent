@@ -50,7 +50,7 @@ import {
 } from './core/prices.js';
 import { SYSTEM_PROMPT, caseMessage } from './core/prompt.js';
 import { isProviderOutage, providerErrorOf } from './core/provider-errors.js';
-import { searchPoliciesTool } from './core/tools.js';
+import { RETRIEVAL_UNAVAILABLE, searchPoliciesTool } from './core/tools.js';
 import type { ChunkStateRules } from './core/validate/state-rules.js';
 
 const CASE_TEXT = 'No reconozco un cargo de AMZN MKTP MX en mi tarjeta.';
@@ -187,6 +187,35 @@ describe('runAgent (01 §The agentic node)', () => {
       kind: 'validation',
       outputMasked: { outcome: 'passed', codes: [] },
     });
+  });
+
+  it('hands the model a fixed error, never the raw message, when policy search fails', async () => {
+    const capture = captureSpans({ masked: false });
+    // The cited chunk was never seen, so the validator asks for one repair.
+    const model = inOrder(
+      ...investigation,
+      () => objectResponse(resolutionOf()),
+      () => objectResponse(resolutionOf()),
+    );
+    await run(
+      inputOf(model, {
+        telemetry: capture.telemetry,
+        tools: {
+          ...mcpToolsOf(),
+          search_policies: searchPoliciesTool({
+            catalog: [{ doc_id: 'pol-04', title: 'Cargos no reconocidos' }],
+            search: () =>
+              Promise.reject(new Error('connection to 5512345678 refused')),
+          }),
+        },
+      }),
+    );
+    const afterSearch = JSON.stringify(
+      model.doGenerateCalls[investigation.length]?.prompt,
+    );
+    expect(afterSearch).toContain(RETRIEVAL_UNAVAILABLE);
+    expect(afterSearch).not.toContain('5512345678');
+    expect(capture.text()).not.toContain('5512345678');
   });
 
   it('traces its calls with no case text, tool data or reply in any span (02 G6, Traces)', async () => {
