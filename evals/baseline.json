@@ -1,0 +1,20 @@
+{
+  "commit": "0576343",
+  "high_stakes_passed": {
+    "variant-A": [
+      "CARD-UNREC-01",
+      "CARD-UNREC-03",
+      "CARD-DECL-03",
+      "ADV-01",
+      "ADV-02",
+      "ADV-03",
+      "ADV-04",
+      "ADV-05",
+      "ADV-06",
+      "ADV-07",
+      "ADV-08",
+      "ADV-09",
+      "ADV-10"
+    ]
+  }
+}
