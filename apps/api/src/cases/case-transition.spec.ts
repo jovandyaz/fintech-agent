@@ -1,7 +1,7 @@
-import { CASE_STATUSES } from '@fintech-agent/contracts';
+import { CASE_STATUSES, MAX_MANUAL_RERUNS } from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { MAX_MANUAL_RERUNS, rerunTarget } from './case-transition.js';
+import { rerunTarget } from './case-transition.js';
 
 const RERUNNABLE = new Set(['needs_review', 'failed', 'resolved']);
 

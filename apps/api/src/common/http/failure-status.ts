@@ -1,7 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 
-import type { DecisionFailure } from '../../approvals/decide.js';
-import type { RerunFailure } from '../../cases/rerun.js';
+import type { DecisionFailure, RerunFailure } from '@fintech-agent/contracts';
 
 const FAILURE_STATUS: Record<DecisionFailure | RerunFailure, HttpStatus> = {
   not_found: HttpStatus.NOT_FOUND,

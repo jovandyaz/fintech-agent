@@ -1,5 +1,6 @@
 import {
   ActionIdSchema,
+  DECISION_FAILURE,
   DecisionSchema,
   type Decision,
 } from '@fintech-agent/contracts';
@@ -24,7 +25,6 @@ import { CurrentOperator, OperatorGuard } from '../operators/operator.guard.js';
 import type { Operator } from '../operators/operator-tokens.js';
 import {
   decide,
-  DECISION_FAILURE,
   DecisionError,
   type DecideDeps,
   type DecisionResult,

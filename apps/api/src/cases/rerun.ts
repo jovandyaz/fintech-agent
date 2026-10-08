@@ -1,12 +1,14 @@
 import {
+  OPEN_PROPOSAL,
+  RERUN_FAILURE,
   maskJson,
   type ActionStatus,
-  type CaseStatus,
+  type RerunAnswer,
+  type RerunFailure,
 } from '@fintech-agent/contracts';
 import { and, eq } from 'drizzle-orm';
 
-import { OPEN_PROPOSAL, transition } from '../approvals/transition.js';
-import { REFUSAL } from '../common/errors/refusal.js';
+import { transition } from '../approvals/transition.js';
 import type { RequestMeta } from '../common/http/request-meta.js';
 import type { Database } from '../database/index.js';
 import {
@@ -23,10 +25,6 @@ const DECIDED_CANARY: ReadonlySet<ActionStatus> = new Set([
   'canary_missed',
 ]);
 
-/** Why a re-run was refused; the controller maps each to a status code. */
-export const RERUN_FAILURE = REFUSAL;
-export type RerunFailure = (typeof RERUN_FAILURE)[keyof typeof RERUN_FAILURE];
-
 /** A refused re-run. */
 export class RerunError extends Error {
   constructor(readonly failure: RerunFailure) {
@@ -34,11 +32,7 @@ export class RerunError extends Error {
   }
 }
 
-export interface RerunResult {
-  case_id: string;
-  status: CaseStatus;
-  manual_reruns: number;
-}
+export type RerunResult = RerunAnswer;
 
 export interface RerunDeps {
   db: Database;

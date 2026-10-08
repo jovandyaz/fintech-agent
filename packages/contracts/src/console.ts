@@ -137,3 +137,71 @@ export const CaseDetailSchema = z.strictObject({
   override_options: OverrideOptionsSchema.nullable(),
 });
 export type CaseDetail = z.infer<typeof CaseDetailSchema>;
+
+/** `POST /cases` and the ticket webhook: the case opened and its folio, the acknowledgment. */
+export const CaseAcknowledgmentSchema = z.strictObject({
+  case_id: z.string(),
+  folio: z.string(),
+});
+export type CaseAcknowledgment = z.infer<typeof CaseAcknowledgmentSchema>;
+
+/** `POST /actions/:actionId/decision`: the proposal's new status, which tells a canary apart only now. */
+export const DecisionAnswerSchema = z.strictObject({
+  action_id: z.string(),
+  status: z.enum(ACTION_STATUSES),
+});
+export type DecisionAnswer = z.infer<typeof DecisionAnswerSchema>;
+
+/** `POST /cases/:caseId/rerun`. */
+export const RerunAnswerSchema = z.strictObject({
+  case_id: z.string(),
+  status: z.enum(CASE_STATUSES),
+  manual_reruns: z.number().int(),
+});
+export type RerunAnswer = z.infer<typeof RerunAnswerSchema>;
+
+// The browser bundle takes runtime values from this module only, never the
+// barrel, which holds Node-only code; these are what the console needs.
+export { CustomerOptionSchema, type CustomerOption } from './core.js';
+export { type TransactionRow } from './mcp.js';
+export {
+  ACTION_TYPES,
+  APPROVED_FACTOR_WARNINGS,
+  CASE_CATEGORIES,
+  CASE_FLAGS,
+  DecisionSchema,
+  MAX_REJECT_REASON_CHARS,
+  MAX_REPLY_CHARS,
+  NewCaseSchema,
+  REASON_CODES,
+  REJECT_CODES,
+  REPLY_CHECK_CODES,
+  type ActionType,
+  type CaseCategory,
+  type CaseFlag,
+  type Decision,
+  type NewCase,
+  type ReasonCode,
+  type RejectCode,
+  type ReplyCheckCode,
+} from './schemas.js';
+export {
+  DECISION_FAILURE,
+  RERUN_FAILURE,
+  type DecisionFailure,
+  type RerunFailure,
+} from './refusals.js';
+export {
+  ACTION_STATUSES,
+  AWAITING_DECISION,
+  CASE_STATUSES,
+  MAX_MANUAL_RERUNS,
+  OPEN_PROPOSAL,
+  RERUNNABLE_STATUSES,
+  type ActionStatus,
+  type CaseStatus,
+  type ReviewTier,
+  type RunStatus,
+  type StepKind,
+  type StopReason,
+} from './states.js';

@@ -1,4 +1,8 @@
-import { NewCaseSchema, type NewCase } from '@fintech-agent/contracts';
+import {
+  NewCaseSchema,
+  type CaseAcknowledgment,
+  type NewCase,
+} from '@fintech-agent/contracts';
 import {
   Body,
   Controller,
@@ -16,7 +20,6 @@ import { ZodPipe } from '../common/http/zod.pipe.js';
 import { CurrentOperator, OperatorGuard } from '../operators/operator.guard.js';
 import type { Operator } from '../operators/operator-tokens.js';
 import { WEBHOOK_DEPS, openConsoleCase, type WebhookDeps } from './delivery.js';
-import type { Intake } from './intake.js';
 
 /**
  * `POST /cases`, the console's new case form (01): a signed-in operator
@@ -34,7 +37,7 @@ export class ConsoleCasesController {
     @Body(new ZodPipe(NewCaseSchema)) form: NewCase,
     @CurrentOperator() operator: Operator,
     @Req() request: Request,
-  ): Promise<Omit<Intake, 'outcome'>> {
+  ): Promise<CaseAcknowledgment> {
     const { case_id, folio } = await openConsoleCase(this.deps, {
       form,
       operator,

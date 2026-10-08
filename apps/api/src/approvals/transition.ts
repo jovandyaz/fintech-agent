@@ -9,9 +9,6 @@ export const ACTION_EVENTS = [
 ] as const;
 export type ActionEvent = (typeof ACTION_EVENTS)[number];
 
-/** The one status a proposal can be decided, superseded or re-run from. */
-export const OPEN_PROPOSAL: ActionStatus = 'proposed';
-
 type Moves = Partial<Record<ActionEvent, ActionStatus>>;
 
 const REAL: Partial<Record<ActionStatus, Moves>> = {

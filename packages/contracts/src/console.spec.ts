@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import {
+  CaseAcknowledgmentSchema,
   CaseDetailSchema,
+  DecisionAnswerSchema,
+  RerunAnswerSchema,
   InboxItemSchema,
   OperatorViewSchema,
   StatusSchema,
@@ -15,6 +18,9 @@ const CONSOLE_DTOS = {
   CustomerOptionSchema,
   InboxItemSchema,
   CaseDetailSchema,
+  CaseAcknowledgmentSchema,
+  DecisionAnswerSchema,
+  RerunAnswerSchema,
 };
 
 // 02 G3: a canary is told apart only after the decision; these fields would
@@ -70,6 +76,9 @@ const ALLOWED_PATHS: Record<keyof typeof CONSOLE_DTOS, string[]> = {
     '.review_tier',
     '.status',
   ],
+  CaseAcknowledgmentSchema: ['.case_id', '.folio'],
+  DecisionAnswerSchema: ['.action_id', '.status'],
+  RerunAnswerSchema: ['.case_id', '.manual_reruns', '.status'],
   CaseDetailSchema: [
     '.case',
     '.case.case_id',

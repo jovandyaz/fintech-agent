@@ -1,5 +1,8 @@
 import {
+  AWAITING_DECISION,
   CoreUnavailableError,
+  DECISION_FAILURE,
+  OPEN_PROPOSAL,
   hasPii,
   maskJson,
   readTransactions,
@@ -9,15 +12,16 @@ import {
   type CaseFlag,
   type CoreReader,
   type Decision,
+  type DecisionFailure,
   type Override,
   type ReplyCheckCode,
   type Transaction,
+  type DecisionAnswer,
 } from '@fintech-agent/contracts';
 import { and, eq } from 'drizzle-orm';
 
 import { shapeViolation } from '../actions/allowed.js';
-import { AWAITING_DECISION, resolveTarget } from '../cases/case-transition.js';
-import { REFUSAL } from '../common/errors/refusal.js';
+import { resolveTarget } from '../cases/case-transition.js';
 import type { RequestMeta } from '../common/http/request-meta.js';
 import type { Database } from '../database/index.js';
 import {
@@ -29,20 +33,7 @@ import {
 import type { Operator } from '../operators/operator-tokens.js';
 import { replyViolations } from '../replies/reply-checks.js';
 import { editRatio } from './edit-ratio.js';
-import { OPEN_PROPOSAL, transition } from './transition.js';
-
-/** Why a decision was refused; the controller maps each to a status code. */
-export const DECISION_FAILURE = {
-  ...REFUSAL,
-  invalidReply: 'invalid_reply',
-  piiInRejectReason: 'pii_in_reject_reason',
-  flagsNotAcknowledged: 'flags_not_acknowledged',
-  overrideNotAllowed: 'override_not_allowed',
-  transactionsNotReviewed: 'transactions_not_reviewed',
-  coreUnavailable: 'core_unavailable',
-} as const;
-export type DecisionFailure =
-  (typeof DECISION_FAILURE)[keyof typeof DECISION_FAILURE];
+import { transition } from './transition.js';
 
 /** A refused decision, with the reply check codes when the reply failed them. */
 export class DecisionError extends Error {
@@ -61,10 +52,7 @@ export interface DecideInput {
   meta: RequestMeta;
 }
 
-export interface DecisionResult {
-  action_id: string;
-  status: ActionStatus;
-}
+export type DecisionResult = DecisionAnswer;
 
 export interface DecideDeps {
   db: Database;
