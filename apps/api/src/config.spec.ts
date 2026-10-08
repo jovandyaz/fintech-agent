@@ -10,6 +10,7 @@ const ENV = {
   MCP_URL: 'http://localhost:3020/mcp',
   MCP_AUDIENCE: 'http://mcp:3020/mcp',
   CASE_TOKEN_KEY: 'dev-case-token-key-0123456789abcdef',
+  WEBHOOK_SECRET: 'whsec_ZGV2LXdlYmhvb2stc2VjcmV0LTAxMjM0NTY3ODlhYmNkZWY=',
 };
 
 describe('loadApiConfig', () => {
@@ -105,6 +106,24 @@ describe('loadApiConfig', () => {
       );
     },
   );
+
+  it.each([
+    ['without the whsec_ prefix', 'ZGV2LXdlYmhvb2stc2VjcmV0'],
+    ['empty', ''],
+  ])('refuses a WEBHOOK_SECRET %s', (_, value) => {
+    expect(() => loadApiConfig({ ...ENV, WEBHOOK_SECRET: value })).toThrow(
+      /WEBHOOK_SECRET/,
+    );
+  });
+
+  it('accepts two webhook secrets while one rotates out', () => {
+    expect(() =>
+      loadApiConfig({
+        ...ENV,
+        WEBHOOK_SECRET: `${ENV.WEBHOOK_SECRET} whsec_${Buffer.from('a-second-secret-of-24-bytes').toString('base64')}`,
+      }),
+    ).not.toThrow();
+  });
 
   it('refuses an AGENT_MODE other than on or off', () => {
     expect(() => loadApiConfig({ ...ENV, AGENT_MODE: 'paused' })).toThrow(

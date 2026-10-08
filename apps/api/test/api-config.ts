@@ -8,6 +8,7 @@ const DEV_ENV = {
   MCP_URL: 'http://mcp:3020/mcp',
   MCP_AUDIENCE: 'http://mcp:3020/mcp',
   CASE_TOKEN_KEY: 'dev-case-token-key-0123456789abcdef',
+  WEBHOOK_SECRET: `whsec_${Buffer.from('dev-webhook-secret-0123456789abcdef').toString('base64')}`,
 };
 
 /** A full `api` config with the compose dev defaults, for code under test. */

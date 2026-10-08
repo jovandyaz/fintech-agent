@@ -72,6 +72,10 @@ describe('compose process boundary (02 G1)', () => {
     });
   });
 
+  it('gives WEBHOOK_SECRET only to api, which verifies tickets and signs console cases', () => {
+    expect(holders('WEBHOOK_SECRET')).toEqual(['api']);
+  });
+
   it('gives the owner database URL only to seed', () => {
     expect(holders('DATABASE_URL')).toEqual(['seed']);
   });
