@@ -123,6 +123,33 @@ const INJECTION_PATTERNS: readonly {
     weight: 0.85,
     reason: 'System prompt extraction attempt (es)',
   },
+  {
+    pattern:
+      // "ignora" is also the third person, so only the possessive or voseo
+      // form addresses the reader.
+      /\b(?:ignor(?:a|á|ar)\s+(?:todas\s+)?tus|ignorá\s+(?:todas\s+)?las)\s+(?:instrucciones|reglas|indicaciones)/i,
+    weight: 0.9,
+    reason: 'Instruction override attempt (es)',
+  },
+  {
+    pattern:
+      /\b(?:ahora|a\s+partir\s+de\s+ahora|desde\s+ahora)\s+eres\s+(?:el|la|un|una)\s+(?:sistema|asistente|agente|modelo|ia|administrador|supervisor)\b/i,
+    weight: 0.8,
+    reason: 'Role hijacking attempt (es)',
+  },
+  {
+    pattern:
+      // A money or case verb is required, never an everyday one ("abre",
+      // "escala"): a pasted chat line ("Agente: debes esperar") is no directive. `\b` is ASCII-only, so letter lookarounds.
+      /(?<![A-Za-zÀ-ÿ])(?:agente|asistente|modelo|ia|bot)\s*:\s*(?:(?:siempre|nunca|debes|tienes\s+que)\s+)?(?:prop[óo]n(?:er|é)?|aprueba(?:r)?|aprob[aá]r?|reembols[aá]r?|ignora(?:r)?|abras|no\s+abras)(?![A-Za-zÀ-ÿ])/i,
+    weight: 0.8,
+    reason: 'Directive addressed to the agent (es)',
+  },
+  {
+    pattern: /\bnota\s+para\s+(?:el|la)\s+(?:agente|asistente|modelo|ia)\s*:/i,
+    weight: 0.7,
+    reason: 'Directive addressed to the agent (es)',
+  },
 
   // Weak signals — a lone match stays under the threshold; they only
   // contribute via cumulative scoring. No '/' in the base64 class: with it
@@ -252,4 +279,9 @@ export function detectPromptInjection(text: string): PromptGuardResult {
   }
 
   return scoreInjectionHits(matchInjectionPatterns(guardReadings(text)));
+}
+
+/** The intake signal (01 Intake): the case gets `injection_signal`, never a block (02 G7). */
+export function injectionSignal(text: string): boolean {
+  return !detectPromptInjection(text).safe;
 }
