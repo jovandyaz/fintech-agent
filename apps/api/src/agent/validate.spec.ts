@@ -831,7 +831,12 @@ describe('POLICY_DATA_CONFLICT', () => {
     expect(outcome).toMatchObject({
       ok: true,
       resolution: {
-        proposed_action: { type: 'none', transaction_ids: [] },
+        proposed_action: {
+          type: 'none',
+          transaction_ids: [],
+          justification:
+            'La política y los datos del caso no coinciden (return_credit_same_day); no se propone ninguna acción.',
+        },
       },
       conflicts: [
         {
@@ -1109,7 +1114,7 @@ describe('repair and fallback', () => {
         transaction_ids: [],
         reason_code: 'insufficient_information',
         justification:
-          'Validation failed after one repair: COMMITMENT_IN_REPLY',
+          'La propuesta no pasó la validación después de un intento de corrección (COMMITMENT_IN_REPLY).',
       },
       conflicts: [],
       evidence: buildEvidence(runOf(CARD_DISPUTE_RUN)),
