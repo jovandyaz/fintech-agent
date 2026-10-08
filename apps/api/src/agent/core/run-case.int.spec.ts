@@ -346,6 +346,8 @@ describe('runCase (01 §Agent pipeline)', () => {
         output_masked: { outcome: 'passed' },
       },
     ]);
+    expect(steps[0]!.output_masked).toEqual({ outcome: 'passed', spans: 1 });
+    expect(JSON.stringify(steps)).not.toContain('Pelusa');
     expect(Number(steps[0]!.cost_usd)).toBeGreaterThan(0);
     const stepTotal = steps.reduce(
       (total, { cost_usd }) => total + Number(cost_usd ?? 0),

@@ -72,6 +72,14 @@ describe('redactCase (02 G6 Step 7)', () => {
     expect(redaction.step).toMatchObject({ spans: 1 });
   });
 
+  it('reports the spans it applied and none of those it ignored', async () => {
+    const redaction = await redactCase(
+      'Mi apodo es Pelusa.',
+      returning(['Peluche', 'es', 'Pelusa']),
+    );
+    expect(redaction.applied).toEqual(['Pelusa']);
+  });
+
   it('ignores every span after the 50th', async () => {
     const words = Array.from(
       { length: MAX_SPANS + 1 },
@@ -176,6 +184,10 @@ describe('redactCase (02 G6 Step 7)', () => {
 
   it('skips the redactor when none is configured (no API key)', async () => {
     const redaction = await redactCase('Mi apodo es Pelusa.', null);
-    expect(redaction).toEqual({ text: 'Mi apodo es Pelusa.', step: null });
+    expect(redaction).toEqual({
+      text: 'Mi apodo es Pelusa.',
+      step: null,
+      applied: [],
+    });
   });
 });

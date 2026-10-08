@@ -50,18 +50,20 @@ export interface RedactionStep {
 export interface Redaction {
   text: string;
   step: RedactionStep | null;
+  /** The spans replaced, in the order applied; the redactor's recall is measured on them (03). */
+  applied: string[];
 }
 
 function applySpans(
   text: string,
   spans: readonly string[],
-): { text: string; applied: number } {
+): { text: string; applied: string[] } {
   let redacted = text;
-  let applied = 0;
+  const applied: string[] = [];
   for (const span of spans.slice(0, MAX_SPANS)) {
     if (span.length < MIN_SPAN_CHARS || !redacted.includes(span)) continue;
     redacted = redacted.replaceAll(span, REDACTED);
-    applied += 1;
+    applied.push(span);
   }
   return { text: redacted, applied };
 }
@@ -78,7 +80,7 @@ export async function redactCase(
   textMasked: string,
   redactor: Redactor | null,
 ): Promise<Redaction> {
-  if (redactor === null) return { text: textMasked, step: null };
+  if (redactor === null) return { text: textMasked, step: null, applied: [] };
   const startedAt = performance.now();
   const latencyMs = (): number => Math.round(performance.now() - startedAt);
   try {
@@ -96,10 +98,11 @@ export async function redactCase(
       step: {
         name: STEP_NAME,
         outcome: 'passed',
-        spans: applied,
+        spans: applied.length,
         usage: result.totalUsage,
         latencyMs: latencyMs(),
       },
+      applied,
     };
   } catch (error) {
     return {
@@ -114,6 +117,7 @@ export async function redactCase(
           : null,
         latencyMs: latencyMs(),
       },
+      applied: [],
     };
   }
 }
