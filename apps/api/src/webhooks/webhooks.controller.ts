@@ -1,4 +1,7 @@
-import { WEBHOOK_HEADERS } from '@fintech-agent/contracts';
+import {
+  WEBHOOK_HEADERS,
+  type CaseAcknowledgment,
+} from '@fintech-agent/contracts';
 import {
   BadRequestException,
   ConflictException,
@@ -23,7 +26,7 @@ import {
   acceptDelivery,
   type WebhookDeps,
 } from './delivery.js';
-import { IntakeConflictError, type Intake } from './intake.js';
+import { IntakeConflictError } from './intake.js';
 
 const MEDIA_TYPE_REFUSAL = 'json_only';
 // Only JSON is parsed under the 32 KB limit the signature and the case rely on.
@@ -45,7 +48,7 @@ export class WebhooksController {
   async receive(
     @Req() request: RawBodyRequest<Request>,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<Omit<Intake, 'outcome'>> {
+  ): Promise<CaseAcknowledgment> {
     if (!request.is(JSON_TYPE)) {
       throw new UnsupportedMediaTypeException({ message: MEDIA_TYPE_REFUSAL });
     }

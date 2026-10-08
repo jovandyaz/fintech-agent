@@ -10,6 +10,9 @@ export const CASE_STATUSES = [
 ] as const;
 export type CaseStatus = (typeof CASE_STATUSES)[number];
 
+/** The one status a case is decided from (02 G3). */
+export const AWAITING_DECISION: CaseStatus = 'needs_review';
+
 export const CASE_SOURCES = ['webhook', 'console', 'eval'] as const;
 export type CaseSource = (typeof CASE_SOURCES)[number];
 
@@ -64,6 +67,9 @@ export const ACTION_STATUSES = [
 ] as const;
 export type ActionStatus = (typeof ACTION_STATUSES)[number];
 
+/** The one proposal status an operator can still decide, and a re-run supersedes. */
+export const OPEN_PROPOSAL: ActionStatus = 'proposed';
+
 export const EXECUTION_STATUSES = ['started', 'executed', FAILED] as const;
 export type ExecutionStatus = (typeof EXECUTION_STATUSES)[number];
 
@@ -77,3 +83,13 @@ export const DB_ROLES = [
   'copilot_mcp',
 ] as const;
 export type DbRole = (typeof DB_ROLES)[number];
+
+/** 02 G3: the fourth manual re-run of a case is refused. */
+export const MAX_MANUAL_RERUNS = 3;
+
+/** The case statuses an operator may re-run from (02 G3). */
+export const RERUNNABLE_STATUSES = [
+  'needs_review',
+  'failed',
+  'resolved',
+] as const satisfies readonly CaseStatus[];

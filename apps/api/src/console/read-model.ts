@@ -2,6 +2,7 @@ import {
   CitationSchema,
   CoreUnavailableError,
   MAX_LIST_LIMIT,
+  OPEN_PROPOSAL,
   TransactionRowSchema,
   maskJson,
   transactionRowOf,
@@ -16,7 +17,6 @@ import {
 import { asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import { overrideOptionsOf } from '../actions/allowed.js';
-import { OPEN_PROPOSAL } from '../approvals/transition.js';
 import type { Database } from '../database/index.js';
 import {
   agentRuns,

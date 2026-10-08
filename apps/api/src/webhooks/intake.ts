@@ -5,6 +5,7 @@ import {
   maskPii,
   newFolio,
   newRegistryId,
+  type CaseAcknowledgment,
   type CaseSource,
   type WebhookEvent,
 } from '@fintech-agent/contracts';
@@ -40,10 +41,8 @@ export interface Opener {
 }
 
 /** What the sender gets back: the case and its folio, the acknowledgment (acuse). */
-export interface Intake {
+export interface Intake extends CaseAcknowledgment {
   outcome: IntakeOutcome;
-  case_id: string;
-  folio: string;
 }
 
 /** The hash a repeated delivery is compared by: the bytes as sent. */

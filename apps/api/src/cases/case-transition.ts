@@ -1,13 +1,11 @@
-import type { CaseStatus } from '@fintech-agent/contracts';
+import {
+  AWAITING_DECISION,
+  MAX_MANUAL_RERUNS,
+  RERUNNABLE_STATUSES,
+  type CaseStatus,
+} from '@fintech-agent/contracts';
 
-/** 02 G3: the fourth manual re-run of a case is refused. */
-export const MAX_MANUAL_RERUNS = 3;
-
-const RERUNNABLE: ReadonlySet<CaseStatus> = new Set([
-  'needs_review',
-  'failed',
-  'resolved',
-]);
+const RERUNNABLE: ReadonlySet<CaseStatus> = new Set(RERUNNABLE_STATUSES);
 
 /** Where a manual re-run takes the case, or null when it is refused. */
 export function rerunTarget(
@@ -18,9 +16,6 @@ export function rerunTarget(
     ? 'queued'
     : null;
 }
-
-/** The one status a case is decided from (02 G3). */
-export const AWAITING_DECISION: CaseStatus = 'needs_review';
 
 /** Where a decision takes the case, or null when it is not waiting for one. */
 export function resolveTarget(status: CaseStatus): 'resolved' | null {

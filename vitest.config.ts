@@ -2,7 +2,8 @@ import { defineConfig } from 'vitest/config';
 
 // `unit` needs nothing running; `integration` starts Postgres through
 // Testcontainers (Docker, no API key), and so do the in-process end-to-end
-// specs. `pnpm verify` runs unit only.
+// specs; `console` runs the React app's specs in jsdom. `pnpm verify` runs unit
+// and console.
 export default defineConfig({
   test: {
     passWithNoTests: true,
@@ -15,9 +16,11 @@ export default defineConfig({
             '**/*.int.spec.ts',
             '**/*.e2e.spec.ts',
             '**/node_modules/**',
+            'apps/console/**',
           ],
         },
       },
+      'apps/console',
       {
         test: {
           name: 'integration',

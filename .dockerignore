@@ -6,7 +6,7 @@
 .claude
 docs
 specs
-.env
-.env.*.local
+**/.env*
 *.log
 **/*.spec.ts
+**/*.spec.tsx

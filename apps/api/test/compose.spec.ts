@@ -7,6 +7,9 @@ import { parse } from 'yaml';
 interface ComposeService {
   environment?: Record<string, string> | string[];
   env_file?: unknown;
+  ports?: string[];
+  depends_on?: Record<string, { condition: string }>;
+  networks?: Record<string, { ipv4_address?: string }>;
 }
 
 const compose = parse(
@@ -125,5 +128,48 @@ describe('compose database logs (02 G6)', () => {
   it('keeps key values and failing rows out of the Postgres log', () => {
     const { command } = compose.services.db as { command?: string[] };
     expect(command).toEqual(['postgres', '-c', 'log_error_verbosity=terse']);
+  });
+});
+
+describe('compose console (04 Step 7, 02 G3, G7)', () => {
+  const console = compose.services.console;
+
+  it('serves the console on CONSOLE_PORT once api is healthy', () => {
+    expect(console?.ports).toEqual(['${CONSOLE_PORT:-5173}:8080']);
+    expect(console?.depends_on?.api?.condition).toBe('service_healthy');
+  });
+
+  it('lets api trust a forwarded address only from the console', () => {
+    const address = console?.networks?.default?.ipv4_address;
+    expect(address).toBe('${CONSOLE_IP:-10.231.0.10}');
+    expect(env('api').TRUST_PROXY).toBe(address);
+  });
+
+  it('keeps the console address out of the pool Docker hands out', () => {
+    const network = (
+      compose as {
+        networks?: {
+          default?: {
+            ipam?: { config?: { subnet?: string; ip_range?: string }[] };
+          };
+        };
+      }
+    ).networks?.default?.ipam?.config?.[0];
+    expect(network).toEqual({
+      subnet: '${COMPOSE_SUBNET:-10.231.0.0/24}',
+      ip_range: '${COMPOSE_IP_RANGE:-10.231.0.128/25}',
+    });
+  });
+
+  it('keeps every .env file out of every image', () => {
+    const ignored = readFileSync(
+      resolve(import.meta.dirname, '../../../.dockerignore'),
+      'utf8',
+    ).split('\n');
+    expect(ignored).toContain('**/.env*');
+  });
+
+  it('gives the console no environment, so it holds no secret', () => {
+    expect(console?.environment).toBeUndefined();
   });
 });
