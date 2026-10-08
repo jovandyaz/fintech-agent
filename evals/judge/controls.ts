@@ -3,26 +3,7 @@ import type {
   CustomerView,
   SpeiStatus,
 } from '@fintech-agent/contracts';
-
-/** One policy chunk a draft cites, as the judge reads it. */
-export interface CitedChunk {
-  doc_id: string;
-  section: string;
-  text: string;
-}
-
-/** One account tool's masked output, as the run recorded it. */
-export interface ToolOutput {
-  tool: string;
-  output: unknown;
-}
-
-/** What the groundedness judge sees for one draft; it never sees the label (03). */
-export interface JudgeInput {
-  draft_reply: string;
-  cited_chunks: readonly CitedChunk[];
-  tool_outputs: readonly ToolOutput[];
-}
+import type { CitedChunk, JudgeInput } from '@fintech-agent/api/evals';
 
 /** The seven planted defects the judge must fail before it is used (03 §Judge validation). */
 export const KNOWN_DEFECTS = [

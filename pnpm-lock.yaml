@@ -382,6 +382,9 @@ importers:
 
   evals:
     dependencies:
+      '@fintech-agent/api':
+        specifier: workspace:*
+        version: link:../apps/api
       '@fintech-agent/contracts':
         specifier: workspace:*
         version: link:../packages/contracts
