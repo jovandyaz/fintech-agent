@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@fintech-agent/contracts": "workspace:*",
-    "@fintech-agent/data": "workspace:*"
+    "@fintech-agent/data": "workspace:*",
+    "promptfoo": "0.124.0"
   }
 }
