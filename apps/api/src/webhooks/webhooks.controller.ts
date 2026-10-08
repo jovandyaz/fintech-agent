@@ -19,19 +19,13 @@ import {
   DELIVERY_REFUSAL,
   DeliveryRefusedError,
   WEBHOOK_DEPS,
+  WEBHOOK_SENDER,
   acceptDelivery,
   type WebhookDeps,
 } from './delivery.js';
-import { IntakeConflictError, type Intake, type Opener } from './intake.js';
+import { IntakeConflictError, type Intake } from './intake.js';
 
 const MEDIA_TYPE_REFUSAL = 'json_only';
-// The sender is authenticated by the signature alone; there is no operator.
-const WEBHOOK_SENDER: Opener = {
-  actor: 'intake:webhook',
-  keyId: null,
-  ip: null,
-  userAgent: null,
-};
 // Only JSON is parsed under the 32 KB limit the signature and the case rely on.
 const JSON_TYPE = 'application/json';
 
