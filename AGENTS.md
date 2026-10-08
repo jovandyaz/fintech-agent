@@ -15,6 +15,7 @@ An agent that investigates a customer case with read-only tools and policies, pr
 | `packages/contracts`      | Zod schemas and `maskPii`                                                      | 01, 02 G6 |
 | `data/`                   | Seeded dataset, scenarios, policy docs, webhook fixtures                       | 03, 04    |
 | `evals/`                  | promptfoo runner, labeled cases, judge calibration                             | 03        |
+| `e2e/`                    | Playwright end-to-end tests of the console against the compose stack           | 04 step 7 |
 | `docs/agent-setup/`       | Snapshot of the global agent setup used to build this                          | —         |
 
 Folders appear as the build plan (`specs/04-build-plan.md`) reaches them.
@@ -28,6 +29,7 @@ Folders appear as the build plan (`specs/04-build-plan.md`) reaches them.
 | `docker compose up`     | the whole stack                                           | `ANTHROPIC_API_KEY` for agent runs |
 | `pnpm eval`             | eval runner against the running stack                     | stack + key                        |
 | `pnpm demo:post <ids…>` | signs and posts `data/webhook-fixtures` to the stack      | stack                              |
+| `pnpm e2e`              | Playwright through the console: decide, demo, canary      | fresh stack with `AGENT_MODE=off`  |
 
 ## Invariants (specs/02-security.md)
 
