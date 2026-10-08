@@ -19,7 +19,7 @@ const BODY = '{"event_id":"evt-adv-01","text":"hola"}';
 
 const signed = (
   overrides: Partial<{ id: string; timestamp: number; body: string }> = {},
-  secret = NEW[0]!,
+  secret = NEW[0],
 ) => {
   const id = overrides.id ?? ID;
   const timestamp = overrides.timestamp ?? NOW_S;
@@ -80,7 +80,7 @@ describe('Standard Webhooks v1 signatures (01 §Webhook and queue, 02 T7)', () =
       id: ID,
       timestamp: NOW_S,
       body: BODY,
-      secret: OLD[0]!,
+      secret: OLD[0],
     });
     expect(
       verify({ ...request, signature: `${stale} ${request.signature}` }),

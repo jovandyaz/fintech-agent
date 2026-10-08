@@ -1,8 +1,4 @@
-import {
-  WEBHOOK_HEADERS,
-  WebhookEventSchema,
-  verifyWebhook,
-} from '@fintech-agent/contracts';
+import { WEBHOOK_HEADERS } from '@fintech-agent/contracts';
 import {
   BadRequestException,
   ConflictException,
@@ -19,31 +15,23 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import type { Database } from '../database/index.js';
 import {
-  IntakeConflictError,
-  intakeEvent,
-  payloadHashOf,
-  type Intake,
-} from './intake.js';
+  DELIVERY_REFUSAL,
+  DeliveryRefusedError,
+  WEBHOOK_DEPS,
+  acceptDelivery,
+  type WebhookDeps,
+} from './delivery.js';
+import { IntakeConflictError, type Intake, type Opener } from './intake.js';
 
-/** The provider of what the webhook controller needs. */
-export const WEBHOOK_DEPS = 'WEBHOOK_DEPS';
-
-/** What the webhook needs: the database, the secrets it verifies with, a clock. */
-export interface WebhookDeps {
-  db: Database;
-  secrets: readonly Buffer[];
-  now: () => Date;
-}
-
-const MS_PER_SECOND = 1000;
-const REFUSAL = {
-  signature: 'invalid_signature',
-  webhookId: 'webhook_id_mismatch',
-  body: 'invalid_body',
-  mediaType: 'json_only',
-} as const;
+const MEDIA_TYPE_REFUSAL = 'json_only';
+// The sender is authenticated by the signature alone; there is no operator.
+const WEBHOOK_SENDER: Opener = {
+  actor: 'intake:webhook',
+  keyId: null,
+  ip: null,
+  userAgent: null,
+};
 // Only JSON is parsed under the 32 KB limit the signature and the case rely on.
 const JSON_TYPE = 'application/json';
 
@@ -65,45 +53,35 @@ export class WebhooksController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<Omit<Intake, 'outcome'>> {
     if (!request.is(JSON_TYPE)) {
-      throw new UnsupportedMediaTypeException({ message: REFUSAL.mediaType });
+      throw new UnsupportedMediaTypeException({ message: MEDIA_TYPE_REFUSAL });
     }
-    const now = this.deps.now();
     const id = request.header(WEBHOOK_HEADERS.id);
-    const verdict = verifyWebhook({
-      id,
-      timestamp: request.header(WEBHOOK_HEADERS.timestamp),
-      signature: request.header(WEBHOOK_HEADERS.signature),
-      body: request.rawBody ?? Buffer.alloc(0),
-      secrets: this.deps.secrets,
-      nowS: Math.floor(now.getTime() / MS_PER_SECOND),
-    });
-    if (verdict !== 'valid') {
-      throw new UnauthorizedException({ message: REFUSAL.signature });
-    }
-    const parsed = WebhookEventSchema.safeParse(request.body);
-    if (!parsed.success) {
-      throw new BadRequestException({ message: REFUSAL.body });
-    }
-    if (parsed.data.event_id !== id) {
-      throw new BadRequestException({ message: REFUSAL.webhookId });
-    }
     try {
-      const { outcome, ...answer } = await intakeEvent(this.deps.db, {
-        event: parsed.data,
-        payloadHash: payloadHashOf(request.rawBody ?? Buffer.alloc(0)),
-        source: 'webhook',
-        now,
-      });
+      const { outcome, ...answer } = await acceptDelivery(
+        this.deps,
+        {
+          id,
+          timestamp: request.header(WEBHOOK_HEADERS.timestamp),
+          signature: request.header(WEBHOOK_HEADERS.signature),
+          body: request.rawBody ?? Buffer.alloc(0),
+        },
+        { source: 'webhook', opener: WEBHOOK_SENDER },
+      );
       response.status(
         outcome === 'created' ? HttpStatus.ACCEPTED : HttpStatus.OK,
       );
       return answer;
     } catch (error) {
+      if (error instanceof DeliveryRefusedError) {
+        throw error.refusal === DELIVERY_REFUSAL.signature
+          ? new UnauthorizedException({ message: error.refusal })
+          : new BadRequestException({ message: error.refusal });
+      }
       if (!(error instanceof IntakeConflictError)) throw error;
       this.logger.warn({
         event: 'webhook_conflict',
         conflict: error.conflict,
-        event_id: parsed.data.event_id,
+        event_id: id,
       });
       throw new ConflictException({ message: error.conflict });
     }

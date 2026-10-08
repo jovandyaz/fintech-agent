@@ -31,6 +31,14 @@ export class IntakeConflictError extends Error {
   }
 }
 
+/** Who opened a case, as its acknowledgment's audit row records them (02 G3). */
+export interface Opener {
+  actor: string;
+  keyId: string | null;
+  ip: string | null;
+  userAgent: string | null;
+}
+
 /** What the sender gets back: the case and its folio, the acknowledgment (acuse). */
 export interface Intake {
   outcome: IntakeOutcome;
@@ -45,9 +53,10 @@ export const payloadHashOf = (rawBody: Buffer): string =>
 /**
  * Records one event and its case in one transaction (01 §Webhook and queue):
  * the event row first, then the queued case with its folio and only the
- * masked text (02 G6), then the acknowledgment as sent. A repeat of the same
- * bytes returns the case it opened; the same event id with other bytes, or a
- * new event reusing a ticket id, is refused.
+ * masked text (02 G6), then the acknowledgment as sent, under whoever opened
+ * the case (the sender, or the operator behind the console form). A
+ * repeat of the same bytes returns the case it opened; the same event id with
+ * other bytes, or a new event reusing a ticket id, is refused.
  */
 export async function intakeEvent(
   db: Database,
@@ -55,10 +64,11 @@ export async function intakeEvent(
     event: WebhookEvent;
     payloadHash: string;
     source: Extract<CaseSource, 'webhook' | 'console'>;
+    opener: Opener;
     now: Date;
   },
 ): Promise<Intake> {
-  const { event, payloadHash, source, now } = input;
+  const { event, payloadHash, source, opener, now } = input;
   return db.transaction(async (tx) => {
     const caseId = newRegistryId('case');
     const recorded = await tx
@@ -109,7 +119,7 @@ export async function intakeEvent(
     }
     await tx.insert(auditLog).values({
       at: now,
-      actor: `intake:${source}`,
+      ...opener,
       event: ACKNOWLEDGED,
       ref: caseId,
       detailMasked: maskJson({ folio }),

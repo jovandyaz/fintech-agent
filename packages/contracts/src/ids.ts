@@ -65,6 +65,8 @@ export function newFolio(random: RandomIndex = cryptoIndex): string {
 const ID_LETTERS = 'abcdefghijkmnpqrstuvwxyz';
 /** The prefix of a ticket id from the ticketing system (`tkt-…`). */
 export const TICKET_ID_PREFIX = 'tkt-';
+/** The prefix of a ticket event id (`evt-…`), as the ticketing system sends it. */
+export const EVENT_ID_PREFIX = 'evt-';
 const ID_PAYLOAD_CHARS = 12;
 
 /** Random letters with no digit and no o or l, which the masker could read as digits. */

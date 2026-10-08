@@ -21,12 +21,13 @@ Folders appear as the build plan (`specs/04-build-plan.md`) reaches them.
 
 ## Commands
 
-| Command             | Runs                                                      | Needs                              |
-| ------------------- | --------------------------------------------------------- | ---------------------------------- |
-| `pnpm verify`       | typecheck, lint, unit tests, hook tests                   | nothing                            |
-| `pnpm test`         | unit + integration (Testcontainers Postgres) + hook tests | Docker                             |
-| `docker compose up` | the whole stack                                           | `ANTHROPIC_API_KEY` for agent runs |
-| `pnpm eval`         | eval runner against the running stack                     | stack + key                        |
+| Command                 | Runs                                                      | Needs                              |
+| ----------------------- | --------------------------------------------------------- | ---------------------------------- |
+| `pnpm verify`           | typecheck, lint, unit tests, hook tests                   | nothing                            |
+| `pnpm test`             | unit + integration (Testcontainers Postgres) + hook tests | Docker                             |
+| `docker compose up`     | the whole stack                                           | `ANTHROPIC_API_KEY` for agent runs |
+| `pnpm eval`             | eval runner against the running stack                     | stack + key                        |
+| `pnpm demo:post <ids…>` | signs and posts `data/webhook-fixtures` to the stack      | stack                              |
 
 ## Invariants (specs/02-security.md)
 
