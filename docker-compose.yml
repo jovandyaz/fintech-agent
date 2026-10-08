@@ -3,6 +3,9 @@ name: fintech-agent
 services:
   db:
     image: postgres:16-alpine
+    # A constraint error's DETAIL carries key values and the failing row,
+    # which may hold digits a sender chose (02 G6); the client still gets it.
+    command: ['postgres', '-c', 'log_error_verbosity=terse']
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-copilot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-copilot}

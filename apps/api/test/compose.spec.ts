@@ -116,3 +116,10 @@ describe('compose process boundary (02 G1)', () => {
     );
   });
 });
+
+describe('compose database logs (02 G6)', () => {
+  it('keeps key values and failing rows out of the Postgres log', () => {
+    const { command } = compose.services.db as { command?: string[] };
+    expect(command).toEqual(['postgres', '-c', 'log_error_verbosity=terse']);
+  });
+});
