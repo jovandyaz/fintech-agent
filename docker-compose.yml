@@ -61,6 +61,8 @@ services:
       CASE_TOKEN_KEY: ${CASE_TOKEN_KEY:-dev-case-token-key-0123456789abcdef}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-whsec_ZGV2LXdlYmhvb2stc2VjcmV0LTAxMjM0NTY3ODlhYmNkZWY=}
       CANARY_SPREAD_MS: ${CANARY_SPREAD_MS:-300000}
+      # Only the console's nginx may tell api the operator's address (02 G3).
+      TRUST_PROXY: ${CONSOLE_IP:-10.231.0.10}
     ports:
       - '${API_PORT:-3000}:3000'
     depends_on:
@@ -142,6 +144,34 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+
+  console:
+    build:
+      context: .
+      dockerfile: apps/console/Dockerfile
+    ports:
+      - '${CONSOLE_PORT:-5173}:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: ${CONSOLE_IP:-10.231.0.10}
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${COMPOSE_SUBNET:-10.231.0.0/24}
+          # Docker hands out only this half, so no other container can take
+          # CONSOLE_IP, the one address api trusts.
+          ip_range: ${COMPOSE_IP_RANGE:-10.231.0.128/25}
 
 volumes:
   db-data:

@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json && pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:unit": "vitest run --project unit",
+    "test:unit": "vitest run --project unit --project console",
     "test:hooks": "node --test \".claude/hooks/__tests__/*.test.mjs\"",
     "verify": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:hooks",
     "test": "vitest run && pnpm test:hooks",

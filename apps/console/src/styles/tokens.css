@@ -1,0 +1,57 @@
+:root {
+  --tinta: #16202b;
+  --tinta-suave: #4a5866;
+  --papel: #f2f4f6;
+  --hoja: #ffffff;
+  --regla: #cdd5de;
+  --sello: #4b3bc4;
+  --sello-tinte: #ecebfa;
+  --alerta: #b3261e;
+  --alerta-tinte: #fbeceb;
+  --aviso: #9a5b00;
+  --aviso-tinte: #fbf1e3;
+  --firme: #1e6b45;
+  --firme-tinte: #e6f2ec;
+
+  --font-display: 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --radius: 4px;
+  --rule: 1px solid var(--regla);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tinta: #e6eaef;
+    --tinta-suave: #a3afbc;
+    --papel: #0f151c;
+    --hoja: #18212b;
+    --regla: #2e3a47;
+    --sello: #9d92ff;
+    --sello-tinte: #252147;
+    --alerta: #ff8a80;
+    --alerta-tinte: #3a1c1b;
+    --aviso: #f0b45a;
+    --aviso-tinte: #352711;
+    --firme: #6fcf9a;
+    --firme-tinte: #15301f;
+
+    color-scheme: dark;
+  }
+}

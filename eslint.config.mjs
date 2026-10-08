@@ -24,6 +24,11 @@ const COMPUTED_DYNAMIC_IMPORT = {
     'G1: a dynamic import here takes a literal path, so the boundary rules can check it (specs/02-security.md).',
 };
 
+const CONSOLE_PLAIN_TEXT =
+  'G7: the console renders text as text, never as markup (specs/02-security.md).';
+const CONSOLE_CONTRACTS =
+  'The browser bundle takes runtime values only from @fintech-agent/contracts/console; the barrel holds Node-only code.';
+
 const LOAD_THROUGH_IMPORT =
   'G1: load modules through import, so the boundary rules can check them (specs/02-security.md).';
 
@@ -156,6 +161,50 @@ export default defineConfig(
         dynamicImportOf('agent', EXECUTOR_TO_AGENT),
         COMPUTED_DYNAMIC_IMPORT,
         ...LOADER_SYNTAX,
+      ],
+    },
+  },
+  {
+    // 02 G7: customer text, policy text and model output are data; nothing
+    // in the console turns a string into markup.
+    files: ['apps/console/**/*.{ts,tsx}'],
+    linterOptions: { noInlineConfig: true },
+    languageOptions: { globals: globals.browser },
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...[
+          'JSXAttribute[name.name=/^(dangerouslySetInnerHTML|srcDoc)$/i]',
+          'MemberExpression[property.name=/^(innerHTML|outerHTML|srcDoc)$/i]',
+          'MemberExpression[computed=true][property.value=/^(innerHTML|outerHTML|srcDoc)$/i]',
+          'CallExpression[callee.property.name=/^(insertAdjacentHTML|createContextualFragment|setHTMLUnsafe|parseFromString)$/]',
+          "CallExpression[callee.object.name='document'][callee.property.name=/^(write|writeln)$/]",
+        ].map((selector) => ({ selector, message: CONSOLE_PLAIN_TEXT })),
+      ],
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@fintech-agent/contracts',
+              message: CONSOLE_CONTRACTS,
+              allowTypeImports: true,
+            },
+          ],
+          patterns: [
+            {
+              group: [
+                '*markdown*',
+                'marked',
+                'remark*',
+                'rehype*',
+                'html-react-parser',
+                'dompurify',
+              ],
+              message: CONSOLE_PLAIN_TEXT,
+            },
+          ],
+        },
       ],
     },
   },
