@@ -1,0 +1,13 @@
+{
+  "name": "@fintech-agent/evals",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fintech-agent/contracts": "workspace:*",
+    "@fintech-agent/data": "workspace:*",
+    "promptfoo": "0.124.0"
+  }
+}
