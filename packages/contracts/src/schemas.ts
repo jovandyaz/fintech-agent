@@ -194,3 +194,10 @@ export const WebhookEventSchema = z.strictObject({
   created_at: z.iso.datetime({ offset: true }),
 });
 export type WebhookEvent = z.infer<typeof WebhookEventSchema>;
+
+/** The console's new case form (`POST /cases`); the API sets the ids and the time. */
+export const NewCaseSchema = WebhookEventSchema.pick({
+  customer_id: true,
+  text: true,
+});
+export type NewCase = z.infer<typeof NewCaseSchema>;

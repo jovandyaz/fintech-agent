@@ -8,7 +8,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
-    "canary:inject": "node --import tsx src/canaries/main.ts"
+    "canary:inject": "node --import tsx src/canaries/main.ts",
+    "demo:post": "node --import tsx src/demo/main.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.72",

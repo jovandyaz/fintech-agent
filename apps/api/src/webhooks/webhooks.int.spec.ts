@@ -24,11 +24,12 @@ import {
 const [SECRET] = parseWebhookSecrets(WEBHOOK_SECRET);
 const ROTATED_OUT = parseWebhookSecrets(
   `whsec_${Buffer.from('a-secret-already-rotated-out-0123').toString('base64')}`,
-)[0]!;
+)[0];
 const PAN = '4761343220832617';
 const MAX_WEBHOOK_BODY_BYTES = 32 * 1024;
 const CONCURRENT_DELIVERIES = 5;
 const EIGHT_DIGITS = /\d{8,}/;
+const BOM = String.fromCharCode(0xfeff);
 
 const warningsOnly = (): JsonConsoleLogger => {
   const logger = new JsonConsoleLogger();
@@ -81,7 +82,7 @@ function deliver(
   const timestamp = options.timestamp ?? nowS();
   const signature =
     options.signature ??
-    signWebhook({ id, timestamp, body, secret: options.secret ?? SECRET! });
+    signWebhook({ id, timestamp, body, secret: options.secret ?? SECRET });
   return fetch(`${base}/webhooks/tickets`, {
     method: 'POST',
     headers: {
@@ -220,7 +221,7 @@ describe('POST /webhooks/tickets (01 §Webhook and queue, 02 Required tests "Web
                 id: event.event_id,
                 timestamp: nowS(),
                 body,
-                secret: SECRET!,
+                secret: SECRET,
               }),
             },
             body: JSON.stringify(event, null, 2),
@@ -265,7 +266,7 @@ describe('POST /webhooks/tickets (01 §Webhook and queue, 02 Required tests "Web
           id: event.event_id,
           timestamp,
           body,
-          secret: SECRET!,
+          secret: SECRET,
         }),
       },
       body,
@@ -278,7 +279,7 @@ describe('POST /webhooks/tickets (01 §Webhook and queue, 02 Required tests "Web
     const body = JSON.stringify(eventOf());
     const id = (JSON.parse(body) as { event_id: string }).event_id;
     const timestamp = nowS();
-    const signature = [ROTATED_OUT, SECRET!]
+    const signature = [ROTATED_OUT, SECRET]
       .map((secret) => signWebhook({ id, timestamp, body, secret }))
       .join(' ');
     expect((await deliver(body, { timestamp, signature })).status).toBe(
@@ -295,11 +296,22 @@ describe('POST /webhooks/tickets (01 §Webhook and queue, 02 Required tests "Web
     const event = eventOf();
     const response = await deliver(JSON.stringify(event), { id: 'evt-other' });
     expect(response.status).toBe(HTTP.badRequest);
+    expect(await response.json()).toEqual({ message: 'webhook_id_mismatch' });
     expect(await casesFor(event.ticket_id)).toHaveLength(0);
   });
 
   it('refuses a signed body that is not a ticket event with 400', async () => {
     const response = await deliver(JSON.stringify({ event_id: 'evt-bad' }));
     expect(response.status).toBe(HTTP.badRequest);
+    expect(await response.json()).toEqual({ message: 'invalid_body' });
+  });
+
+  it('reads a signed body that starts with a byte order mark, as the JSON parser did', async () => {
+    const event = eventOf();
+    const response = await deliver(`${BOM}${JSON.stringify(event)}`, {
+      id: event.event_id,
+    });
+    expect(response.status).toBe(HTTP.accepted);
+    expect(await casesFor(event.ticket_id)).toHaveLength(1);
   });
 });

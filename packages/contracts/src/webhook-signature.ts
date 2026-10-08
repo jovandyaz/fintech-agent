@@ -30,23 +30,26 @@ const MIN_SECRET_BYTES = 24;
 
 /**
  * The secrets in `WEBHOOK_SECRET`: each `whsec_` followed by the base64 key,
- * several separated by spaces while one rotates out. Throws on any other
- * shape, so a typo stops boot instead of refusing every webhook.
+ * several separated by spaces while one rotates out; the first is the one a
+ * sender signs with. Throws on any other shape, so a typo stops boot instead
+ * of refusing every webhook.
  */
-export function parseWebhookSecrets(raw: string): Buffer[] {
-  const secrets = raw.trim().split(/\s+/).filter(Boolean);
-  if (secrets.length === 0) throw new Error('WEBHOOK_SECRET holds no secret');
-  return secrets.map((secret) => {
-    const key = secret.startsWith(SECRET_PREFIX)
-      ? Buffer.from(secret.slice(SECRET_PREFIX.length), BASE64)
-      : Buffer.alloc(0);
-    if (key.length < MIN_SECRET_BYTES) {
-      throw new Error(
-        `each WEBHOOK_SECRET must be ${SECRET_PREFIX}<base64 of at least ${MIN_SECRET_BYTES} bytes>`,
-      );
-    }
-    return key;
-  });
+export function parseWebhookSecrets(raw: string): [Buffer, ...Buffer[]] {
+  const [first, ...rest] = raw.trim().split(/\s+/).filter(Boolean);
+  if (first === undefined) throw new Error('WEBHOOK_SECRET holds no secret');
+  return [keyOf(first), ...rest.map(keyOf)];
+}
+
+function keyOf(secret: string): Buffer {
+  const key = secret.startsWith(SECRET_PREFIX)
+    ? Buffer.from(secret.slice(SECRET_PREFIX.length), BASE64)
+    : Buffer.alloc(0);
+  if (key.length < MIN_SECRET_BYTES) {
+    throw new Error(
+      `each WEBHOOK_SECRET must be ${SECRET_PREFIX}<base64 of at least ${MIN_SECRET_BYTES} bytes>`,
+    );
+  }
+  return key;
 }
 
 const digestOf = (
