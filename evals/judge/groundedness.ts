@@ -5,7 +5,6 @@ import type { ApiProvider, Assertion, ProviderOptions } from 'promptfoo';
 
 const RUBRIC_FILE = resolve(import.meta.dirname, 'groundedness.md');
 const GROUNDEDNESS = 'groundedness';
-const DETERMINISTIC = 0;
 const ANTHROPIC_MESSAGES = 'anthropic:messages:';
 
 // Opus 5.5 as published on 2026-10-08 at
@@ -34,10 +33,9 @@ export function judgeCostUsd(
 export const groundednessRubric = (): string =>
   readFileSync(RUBRIC_FILE, 'utf8');
 
-/** The judge as promptfoo calls it: `JUDGE_MODEL` at temperature 0 (03 §Judge validation). */
+/** The judge as promptfoo calls it: `JUDGE_MODEL` at its default sampling, since Opus 5.5 accepts no temperature (03 §Judge validation). */
 export const judgeProvider = (model: string): ProviderOptions => ({
   id: `${ANTHROPIC_MESSAGES}${model}`,
-  config: { temperature: DETERMINISTIC },
 });
 
 /** The judge of one test: promptfoo grades its `llm-rubric` with the test's `options.provider`. */

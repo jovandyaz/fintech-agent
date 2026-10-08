@@ -4,18 +4,16 @@ Snapshot of where the build stands against `specs/04-build-plan.md`, for resumin
 
 ## Where things are
 
-All work is on `main`. Steps 0–5, Task 9c and Step 7 are done.
+All work is on `main`. Steps 0–7 and Task 9c are done.
 
-Step 7 delivered:
+Step 6 delivered (see `EVALS.md`):
 
-- the Standard Webhooks endpoint and `POST /cases` through the same intake;
-- `pnpm demo:post` and `pnpm canary:inject`, both run from the host against the stack;
-- the console read API;
-- canaries that run through the worker;
-- the React ops console behind nginx with the 02 G7 CSP: sign-in, inbox, new case form, case review, decision panel, re-run, trace;
-- the Playwright e2e package (`pnpm e2e`, kill switch on).
+- 24 labeled cases written before the first run, the code checkers, the promptfoo runner (`pnpm eval`), the report (`pnpm eval:report`, which re-grades the newest full run under the current checkers), the regression gate and `evals/baseline.json`;
+- redactor recall on 20 strings the masker misses (20/20);
+- the judge's 7 known-bad controls (all failed) and 62 blinded calibration rows in `evals/calibration/`, waiting for the user's labels;
+- the first full comparison: **variant A**, with B out under rule 1 (26/30 attacks blocked).
 
-A signed-in browser review with 9 real cases (USD 0.47) passed. Its findings are fixed or carried below.
+Paid spend in Step 6 ≈ USD 12.81 of the USD 15 the user approved: three full runs (the first lost to a promptfoo clone bug, the second found the long-date fill bug) and the calibration export. No budget is left for another full run without asking.
 
 Every commit passed `pnpm verify` on Node 24 and 22, and the integration suite on G-path commits.
 
@@ -23,25 +21,19 @@ Every commit passed `pnpm verify` on Node 24 and 22, and the integration suite o
 
 ## Remaining work
 
-### Next: Step 6, evals
-
-Plan it in `.superpowers/sdd/04-build-plan/step-6-plan.md` first (04 §Step 6, 03):
-
-- labels before the first run;
-- the runner;
-- judge calibration;
-- the first run of both variants.
-
-Any paid run needs the user's direct confirmation. The user authorized ~10 cases (≈ USD 3) for the Step 7 review only.
-
-### Then, in the order the user chose (6 → 8 → 9 → 10)
+### Next, in the order the user chose (8 → 9 → 10)
 
 | Step                               | Plan estimate | Outcome                                                                            |
 | ---------------------------------- | ------------- | ---------------------------------------------------------------------------------- |
-| 6 Evals                            | 130 min       | Labels before the first run, runner, judge calibration, first run of both variants |
-| 8 Traces, alerts, variant decision | 45 min        | `ops/alerts.sql`, `ops/scan-logs.mjs`, the 03 decision rule                        |
+| 8 Traces, alerts, variant decision | 45 min        | `ops/alerts.sql`, `ops/scan-logs.mjs`, the 03 decision rule (taken: A)             |
 | 9 Docs                             | 70 min        | README (started), DESIGN, compliance appendix, EVALS, PLAYBOOK (Spanish), AI_NOTES |
 | 10 Rehearsal                       | 15 min        | Outside the budget                                                                 |
+
+Any paid run needs the user's direct confirmation.
+
+### Waiting on the user
+
+- Label `evals/calibration/to-label.jsonl` (README in that folder), then `pnpm eval:agreement` and `pnpm eval:report`: groundedness counts toward the decision only if the judge meets TPR ≥ 0.8 and TNR ≥ 0.9.
 
 ### Carried owners (from the ledger)
 
@@ -55,14 +47,11 @@ Any paid run needs the user's direct confirmation. The user authorized ~10 cases
   - Wire production tracing: `new OpenTelemetry({ tracer })` over a provider whose exporter processor is wrapped in `maskingSpanProcessor`, passed as `RunCaseDeps.telemetry`.
   - Move the OTel packages to `dependencies`.
   - Quality metrics count `operator_override` as `wrong_action` and exclude canaries.
-- **Step 6, agent quality seen in the Step 7 review:**
-  - CARD-UNREC-01 fell back (`action_fact_mismatch`) though its validation passed.
-  - `UNGROUNDED_NUMBER` failed SPEI-IN-01 and CONFLICT-01 twice; measure its repair rate on clean cases.
-  - A hostile form case fell back on `PII_IN_REPLY` in the filled draft.
-  - The injection scan did not flag a request to "answer in HTML" (`responde en HTML`).
-- **Step 6, from earlier steps:**
-  - A paraphrased credit-promise control (02 residual row 1).
-  - Retrieval recall on the eval set.
+- **Step 6 → next prompt or harness change (needs a paid run to measure):**
+  - `UNGROUNDED_NUMBER` exhausts the single repair in most model fallbacks (EVALS.md §Failures): a second repair turn for it only, or a prompt line to copy figures as the tool outputs print them; measure with `pnpm eval --only high-stakes`.
+  - Haiku's first structured answer fails `SCHEMA` on 4 cases.
+  - The injection scan did not flag a request to "answer in HTML" (`responde en HTML`), seen in the Step 7 review.
+- **Known residual, decided by the user:** filled replies with three dates plus a model-written date-time cross the masker's 32-digit date cap and fall back (02 G5; pinned by `placeholders.spec.ts`).
 - **Step 9:**
   - The seed role password could appear in a Postgres `STATEMENT` log line if the `ALTER ROLE` ever errored: ticket it or silence that session's statement logging.
   - The full README per 04 §Step 9.

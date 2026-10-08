@@ -6,7 +6,7 @@
     "eval": "tsx run.ts",
     "eval:agreement": "tsx calibration/agreement.cli.ts",
     "eval:judgments": "tsx calibration/judgments.cli.ts",
-    "eval:report": "tsx report.cli.ts",
+    "eval:report": "tsx report.cli.ts && prettier --write ../EVALS.md",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

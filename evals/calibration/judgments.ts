@@ -8,6 +8,7 @@ import type { ApiProvider, Assertion, EvaluateResult } from 'promptfoo';
 
 import {
   groundednessAssertion,
+  judgeCostUsd,
   judgedBy,
   type Grader,
 } from '../judge/groundedness.js';
@@ -65,6 +66,11 @@ export function assertGradedAsNow(run: Grading, now: Grading): void {
   }
 }
 
+interface JudgeTokens {
+  promptTokens: number;
+  completionTokens: number;
+}
+
 const verdictOf = (result: EvaluateResult): JudgeVerdict => {
   const rowId = result.vars[ROW_KEY];
   const rubric = result.gradingResult?.componentResults?.[0];
@@ -88,7 +94,7 @@ async function judgeAll(
   inputs: ReadonlyMap<string, JudgeInput>,
   groundedness: Assertion,
   grader: Grader,
-): Promise<JudgeVerdict[]> {
+): Promise<{ verdicts: JudgeVerdict[]; tokens: JudgeTokens }> {
   const provider: ApiProvider = {
     id: () => 'calibration',
     callApi: (_prompt, context) => {
@@ -110,7 +116,13 @@ async function judgeAll(
     },
     { maxConcurrency: JUDGE_CONCURRENCY },
   );
-  return results.map(verdictOf);
+  const tokens = { promptTokens: 0, completionTokens: 0 };
+  for (const result of results) {
+    const used = result.gradingResult?.componentResults?.[0]?.tokensUsed;
+    tokens.promptTokens += used?.prompt ?? 0;
+    tokens.completionTokens += used?.completion ?? 0;
+  }
+  return { verdicts: results.map(verdictOf), tokens };
 }
 
 /**
@@ -127,7 +139,12 @@ export async function exportJudgments(input: {
   rubric: string;
   random: () => number;
   dir: string;
-}): Promise<{ rows: number; ungraded: number; controlsFailed: number }> {
+}): Promise<{
+  rows: number;
+  ungraded: number;
+  controlsFailed: number;
+  judgeCostUsd: number;
+}> {
   const labelsExist = await access(join(input.dir, FILES.labels)).then(
     () => true,
     () => false,
@@ -140,12 +157,12 @@ export async function exportJudgments(input: {
   const groundedness = groundednessAssertion(input.rubric);
   const { rows, verdicts, ungraded } = extractJudgments(input.results);
   const negatives = mutationNegatives(rows, MUTATION_TARGET, input.random);
-  const negativeVerdicts = await judgeAll(
+  const negativeJudgments = await judgeAll(
     new Map(negatives.map((row) => [row.row_id, row.judge_input])),
     groundedness,
     input.grader,
   );
-  const controlVerdicts = await judgeAll(
+  const controlJudgments = await judgeAll(
     new Map(JUDGE_CONTROLS.map(({ defect, input: draft }) => [defect, draft])),
     groundedness,
     input.grader,
@@ -154,7 +171,9 @@ export async function exportJudgments(input: {
     judge_model: input.judgeModel,
     rubric_sha256: rubricFingerprint(input.rubric),
     controls: JUDGE_CONTROLS.map(({ defect }) => {
-      const verdict = controlVerdicts.find(({ row_id }) => row_id === defect);
+      const verdict = controlJudgments.verdicts.find(
+        ({ row_id }) => row_id === defect,
+      );
       if (!verdict) throw new Error(`control ${defect} came back unjudged`);
       return {
         defect,
@@ -166,7 +185,7 @@ export async function exportJudgments(input: {
   const all: CalibrationRow[] = [...rows, ...negatives];
   const blinded = blindRows(
     all,
-    [...verdicts, ...negativeVerdicts],
+    [...verdicts, ...negativeJudgments.verdicts],
     input.random,
   );
   await writeFile(join(input.dir, FILES.toLabel), toJsonl(blinded.toLabel));
@@ -181,5 +200,13 @@ export async function exportJudgments(input: {
     ungraded,
     controlsFailed: controls.controls.filter(({ judge_pass }) => !judge_pass)
       .length,
+    judgeCostUsd: judgeCostUsd(input.judgeModel, {
+      promptTokens:
+        negativeJudgments.tokens.promptTokens +
+        controlJudgments.tokens.promptTokens,
+      completionTokens:
+        negativeJudgments.tokens.completionTokens +
+        controlJudgments.tokens.completionTokens,
+    }),
   };
 }
