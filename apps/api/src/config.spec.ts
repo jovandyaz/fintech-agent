@@ -125,6 +125,53 @@ describe('loadApiConfig', () => {
     ).not.toThrow();
   });
 
+  it('trusts no proxy by default, so a forwarded address is never believed', () => {
+    expect(loadApiConfig(ENV).TRUST_PROXY).toBe('');
+  });
+
+  it.each([
+    '10.231.0.10',
+    '10.231.0.0/24',
+    '10.231.0.10, 127.0.0.1',
+    '::1',
+    '::ffff:10.231.0.10',
+    '::ffff:10.231.0.0/120',
+  ])('accepts TRUST_PROXY %s, addresses and subnets only', (value) => {
+    expect(loadApiConfig({ ...ENV, TRUST_PROXY: value }).TRUST_PROXY).toBe(
+      value,
+    );
+  });
+
+  it.each([
+    'true',
+    'console',
+    'loopback',
+    '10.231.0.0/33',
+    '10.231.0.10,',
+    '10.231.0.0/24/1',
+    '10.231.0.0/',
+    '0.0.0.0/0',
+    '::/0',
+    '10.0.0.0/8',
+    '2001:db8::/32',
+    '2001:db8::/129',
+    '::ffff:0.0.0.0/96',
+    '::ffff:10.0.0.0/104',
+    '0:0:0:0:0:ffff:0:0/96',
+    '::FFFF:0.0.0.0/96',
+    '0000:0000:0000:0000:0000:ffff:0000:0000/96',
+    '::ffff:0:0%a:b/96',
+    '0:0:0:0:0:ffff:0:0%x:1:2:3/96',
+    'fe80::1%eth0',
+  ])(
+    'refuses TRUST_PROXY %s, which would trust more than one known address',
+    (value) => {
+      expect(() => loadApiConfig({ ...ENV, TRUST_PROXY: value })).toThrow(
+        /TRUST_PROXY/,
+      );
+    },
+  );
+
   it('refuses an AGENT_MODE other than on or off', () => {
     expect(() => loadApiConfig({ ...ENV, AGENT_MODE: 'paused' })).toThrow(
       /AGENT_MODE/,
