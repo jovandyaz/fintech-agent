@@ -46,6 +46,7 @@ export function slimResult(result: EvaluateResult): RecordedResult {
   return {
     vars: result.vars,
     provider: { id: result.provider.id, label: result.provider.label },
+    ...(result.error ? { error: maskPii(result.error) } : {}),
     response: { metadata: result.response?.metadata },
     gradingResult: {
       componentResults: (result.gradingResult?.componentResults ?? []).map(

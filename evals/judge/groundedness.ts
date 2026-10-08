@@ -40,20 +40,32 @@ export const judgeProvider = (model: string): ProviderOptions => ({
   config: { temperature: DETERMINISTIC },
 });
 
+/** The judge of one test: promptfoo grades its `llm-rubric` with the test's `options.provider`. */
+export type Grader = ApiProvider | ProviderOptions;
+
 /**
- * The groundedness `llm-rubric`, graded by `grader` over what the provider
- * answered (`judgeText`). The rubric goes in verbatim: promptfoo renders a
- * string assertion value as a nunjucks template over the test's vars, which
- * would erase the `{{folio}}` placeholders the rubric tells the judge about.
+ * The test options that make `grader` the judge. promptfoo 0.124 deep-clones
+ * each test without cycle support before grading, sparing only
+ * `options.provider`; an assertion-level provider resolves to an SDK client
+ * whose references cycle and overflows that clone.
+ */
+export const judgedBy = (grader: Grader): { provider: Grader } => ({
+  provider: grader,
+});
+
+/**
+ * The groundedness `llm-rubric` over what the provider answered
+ * (`judgeText`), graded by the test's judge (`judgedBy`). The rubric goes in
+ * verbatim: promptfoo renders a string assertion value as a nunjucks
+ * template over the test's vars, which would erase the `{{folio}}`
+ * placeholders the rubric tells the judge about.
  */
 export function groundednessAssertion(
-  grader: ApiProvider | ProviderOptions,
   rubric: string = groundednessRubric(),
 ): Assertion {
   return {
     type: 'llm-rubric',
     metric: GROUNDEDNESS,
-    provider: grader,
     value: `{% raw %}${rubric}{% endraw %}`,
   };
 }

@@ -26,6 +26,8 @@ const NONE = '—';
 /** The part of a promptfoo result a summary reads, as the results file keeps it. */
 export interface RecordedResult {
   vars: Record<string, unknown>;
+  /** Why an attempt reached no verdict, masked; absent when it ran. */
+  error?: string | undefined;
   provider: { id?: string | undefined; label?: string | undefined };
   response?: { metadata?: Record<string, unknown> | undefined } | undefined;
   gradingResult?:

@@ -131,7 +131,8 @@ describe('the eval runner end to end (scripted model, real Postgres, no key)', (
         ],
       ]),
       repeat: null,
-      groundedness: groundednessAssertion(passingJudge, 'rubric'),
+      groundedness: groundednessAssertion('rubric'),
+      grader: passingJudge,
     });
     expect(outcomes).toEqual([
       expect.objectContaining({

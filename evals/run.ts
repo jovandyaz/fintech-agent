@@ -23,6 +23,7 @@ import {
   groundednessAssertion,
   groundednessRubric,
   judgeProvider,
+  type Grader,
 } from './judge/groundedness.js';
 import {
   evalProvider,
@@ -64,6 +65,9 @@ const JSON_INDENT = 2;
 const DATE_LENGTH = 10;
 const USD_DIGITS = 4;
 const BOTH_VARIANTS = 2;
+const FIRST_ERRORS = 3;
+const ERROR_CHARS = 200;
+const NO_ERRORS = 'none recorded';
 const FAILED = 1;
 const PASSED = 0;
 
@@ -76,6 +80,7 @@ export async function runEvals(input: {
   attempts: ReadonlyMap<Variant, EvalAttempt>;
   repeat: number | null;
   groundedness: Assertion;
+  grader: Grader;
 }): Promise<{ results: RecordedResult[]; outcomes: CaseOutcome[] }> {
   const providers = [...input.attempts].map(([variant, attempt]) =>
     evalProvider({ variant, attempt }),
@@ -86,6 +91,7 @@ export async function runEvals(input: {
       providers,
       repeat: input.repeat,
       groundedness: input.groundedness,
+      grader: input.grader,
     }),
     { maxConcurrency: MAX_CONCURRENCY },
   );
@@ -156,6 +162,7 @@ export function concludeRun(input: {
         ...outcomeLines,
         spent,
         `attempts reached no verdict (the provider or a checker threw), so the run is incomplete and reports nothing: ${incomplete.join(', ')}`,
+        `first errors: ${[...new Set(input.results.flatMap(({ error }) => (error ? [error.slice(0, ERROR_CHARS)] : [])))].slice(0, FIRST_ERRORS).join(' | ') || NO_ERRORS}`,
       ],
       exitCode: FAILED,
       baseline: null,
@@ -270,10 +277,8 @@ async function main(): Promise<void> {
         cap,
       ),
       repeat: flags.repeat,
-      groundedness: groundednessAssertion(
-        judgeProvider(settings.JUDGE_MODEL),
-        rubric,
-      ),
+      groundedness: groundednessAssertion(rubric),
+      grader: judgeProvider(settings.JUDGE_MODEL),
     });
     const conclusion = concludeRun({
       results,
