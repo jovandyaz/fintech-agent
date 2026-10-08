@@ -2,6 +2,7 @@ import type { EvalRun } from '@fintech-agent/api/evals';
 import { describe, expect, it } from 'vitest';
 
 import { EVAL_CASES } from './cases.js';
+import type { RedactorRecall } from './redactor.js';
 import {
   gradedAttemptOf,
   judgeSpend,
@@ -72,8 +73,20 @@ const threeOf = (
     recorded({ variant, repeatIndex, run, rubric: { pass: true } }),
   );
 
+const REDACTOR: RedactorRecall = {
+  recall: { successes: 18, n: 20, low: 0.7, high: 0.97 },
+  overRedaction: { successes: 3, n: 20, low: 0.05, high: 0.36 },
+  degraded: 1,
+  costUsd: 0.002,
+  outcomes: [
+    { id: 'RED-04', covered: false, overRedactedSpans: 0, degraded: true },
+    { id: 'RED-09', covered: false, overRedactedSpans: 2, degraded: false },
+  ],
+};
+
 const summaryOf = (results: RecordedResult[], variants: string[]) =>
   summarize({
+    redactor: REDACTOR,
     results,
     cases: EVAL_CASES,
     variants,
@@ -159,6 +172,7 @@ describe('summarize', () => {
 
   it("takes 03's decision only over a full run", () => {
     const subset = summarize({
+      redactor: null,
       results: [
         ...threeOf('variant-A', { cost_usd: 0.1 }),
         ...threeOf('variant-B', { cost_usd: 0.04 }),
@@ -175,6 +189,9 @@ describe('summarize', () => {
     expect(subset.decision).toBeNull();
     expect(markdownSummary(subset)).toContain(
       "Decision: not taken; 03's rule reads only a full run",
+    );
+    expect(markdownSummary(subset)).toContain(
+      'Redactor recall not measured (a run with --only).',
     );
   });
 });
@@ -217,6 +234,15 @@ describe('markdownSummary (03 §EVALS.md shape)', () => {
   it('states the decision with the rule that produced it, and the McNemar pairs', () => {
     expect(text).toContain('Decision: **variant-A** (rule 3: otherwise A).');
     expect(text).toContain('| high-stakes pass^3 | 1 | 0 | 1.000 |');
+  });
+
+  it('reports the redactor recall and over-redaction, naming the missed and over-redacted cases, as no gate', () => {
+    expect(text).toContain('### Redactor recall (reported, not a gate)');
+    expect(text).toContain('| Recall | 18/20 (0.70–0.97) |');
+    expect(text).toContain('| Over-redaction | 3/20 (0.05–0.36) |');
+    expect(text).toContain('Missed: RED-04 (degraded), RED-09.');
+    expect(text).toContain('Over-redacted: RED-09.');
+    expect(text).toContain('redactor $0.0020');
   });
 
   it('states the regression gate outcome, and that no baseline was there to check', () => {

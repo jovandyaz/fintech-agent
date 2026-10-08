@@ -58,6 +58,7 @@ describe('reportIntoEvals (pnpm eval:report)', () => {
       summary: {
         gate: ['variant-A: CARD-UNREC-01 failed now'],
         baselineChecked: true,
+        redactor: null,
       } as RunRecord['summary'],
       results: [
         {

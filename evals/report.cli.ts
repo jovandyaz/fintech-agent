@@ -50,6 +50,7 @@ export async function reportIntoEvals(paths: {
       judgeCounts: standing.counts,
       baseline: null,
       full: record.meta.full,
+      redactor: record.summary.redactor,
       date: record.meta.date,
       commit: record.meta.commit,
     }),

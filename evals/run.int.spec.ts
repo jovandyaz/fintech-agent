@@ -151,6 +151,7 @@ describe('the eval runner end to end (scripted model, real Postgres, no key)', (
       judgeCounts: false,
       baseline: null,
       full: false,
+      redactor: null,
       date: '2026-10-08',
       commit: 'abc1234',
     });

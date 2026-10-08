@@ -8,6 +8,7 @@ import { fixtureOf } from './fixtures.js';
 import { cappedAttempts, concludeRun, prepareRun } from './run.js';
 import type { CaseOutcome } from './runtime.js';
 import type { RunFlags } from './suite.js';
+import type { RedactorRecall } from './redactor.js';
 import type { RecordedResult } from './summary.js';
 import { evalRunOf } from './test/eval-run.js';
 
@@ -73,6 +74,7 @@ const conclude = (input: {
   results: RecordedResult[];
   outcomes?: CaseOutcome[];
   flags?: Partial<RunFlags>;
+  redactor?: RedactorRecall | null;
 }) =>
   concludeRun({
     results: input.results,
@@ -86,6 +88,7 @@ const conclude = (input: {
     now: new Date('2026-10-08T15:30:12Z'),
     commit: 'abc1234',
     spend: { agentsUsd: 1.5, capUsd: 13 },
+    redactor: input.redactor ?? null,
   });
 
 describe('concludeRun (03 §Runner: never a silent 0%)', () => {
@@ -133,6 +136,19 @@ describe('concludeRun (03 §Runner: never a silent 0%)', () => {
     expect(printed).toContain('### Regression gate');
     expect(printed).toContain('agent spend $1.5000 of the $13 cap');
     expect(printed).toContain('Judge standing: no calibration yet');
+  });
+
+  it('records and prints the redactor recall it measured', () => {
+    const redactor: RedactorRecall = {
+      recall: { successes: 19, n: 20, low: 0.76, high: 0.99 },
+      overRedaction: { successes: 0, n: 20, low: 0, high: 0.16 },
+      degraded: 0,
+      costUsd: 0.001,
+      outcomes: [],
+    };
+    const conclusion = conclude({ results: both(), redactor });
+    expect(conclusion.record.summary?.redactor).toEqual(redactor);
+    expect(conclusion.lines.join('\n')).toContain('| Recall | 19/20');
   });
 
   it('fails a run the regression gate fails', () => {
