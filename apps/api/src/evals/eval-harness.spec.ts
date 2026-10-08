@@ -3,8 +3,14 @@ import { resolve } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { HAIKU_MODEL, SONNET_MODEL } from '../agent/core/prices.js';
-import { evalHarness, type EvalHarness } from './eval-harness.js';
+import { HAIKU_MODEL, SONNET_MODEL, pricingOf } from '../agent/core/prices.js';
+import { inOrder, objectResponse, usage } from '../../test/mock-model.js';
+import { computeTokenCostUsd } from '../agent/core/cost.js';
+import {
+  evalHarness,
+  pricedRedaction,
+  type EvalHarness,
+} from './eval-harness.js';
 
 const ENV_EXAMPLE = readFileSync(
   resolve(import.meta.dirname, '../../../../.env.example'),
@@ -67,6 +73,51 @@ describe('evalHarness (03 §Runner: the dev defaults compose uses)', () => {
         log: noLog,
       }),
     ).toThrow(/CORE_EXECUTOR_KEY/);
+  });
+
+  it('reports the redactor degraded and free without a key, so recall reads as missed, never as covered', async () => {
+    harness = evalHarness({
+      env: { ANTHROPIC_API_KEY: '' },
+      envExample: ENV_EXAMPLE,
+      log: noLog,
+    });
+    expect(await harness.redact('Mi clave es gatoazul.')).toEqual({
+      spans: [],
+      degraded: true,
+      costUsd: 0,
+    });
+  });
+
+  it('returns the spans the redactor applied, not degraded, priced at the redactor model', async () => {
+    const outcome = await pricedRedaction('Mi clave es gatoazul, sí.', {
+      model: inOrder(() =>
+        objectResponse({ spans: ['gatoazul', 'no está'] }, usage(1000, 100)),
+      ),
+      modelId: HAIKU_MODEL,
+    });
+    expect(outcome.spans).toEqual(['gatoazul']);
+    expect(outcome.degraded).toBe(false);
+    expect(outcome.costUsd).toBe(
+      computeTokenCostUsd(
+        {
+          inputTokens: 1000,
+          outputTokens: 100,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+        },
+        pricingOf(HAIKU_MODEL),
+      ),
+    );
+  });
+
+  it('reports a redactor that failed as degraded, with no spans', async () => {
+    const outcome = await pricedRedaction('Mi clave es gatoazul.', {
+      model: inOrder(() => {
+        throw new Error('overloaded');
+      }),
+      modelId: HAIKU_MODEL,
+    });
+    expect(outcome).toMatchObject({ spans: [], degraded: true });
   });
 
   it('serves the checked policy catalog to search_policies', () => {

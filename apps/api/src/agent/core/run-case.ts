@@ -50,9 +50,12 @@ import {
 } from './tools.js';
 import { POLICY_SEARCH_TOOL } from './validate/evidence.js';
 
-// The redactor is one short structured call, so it may take at most a
-// quarter of the attempt and never more than 20 s: the agent needs the rest.
-const REDACTOR_TIMEOUT_MS = 20_000;
+/**
+ * The intake redactor's ceiling: one short structured call, so it may take
+ * at most a quarter of the attempt and never more than this; the agent needs
+ * the rest.
+ */
+export const REDACTOR_TIMEOUT_MS = 20_000;
 const REDACTOR_SHARE_OF_ATTEMPT = 0.25;
 const AGENT_OFF = 'off' satisfies ApiConfig['AGENT_MODE'];
 const GUARD = 'guard' satisfies StepKind;
