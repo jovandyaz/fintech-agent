@@ -92,7 +92,7 @@ export async function injectCanaries(
         runId,
         category: seed.category,
         draftReply: seed.draftReply,
-        citations: [],
+        citations: seed.citations,
         abstained: false,
         reasoningSummary: seed.reasoningSummary,
       });

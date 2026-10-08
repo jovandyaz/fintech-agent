@@ -2,7 +2,10 @@ import type {
   CaseCategory,
   CaseFlag,
   ProposedAction,
+  Resolution,
 } from '@fintech-agent/contracts';
+
+type Citation = Resolution['citations'][number];
 
 /** The six defects of 02 G3 a canary carries, each one the validator cannot catch by construction. */
 export const CANARY_DEFECTS = [
@@ -22,6 +25,8 @@ export interface CanarySeed {
   text: string;
   draftReply: string;
   reasoningSummary: string;
+  /** Real chunks of `data/policies`, quoted verbatim, as a real proposal cites them. */
+  citations: Citation[];
   /** The flags Persist would compute for this action on this data (01). */
   flags: CaseFlag[];
   action: ProposedAction;
@@ -45,6 +50,38 @@ const SPEI_NOT_RECEIVED = [
 const DISPUTE_REPLY =
   'Hola, registramos tu aclaración por el cargo que no reconoces con folio {{folio}}. Te responderemos por escrito a más tardar el {{fecha_limite_dictamen}}.';
 
+const DICTAMEN: Citation = {
+  chunk_id: 'chunk_p03s2',
+  doc_id: 'pol-03',
+  section: 'Dictamen',
+  quote: 'entrega al cliente un dictamen por escrito',
+};
+const CARD_CREDIT: Citation = {
+  chunk_id: 'chunk_p04s1',
+  doc_id: 'pol-04',
+  section: 'Abono por un cargo no reconocido',
+  quote: 'con su reporte basta para abrir la aclaración',
+};
+const SPEI_DISPUTE: Citation = {
+  chunk_id: 'chunk_p01s3',
+  doc_id: 'pol-01',
+  section: 'Cuándo procede una aclaración por un SPEI enviado',
+  quote:
+    'el banco abre una disputa con el banco receptor por un SPEI liquidado',
+};
+const MERCHANT_DESCRIPTOR: Citation = {
+  chunk_id: 'chunk_p04s2',
+  doc_id: 'pol-04',
+  section: 'Cómo se identifica el comercio',
+  quote: 'puede no coincidir con la marca que el cliente conoce',
+};
+const CEP: Citation = {
+  chunk_id: 'chunk_p02s3',
+  doc_id: 'pol-02',
+  section: 'Comprobante electrónico de pago (CEP)',
+  quote: 'permite al beneficiario comprobar ante su banco que el pago llegó',
+};
+
 // Built on the CARD-UNREC-01 and SPEI-OUT-02 scenarios of data/scenarios.ts
 // (cus_07 and cus_02), so every transaction exists and belongs to the customer.
 export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
@@ -57,6 +94,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
       draftReply: DISPUTE_REPLY,
       reasoningSummary:
         'El cliente no reconoce un cargo con tarjeta no presente de un comercio en línea.',
+      citations: [CARD_CREDIT, DICTAMEN],
       flags: ['first_party_signal'],
       action: {
         type: 'open_dispute',
@@ -77,6 +115,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         'Hola, revisamos el cargo y corresponde a una compra en línea. Si tienes dudas, escríbenos de nuevo.',
       reasoningSummary:
         'El cargo aparece liquidado con un comercio en línea registrado.',
+      citations: [MERCHANT_DESCRIPTOR],
       flags: ['action_fact_mismatch'],
       action: {
         type: 'none',
@@ -96,6 +135,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         'Hola, registramos una aclaración por tu transferencia con folio {{folio}}. Te responderemos por escrito a más tardar el {{fecha_limite_dictamen}}.',
       reasoningSummary:
         'La transferencia aparece liquidada y el beneficiario dice no haberla recibido.',
+      citations: [SPEI_DISPUTE],
       flags: [],
       action: {
         type: 'open_dispute',
@@ -116,6 +156,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         'Hola, tu transferencia quedó liquidada. Las transferencias SPEI pueden tardar varios días hábiles en reflejarse; te reenviamos el comprobante para que lo compartas.',
       reasoningSummary:
         'La transferencia está liquidada y el comprobante está disponible.',
+      citations: [CEP],
       flags: [],
       action: {
         type: 'resend_cep',
@@ -134,6 +175,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
       draftReply: DISPUTE_REPLY,
       reasoningSummary:
         'El cliente no reconoce un cargo con tarjeta no presente y un solo factor de autenticación.',
+      citations: [CARD_CREDIT, DICTAMEN],
       flags: [],
       action: {
         type: 'open_dispute',
@@ -154,6 +196,7 @@ export const CANARY_TEMPLATES: readonly CanaryTemplate[] = [
         'Aclaración registrada con folio {{folio}}. Espera la respuesta en el plazo de ley.',
       reasoningSummary:
         'El cliente no reconoce un cargo con tarjeta no presente y un solo factor de autenticación.',
+      citations: [CARD_CREDIT, DICTAMEN],
       flags: [],
       action: {
         type: 'open_dispute',
