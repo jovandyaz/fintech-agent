@@ -7,6 +7,7 @@ import { CasesModule } from './cases/cases.module.js';
 import type { ApiConfig } from './config.js';
 import { DatabaseModule } from './database/index.js';
 import { OperatorsModule } from './operators/operators.module.js';
+import { WebhooksModule } from './webhooks/webhooks.module.js';
 import { HealthController } from './health.controller.js';
 
 @Module({})
@@ -19,6 +20,7 @@ export class AppModule {
         OperatorsModule.register(config.OPERATOR_TOKENS),
         ApprovalsModule.register(config),
         CasesModule,
+        WebhooksModule.register(config),
         ...(config.AGENT_WORKER === 'on'
           ? [AgentWorkerModule.register(agentConfigOf(config))]
           : []),

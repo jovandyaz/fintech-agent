@@ -21,6 +21,8 @@ import type { TestDatabase } from './database.js';
 export const ANA = 'dev-operator-ana-token-0123456789';
 export const BETO = 'dev-operator-beto-token-0123456789';
 const OPERATOR_TOKENS = `ana:k1:${ANA},beto:k2:${BETO}`;
+/** The webhook secret the test app verifies against (`whsec_` + base64). */
+export const WEBHOOK_SECRET = `whsec_${Buffer.from('webhook-secret-for-api-tests-0123').toString('base64')}`;
 /** The status codes the gate answers with. */
 export const HTTP = {
   ok: 200,
@@ -28,6 +30,9 @@ export const HTTP = {
   unauthorized: 401,
   notFound: 404,
   conflict: 409,
+  accepted: 202,
+  tooLarge: 413,
+  unsupported: 415,
   unavailable: 503,
 } as const;
 
@@ -61,6 +66,7 @@ export async function startApiApp(
           MCP_URL: 'http://mcp.invalid/mcp',
           MCP_AUDIENCE: 'http://mcp:3020/mcp',
           CASE_TOKEN_KEY: 'unused-in-tests-case-token-key-0123',
+          WEBHOOK_SECRET,
         }),
         API_PORT: 0,
       }),

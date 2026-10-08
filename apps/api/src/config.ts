@@ -1,6 +1,7 @@
 import {
   CASE_TOKEN_MAX_TTL_S,
   CASE_TOKEN_MIN_KEY_BYTES,
+  parseWebhookSecrets,
 } from '@fintech-agent/contracts';
 import { z } from 'zod';
 
@@ -76,6 +77,17 @@ const ApiConfigSchema = z.object({
         new TextEncoder().encode(key).byteLength >= CASE_TOKEN_MIN_KEY_BYTES,
       { message: `must be at least ${CASE_TOKEN_MIN_KEY_BYTES} bytes` },
     ),
+  WEBHOOK_SECRET: z.string().refine(
+    (raw) => {
+      try {
+        parseWebhookSecrets(raw);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'must be whsec_<base64>, several separated by spaces' },
+  ),
 });
 
 export type ApiConfig = z.infer<typeof ApiConfigSchema>;
