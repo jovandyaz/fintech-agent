@@ -59,6 +59,16 @@ describe('evalHarness (03 §Runner: the dev defaults compose uses)', () => {
     expect(harness.depsFor('A').models).toBeNull();
   });
 
+  it('refuses to run holding CORE_EXECUTOR_KEY, as the api does (02 G1)', () => {
+    expect(() =>
+      evalHarness({
+        env: { CORE_EXECUTOR_KEY: 'x' },
+        envExample: ENV_EXAMPLE,
+        log: noLog,
+      }),
+    ).toThrow(/CORE_EXECUTOR_KEY/);
+  });
+
   it('serves the checked policy catalog to search_policies', () => {
     harness = evalHarness({ env: {}, envExample: ENV_EXAMPLE, log: noLog });
     expect(
