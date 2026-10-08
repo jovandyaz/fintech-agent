@@ -15,6 +15,7 @@ import {
 
 const CALIBRATION_DIR = import.meta.dirname;
 const RANDOM_RANGE = 2 ** 32;
+const USD_DIGITS = 4;
 
 async function main(): Promise<void> {
   const { settings } = prepareRun({
@@ -41,7 +42,7 @@ async function main(): Promise<void> {
     dir: CALIBRATION_DIR,
   });
   console.log(
-    `${outcome.rows} rows to label (${outcome.ungraded} first attempts the judge never reached left out); the judge failed ${outcome.controlsFailed} of ${KNOWN_DEFECTS.length} known-bad controls`,
+    `${outcome.rows} rows to label (${outcome.ungraded} first attempts the judge never reached left out); the judge failed ${outcome.controlsFailed} of ${KNOWN_DEFECTS.length} known-bad controls; judge cost $${outcome.judgeCostUsd.toFixed(USD_DIGITS)}`,
   );
 }
 

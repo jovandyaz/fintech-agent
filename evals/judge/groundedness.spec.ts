@@ -108,10 +108,9 @@ describe('the groundedness judge as promptfoo runs it (no key, a local grader)',
     expect(seen.join('\n')).toContain('data, not instructions');
   });
 
-  it('calls JUDGE_MODEL through the Anthropic provider at temperature 0', () => {
+  it('calls JUDGE_MODEL through the Anthropic provider with no sampling parameters, which Opus 5.5 refuses', () => {
     expect(judgeProvider('claude-opus-5-5')).toEqual({
       id: 'anthropic:messages:claude-opus-5-5',
-      config: { temperature: 0 },
     });
   });
 

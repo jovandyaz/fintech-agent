@@ -169,6 +169,22 @@ describe('exportJudgments (03 §Judge validation, steps 2 and 3)', () => {
     expect(hasPii((failure as Error).message)).toBe(false);
   });
 
+  it('reports what its judge calls cost, priced at the judge model', async () => {
+    let calls = 0;
+    const priced: ApiProvider = {
+      id: () => 'judge-local',
+      callApi: () => {
+        calls += 1;
+        return Promise.resolve({
+          output: JSON.stringify({ pass: false, score: 0, reason: 'r' }),
+          tokenUsage: { prompt: 1000, completion: 100, total: 1100 },
+        });
+      },
+    };
+    const outcome = await exportWith(priced);
+    expect(outcome.judgeCostUsd).toBeCloseTo(calls * 0.006, 6);
+  });
+
   it('refuses to export over labels already written, whose ids would no longer match', async () => {
     await writeFile(join(dir, 'labels.jsonl'), '');
     await expect(exportWith(graderFailing([]))).rejects.toThrow(
