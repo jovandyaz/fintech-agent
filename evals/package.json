@@ -3,8 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
-    "eval:agreement": "tsx calibration/agreement.cli.ts"
+    "eval": "tsx run.ts",
+    "eval:agreement": "tsx calibration/agreement.cli.ts",
+    "eval:judgments": "tsx calibration/judgments.cli.ts",
+    "eval:report": "tsx report.cli.ts",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@fintech-agent/api": "workspace:*",
@@ -14,6 +17,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "drizzle-orm": "0.45.3",
+    "postgres": "3.4.9",
     "tsx": "4.23.15"
   }
 }

@@ -17,7 +17,10 @@
     "canary:inject": "pnpm --filter @fintech-agent/api canary:inject",
     "demo:post": "pnpm --filter @fintech-agent/api demo:post",
     "e2e": "pnpm --filter @fintech-agent/e2e e2e",
-    "eval:agreement": "pnpm --filter @fintech-agent/evals eval:agreement"
+    "eval": "pnpm --filter @fintech-agent/evals eval",
+    "eval:agreement": "pnpm --filter @fintech-agent/evals eval:agreement",
+    "eval:judgments": "pnpm --filter @fintech-agent/evals eval:judgments",
+    "eval:report": "pnpm --filter @fintech-agent/evals eval:report"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
