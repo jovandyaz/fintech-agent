@@ -120,6 +120,21 @@ describe('slimResult', () => {
   });
 });
 
+describe('slimResult on an attempt that threw', () => {
+  it('keeps why, masked, so an incomplete run can be diagnosed from its record', () => {
+    const slim = slimResult({
+      vars: { case_id: 'GEN-01' },
+      provider: { id: 'eval', label: 'variant-A' },
+      error:
+        'RangeError: Maximum call stack size exceeded near 4111111111111111',
+    } as unknown as EvaluateResult);
+    expect(slim.error).toContain(
+      'RangeError: Maximum call stack size exceeded',
+    );
+    expect(hasPii(slim.error ?? '')).toBe(false);
+  });
+});
+
 describe('the run record (03 §Runner: evals/results/<date>-<commit>…json)', () => {
   it('names the file by date, commit and time, marking a subset or incomplete run', () => {
     const meta = recordOf('2026-10-08T15:30:12.345Z', 'abc1234').meta;

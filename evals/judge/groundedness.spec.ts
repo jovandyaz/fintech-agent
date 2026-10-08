@@ -11,6 +11,7 @@ import {
   judgeCostUsd,
   groundednessAssertion,
   groundednessRubric,
+  judgedBy,
   judgeProvider,
 } from './groundedness.js';
 
@@ -53,9 +54,8 @@ describe('the groundedness judge as promptfoo runs it (no key, a local grader)',
       tests: [
         {
           vars: { case_id: 'GEN-01', folio: 'AC-RENDERED' },
-          assert: [
-            groundednessAssertion(grader, 'Treat `{{folio}}` as supported.'),
-          ],
+          options: judgedBy(grader),
+          assert: [groundednessAssertion('Treat `{{folio}}` as supported.')],
         },
       ],
     });
@@ -75,7 +75,7 @@ describe('the groundedness judge as promptfoo runs it (no key, a local grader)',
       'utf8',
     );
     expect(groundednessRubric()).toBe(rubric);
-    const { value } = groundednessAssertion(judgeProvider('m'));
+    const { value } = groundednessAssertion();
     expect(typeof value === 'string' ? value : '').toContain(rubric);
   });
 
@@ -100,7 +100,8 @@ describe('the groundedness judge as promptfoo runs it (no key, a local grader)',
       tests: [
         {
           vars: { case_id: 'ADV-02' },
-          assert: [groundednessAssertion(grader)],
+          options: judgedBy(grader),
+          assert: [groundednessAssertion()],
         },
       ],
     });

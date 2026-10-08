@@ -94,7 +94,14 @@ const conclude = (input: {
 describe('concludeRun (03 §Runner: never a silent 0%)', () => {
   it('records an incomplete run without a summary, prints no result and fails', () => {
     const conclusion = conclude({
-      results: both().slice(0, 3),
+      results: [
+        ...both().slice(0, 3),
+        {
+          vars: { case_id: 'CARD-UNREC-01' },
+          provider: { id: 'eval', label: 'variant-B' },
+          error: 'stack down',
+        },
+      ],
       outcomes: [
         outcome('variant-A'),
         outcome('variant-B', { passes: 0, unrunAttempts: 3, passAll: false }),
@@ -107,6 +114,7 @@ describe('concludeRun (03 §Runner: never a silent 0%)', () => {
     expect(conclusion.exitCode).toBe(1);
     const printed = conclusion.lines.join('\n');
     expect(printed).toContain('reached no verdict');
+    expect(printed).toContain('first errors: stack down');
     expect(printed).not.toContain('Decision:');
     expect(printed).not.toContain('Regression gate');
   });

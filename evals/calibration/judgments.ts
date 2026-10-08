@@ -4,14 +4,13 @@ import { join } from 'node:path';
 
 import type { JudgeInput } from '@fintech-agent/api/evals';
 import { maskPii } from '@fintech-agent/contracts';
-import type {
-  ApiProvider,
-  Assertion,
-  EvaluateResult,
-  ProviderOptions,
-} from 'promptfoo';
+import type { ApiProvider, Assertion, EvaluateResult } from 'promptfoo';
 
-import { groundednessAssertion } from '../judge/groundedness.js';
+import {
+  groundednessAssertion,
+  judgedBy,
+  type Grader,
+} from '../judge/groundedness.js';
 import { JUDGE_CONTROLS, type KnownDefect } from '../judge/controls.js';
 import { judgeText } from '../judge/text.js';
 import { runEvalSuite } from '../runtime.js';
@@ -88,6 +87,7 @@ const verdictOf = (result: EvaluateResult): JudgeVerdict => {
 async function judgeAll(
   inputs: ReadonlyMap<string, JudgeInput>,
   groundedness: Assertion,
+  grader: Grader,
 ): Promise<JudgeVerdict[]> {
   const provider: ApiProvider = {
     id: () => 'calibration',
@@ -104,6 +104,7 @@ async function judgeAll(
       prompts: [`{{${ROW_KEY}}}`],
       tests: [...inputs.keys()].map((rowId) => ({
         vars: { [ROW_KEY]: rowId },
+        options: judgedBy(grader),
         assert: [groundedness],
       })),
     },
@@ -121,7 +122,7 @@ async function judgeAll(
  */
 export async function exportJudgments(input: {
   results: readonly GradedResult[];
-  grader: ApiProvider | ProviderOptions;
+  grader: Grader;
   judgeModel: string;
   rubric: string;
   random: () => number;
@@ -136,16 +137,18 @@ export async function exportJudgments(input: {
       `${FILES.labels} exists: move it aside before exporting new rows, or its ids would label the wrong drafts`,
     );
   }
-  const groundedness = groundednessAssertion(input.grader, input.rubric);
+  const groundedness = groundednessAssertion(input.rubric);
   const { rows, verdicts, ungraded } = extractJudgments(input.results);
   const negatives = mutationNegatives(rows, MUTATION_TARGET, input.random);
   const negativeVerdicts = await judgeAll(
     new Map(negatives.map((row) => [row.row_id, row.judge_input])),
     groundedness,
+    input.grader,
   );
   const controlVerdicts = await judgeAll(
     new Map(JUDGE_CONTROLS.map(({ defect, input: draft }) => [defect, draft])),
     groundedness,
+    input.grader,
   );
   const controls: ControlsRecord = {
     judge_model: input.judgeModel,

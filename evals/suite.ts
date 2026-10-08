@@ -10,6 +10,7 @@ import type {
 } from 'promptfoo';
 
 import type { EvalCase } from './cases.js';
+import { judgedBy, type Grader } from './judge/groundedness.js';
 import { attemptFailures, checkAttempt } from './checkers.js';
 import type { Variant } from './provider.js';
 
@@ -156,6 +157,7 @@ export function evalSuite(input: {
   providers: readonly ApiProvider[];
   repeat: number | null;
   groundedness: Assertion;
+  grader: Grader;
 }): EvaluateTestSuite {
   return {
     description: 'Case Copilot evals (specs/03-evals.md)',
@@ -165,7 +167,10 @@ export function evalSuite(input: {
       description: label.id,
       vars: { case_id: label.id },
       threshold: PASS_ON_CODE_CHECKS,
-      options: { repeat: repeatsOf(label, input.repeat) },
+      options: {
+        repeat: repeatsOf(label, input.repeat),
+        ...judgedBy(input.grader),
+      },
       assert: [
         { ...codeChecks(label), weight: CODE_CHECKS_WEIGHT },
         { ...input.groundedness, weight: JUDGE_WEIGHT },

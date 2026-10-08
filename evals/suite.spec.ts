@@ -134,7 +134,8 @@ describe('evalSuite through promptfoo (no key, local provider and grader)', () =
         cases: [labelOf('CARD-UNREC-01')],
         providers: [provider],
         repeat: null,
-        groundedness: groundednessAssertion(grader(judgePasses), 'rubric'),
+        groundedness: groundednessAssertion('rubric'),
+        grader: grader(judgePasses),
       }),
     );
 
@@ -146,6 +147,7 @@ describe('evalSuite through promptfoo (no key, local provider and grader)', () =
       ({ assertion }) => assertion?.type === 'llm-rubric',
     );
     expect(rubric?.pass).toBe(false);
+    expect(rubric?.reason).toBe('r');
   });
 
   it('fails an attempt the code checks fail, whatever the judge says, naming the failed check', async () => {
@@ -164,6 +166,23 @@ describe('evalSuite through promptfoo (no key, local provider and grader)', () =
     expect(code?.reason).toContain('action_type');
     const [outcome] = summarizeTrials(results.map(toTrialResult));
     expect(outcome).toMatchObject({ trials: 3, passes: 0, unrunAttempts: 0 });
+  });
+
+  it('grades with a judge whose provider object is cyclic, as a loaded SDK client is', async () => {
+    const cyclic: ApiProvider & { self?: unknown } = grader(true);
+    cyclic.self = cyclic;
+    const results = await runEvalSuite(
+      evalSuite({
+        cases: [labelOf('CARD-UNREC-01')],
+        providers: [recording(evalRunOf())],
+        repeat: 1,
+        groundedness: groundednessAssertion('rubric'),
+        grader: cyclic,
+      }),
+    );
+    expect(results.map(toTrialResult)).toMatchObject([
+      { neverRan: false, success: true },
+    ]);
   });
 
   it('reads an answer with no recorded run as never ran, not as a failure', async () => {
