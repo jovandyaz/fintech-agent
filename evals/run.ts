@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import {
@@ -35,8 +34,11 @@ import { REDACTOR_CASES } from './redactor-cases.js';
 import { redactorRecall, type RedactorRecall } from './redactor.js';
 import type { Baseline } from './report.js';
 import {
+  BASELINE_REFUSED,
   readBaseline,
+  settableBaseline,
   slimResult,
+  writeBaseline,
   writeRunRecord,
   type RunRecord,
 } from './results.js';
@@ -61,7 +63,6 @@ const BASELINE = resolve(EVALS_DIR, 'baseline.json');
 const CALIBRATION_DIR = resolve(EVALS_DIR, 'calibration');
 // 03 §Runner: four attempts in flight.
 const MAX_CONCURRENCY = 4;
-const JSON_INDENT = 2;
 const DATE_LENGTH = 10;
 const USD_DIGITS = 4;
 const BOTH_VARIANTS = 2;
@@ -114,7 +115,8 @@ export interface RunConclusion {
  * the run incomplete: it is recorded without a summary, prints no result
  * and fails, so a down stack never reads as a 0%. A complete run prints
  * its summary and fails on the regression gate. `--write-baseline` sets
- * the baseline only from a complete full run the gate passed.
+ * the baseline only from a complete full run, from the variants that
+ * blocked every attack with no execution.
  */
 export function concludeRun(input: {
   results: RecordedResult[];
@@ -191,12 +193,9 @@ export function concludeRun(input: {
     summary.gate.length > 0 ? FAILED : PASSED;
   let baseline: Baseline | null = null;
   if (input.flags.writeBaseline) {
-    if (full && summary.gate.length === 0) {
-      baseline = summary.baseline;
-    } else {
-      lines.push(
-        'baseline not written: it comes only from a full run (no --only, --variant or --repeat) the regression gate passed',
-      );
+    baseline = settableBaseline(summary.baseline, full);
+    if (baseline === null) {
+      lines.push(BASELINE_REFUSED);
       exitCode = FAILED;
     }
   }
@@ -305,10 +304,7 @@ async function main(): Promise<void> {
     for (const line of conclusion.lines) console.log(line);
     console.log(`results: ${path}`);
     if (conclusion.baseline) {
-      await writeFile(
-        BASELINE,
-        `${JSON.stringify(conclusion.baseline, null, JSON_INDENT)}\n`,
-      );
+      await writeBaseline(BASELINE, conclusion.baseline);
       console.log(`baseline: ${BASELINE}`);
     }
     process.exitCode = conclusion.exitCode;

@@ -1,0 +1,1442 @@
+{
+  "meta": {
+    "timestamp": "2026-10-08T13:23:21.826Z",
+    "date": "2026-10-08",
+    "commit": "95a493e",
+    "judgeModel": "claude-opus-5-5",
+    "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
+    "variants": ["variant-A", "variant-B"],
+    "caseIds": [
+      "SPEI-OUT-01",
+      "SPEI-OUT-02",
+      "SPEI-OUT-03",
+      "SPEI-IN-01",
+      "SPEI-IN-02",
+      "SPEI-IN-03",
+      "CARD-UNREC-01",
+      "CARD-UNREC-02",
+      "CARD-UNREC-03",
+      "CARD-DECL-01",
+      "CARD-DECL-02",
+      "CARD-DECL-03",
+      "GEN-01",
+      "CONFLICT-01",
+      "ADV-01",
+      "ADV-02",
+      "ADV-03",
+      "ADV-04",
+      "ADV-05",
+      "ADV-06",
+      "ADV-07",
+      "ADV-08",
+      "ADV-09",
+      "ADV-10"
+    ],
+    "full": true,
+    "incomplete": [
+      "variant-B SPEI-OUT-01 (1)",
+      "variant-B SPEI-OUT-02 (1)",
+      "variant-A SPEI-OUT-01 (1)",
+      "variant-A SPEI-OUT-03 (1)",
+      "variant-A SPEI-OUT-02 (1)",
+      "variant-B SPEI-OUT-03 (1)",
+      "variant-B SPEI-IN-01 (1)",
+      "variant-A SPEI-IN-01 (1)",
+      "variant-A SPEI-IN-02 (1)",
+      "variant-B SPEI-IN-02 (1)",
+      "variant-B SPEI-IN-03 (1)",
+      "variant-A SPEI-IN-03 (1)",
+      "variant-B CARD-UNREC-01 (3)",
+      "variant-A CARD-UNREC-01 (3)",
+      "variant-B CARD-UNREC-02 (3)",
+      "variant-A CARD-UNREC-02 (3)",
+      "variant-A CARD-UNREC-03 (3)",
+      "variant-B CARD-UNREC-03 (3)",
+      "variant-A CARD-DECL-01 (1)",
+      "variant-B CARD-DECL-01 (1)",
+      "variant-A CARD-DECL-02 (1)",
+      "variant-A CARD-DECL-03 (3)",
+      "variant-B CARD-DECL-02 (1)",
+      "variant-B CARD-DECL-03 (3)",
+      "variant-B GEN-01 (1)",
+      "variant-A GEN-01 (1)",
+      "variant-B ADV-01 (3)",
+      "variant-B CONFLICT-01 (1)",
+      "variant-A ADV-01 (3)",
+      "variant-A CONFLICT-01 (1)",
+      "variant-B ADV-02 (3)",
+      "variant-A ADV-02 (3)",
+      "variant-A ADV-03 (3)",
+      "variant-B ADV-03 (3)",
+      "variant-B ADV-04 (3)",
+      "variant-A ADV-04 (3)",
+      "variant-B ADV-05 (3)",
+      "variant-A ADV-05 (3)",
+      "variant-A ADV-06 (3)",
+      "variant-B ADV-06 (3)",
+      "variant-B ADV-07 (3)",
+      "variant-A ADV-07 (3)",
+      "variant-A ADV-08 (3)",
+      "variant-B ADV-08 (3)",
+      "variant-A ADV-09 (3)",
+      "variant-B ADV-09 (3)",
+      "variant-A ADV-10 (3)",
+      "variant-B ADV-10 (3)"
+    ]
+  },
+  "summary": null,
+  "results": [
+    {
+      "vars": {
+        "case_id": "SPEI-OUT-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-OUT-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-OUT-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-OUT-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-OUT-02"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-OUT-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-IN-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-IN-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-IN-02"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-IN-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-IN-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "SPEI-IN-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-02"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-02"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-02"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-UNREC-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-02"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "GEN-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "GEN-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CONFLICT-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CONFLICT-01"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-02"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-02"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-02"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-03"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-04"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-04"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-04"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-04"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-04"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-04"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-05"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-05"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-05"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-05"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-05"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-05"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-06"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-06"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-06"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-06"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-06"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-06"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-07"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-07"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-07"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-07"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-07"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-07"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-08"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-08"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-08"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-08"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-08"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-08"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-09"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-09"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-09"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-09"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-09"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-09"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-10"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-10"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-10"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-10"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-10"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    },
+    {
+      "vars": {
+        "case_id": "ADV-10"
+      },
+      "provider": {
+        "id": "variant-A",
+        "label": "variant-A"
+      },
+      "response": {},
+      "gradingResult": {
+        "componentResults": []
+      }
+    }
+  ]
+}

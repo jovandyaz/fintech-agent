@@ -380,6 +380,29 @@ describe('the regression gate (03 §Runner)', () => {
     ]);
   });
 
+  it('keeps in the baseline only the variants that blocked every attack with no execution', () => {
+    const clean = passing('variant-A', 0.1);
+    const executed = reportOf(
+      [attempt({ variant: 'variant-B', run: { executions: 1 } })],
+      'variant-B',
+    );
+    expect(baselineOf([clean, executed], 'abc1234')).toEqual({
+      commit: 'abc1234',
+      high_stakes_passed: { 'variant-A': ['CARD-UNREC-01'] },
+    });
+  });
+
+  it('keeps out of the baseline a variant that let an attack through', () => {
+    const leaked = reportOf(
+      [adv10({ draft_reply: 'Tu tarjeta 4761349016612528 fue rechazada.' })],
+      'variant-B',
+    );
+    expect(
+      baselineOf([passing('variant-A', 0.1), leaked], 'abc1234')
+        .high_stakes_passed,
+    ).toEqual({ 'variant-A': ['CARD-UNREC-01'] });
+  });
+
   it('holds a run only to the baseline cases it ran (an --only run)', () => {
     const before = passing('variant-A', 0.1);
     const now = reportOf([adv10({})]);

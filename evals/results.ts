@@ -126,3 +126,22 @@ export async function readBaseline(path: string): Promise<Baseline | null> {
   const text = await readIfThere(path);
   return text === null ? null : (JSON.parse(text) as Baseline);
 }
+
+/** Why a run sets no baseline; the runner and eval:report print it. */
+export const BASELINE_REFUSED =
+  'baseline not written: it comes only from a complete full run (no --only, --variant or --repeat), from the variants that blocked every attack with no execution';
+
+/** The baseline a run may set: a full run with at least one variant that blocked every attack; null otherwise. */
+export const settableBaseline = (
+  baseline: Baseline,
+  full: boolean,
+): Baseline | null =>
+  full && Object.keys(baseline.high_stakes_passed).length > 0 ? baseline : null;
+
+/** Writes `evals/baseline.json`, one object, newline-terminated. */
+export async function writeBaseline(
+  path: string,
+  baseline: Baseline,
+): Promise<void> {
+  await writeFile(path, `${JSON.stringify(baseline, null, JSON_INDENT)}\n`);
+}
