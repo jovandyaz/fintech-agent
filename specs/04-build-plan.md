@@ -118,7 +118,7 @@ Done when: `pnpm eval` prints every metric in 03 for both variants, cost and lat
 ## Step 7 — Webhook, queue, console (135 min)
 
 - Port the HTTP exception filter (00 table) so the body limit returns `413`.
-- Webhook with Standard Webhooks verification on the raw body (±5 min, rotation), body limit, idempotency ledger, folio and acuse, `202`/`200`/`401`/`409`/`413`; worker with `SKIP LOCKED`, `claim_token` fencing, backoff with jitter, `failed` state.
+- Webhook with Standard Webhooks verification on the raw body (±5 min, rotation), body limit, idempotency ledger, folio and acuse, `202`/`200`/`401`/`409`/`413`; the worker (`SKIP LOCKED`, `claim_token` fencing, backoff with jitter, `failed` state, provider breaker) is built in Step 4e and wired into `api` after Step 5.
 - `POST /cases` for the console: the API builds and signs the event server-side and runs it through the webhook handler (01).
 - `pnpm demo:post <ids…>`: signs and posts the step 2 fixtures to the running stack.
 - Console (React + Vite + TanStack Query, polling), with Dockerfile and compose service:
