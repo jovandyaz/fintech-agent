@@ -5,11 +5,11 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 const AGENT_TO_EXECUTOR =
-  'G1: the agent module must not import the executor (specs/02-security.md).';
+  'G1: the agent module and the eval runner must not import the executor (specs/02-security.md).';
 const AGENT_TO_WRITE_CLIENT =
   'G1: only the executor may hold the core-mock write client (specs/02-security.md).';
 const AGENT_TO_CORE_READ =
-  'G4: the agent reads core data only through the MCP tools bound to its case (specs/02-security.md).';
+  'G4: the agent, in the api or the eval runner, reads core data only through the MCP tools bound to its case (specs/02-security.md).';
 const EXECUTOR_TO_AGENT =
   'G1: the executor must not import the agent module (specs/02-security.md).';
 
@@ -88,11 +88,16 @@ export default defineConfig(
   },
   {
     // 02 G1: the process running the model has no write path, so nothing under
-    // the agent module may import the executor or the core-mock write client.
+    // the agent module, or the eval runner that runs it in-process, may import
+    // the executor or the core-mock write client.
     // 02 G4: its core data comes only through the MCP tools, so it may not
     // reach the API's core read client, its key, or the approvals and console
     // modules that hold it.
-    files: ['apps/api/src/agent/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    files: [
+      'apps/api/src/agent/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'apps/api/src/evals/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'evals/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+    ],
     linterOptions: { noInlineConfig: true },
     rules: {
       'no-restricted-imports': [

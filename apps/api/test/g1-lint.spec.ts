@@ -30,6 +30,31 @@ async function boundaryErrors(
 describe('G1/G4 lint boundary around agent/ and executor/ (02 Process boundary)', () => {
   it.each([
     [
+      'apps/api/src/evals/planted.ts',
+      `import { run } from '../executor/run.js';\nexport { run };\n`,
+    ],
+    [
+      'apps/api/src/evals/planted.ts',
+      `import { pay } from '../clients/core-write-client.js';\nexport { pay };\n`,
+    ],
+    [
+      'evals/planted.ts',
+      `import { createCoreMock } from '@fintech-agent/core-mock';\nexport { createCoreMock };\n`,
+    ],
+    [
+      'evals/planted.ts',
+      `export const load = () => import('../apps/api/src/executor/run.js');\n`,
+    ],
+  ])(
+    'fails on a write path planted in the eval runner, which runs the model in-process: %s',
+    async (file, code) => {
+      expect(await boundaryErrors(file, code)).not.toEqual([]);
+    },
+    LINT_MS,
+  );
+
+  it.each([
+    [
       'a static executor import',
       `import { run } from '../../executor/run.js';\nexport { run };\n`,
     ],

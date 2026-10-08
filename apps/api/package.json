@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./test-database": "./test/database.ts"
+    "./test-database": "./test/database.ts",
+    "./evals": "./src/evals/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
