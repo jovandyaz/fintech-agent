@@ -1,5 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 
+import { AgentWorkerModule } from './agent/agent-worker.module.js';
+import { agentConfigOf } from './agent/core/deps.js';
 import { ApprovalsModule } from './approvals/approvals.module.js';
 import { CasesModule } from './cases/cases.module.js';
 import type { ApiConfig } from './config.js';
@@ -17,6 +19,9 @@ export class AppModule {
         OperatorsModule.register(config.OPERATOR_TOKENS),
         ApprovalsModule.register(config),
         CasesModule,
+        ...(config.AGENT_WORKER === 'on'
+          ? [AgentWorkerModule.register(agentConfigOf(config))]
+          : []),
       ],
       controllers: [HealthController],
     };

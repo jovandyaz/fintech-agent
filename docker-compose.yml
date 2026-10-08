@@ -44,6 +44,8 @@ services:
       CORE_READ_KEY: ${CORE_READ_KEY:-dev-core-read-key}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AGENT_MODE: ${AGENT_MODE:-on}
+      AGENT_WORKER: ${AGENT_WORKER:-on}
+      AGENT_POLL_MS: ${AGENT_POLL_MS:-1000}
       AGENT_VARIANT: ${AGENT_VARIANT:-A}
       AGENT_MODEL_A: ${AGENT_MODEL_A:-claude-sonnet-5-5}
       AGENT_MODEL_B: ${AGENT_MODEL_B:-claude-haiku-5-5}
@@ -59,6 +61,11 @@ services:
     depends_on:
       seed:
         condition: service_completed_successfully
+      mcp:
+        condition: service_healthy
+    # Past the longest RUN_TIMEOUT_MS the config accepts, so a stop lets the
+    # attempt in flight finish.
+    stop_grace_period: 600s
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/health || exit 1']
       interval: 2s

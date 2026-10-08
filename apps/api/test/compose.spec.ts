@@ -42,6 +42,36 @@ describe('compose process boundary (02 G1)', () => {
     ]);
   });
 
+  it('gives CASE_TOKEN_KEY only to api, which signs case tokens, and mcp, which verifies them (02 G4)', () => {
+    expect(holders('CASE_TOKEN_KEY')).toEqual(['api', 'mcp']);
+  });
+
+  it('starts api only once mcp is healthy, so the worker never claims a case it cannot run', () => {
+    const dependsOn = (
+      compose.services.api as {
+        depends_on?: Record<string, { condition: string }>;
+      }
+    ).depends_on;
+    expect(dependsOn?.mcp?.condition).toBe('service_healthy');
+  });
+
+  it('gives api a stop grace period past the run timeout, so a stop lets the attempt in flight finish', () => {
+    const grace = (compose.services.api as { stop_grace_period?: string })
+      .stop_grace_period;
+    // The config's ceiling: a 600 s case token minus its 60 s margin.
+    const MAX_RUN_TIMEOUT_S = 540;
+    expect(Number.parseInt(grace ?? '0', 10)).toBeGreaterThan(
+      MAX_RUN_TIMEOUT_S,
+    );
+  });
+
+  it('runs the agent worker in api with its switches declared', () => {
+    expect(env('api')).toMatchObject({
+      AGENT_WORKER: '${AGENT_WORKER:-on}',
+      AGENT_POLL_MS: '${AGENT_POLL_MS:-1000}',
+    });
+  });
+
   it('gives the owner database URL only to seed', () => {
     expect(holders('DATABASE_URL')).toEqual(['seed']);
   });
