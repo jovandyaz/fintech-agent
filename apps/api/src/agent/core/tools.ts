@@ -43,6 +43,13 @@ function searchPoliciesDescription(
   return `Searches the bank's policies and returns up to ${SEARCH_POLICIES_MAX_K} chunks, each with chunk_id, doc_id, section and content. Query in the policies' own words; doc_id narrows the search to one policy. Policies: ${policies}.`;
 }
 
+/**
+ * What the model and the trace see when policy search fails: a raw database
+ * error could carry query text or connection details (02 G6), so the cause
+ * stays on the error object and never becomes the tool result.
+ */
+export const RETRIEVAL_UNAVAILABLE = 'policy search unavailable';
+
 /** The local `search_policies` tool over the injected retrieval (01 §Tools). */
 export function searchPoliciesTool(
   retrieval: Retrieval,
@@ -50,9 +57,15 @@ export function searchPoliciesTool(
   return tool({
     description: searchPoliciesDescription(retrieval.catalog),
     inputSchema: SearchPoliciesInputSchema,
-    execute: async (input) => ({
-      chunks: (await retrieval.search(input)).slice(0, input.k),
-    }),
+    execute: async (input) => {
+      let chunks: PolicyChunk[];
+      try {
+        chunks = await retrieval.search(input);
+      } catch (error) {
+        throw new Error(RETRIEVAL_UNAVAILABLE, { cause: error });
+      }
+      return { chunks: chunks.slice(0, input.k) };
+    },
   });
 }
 
