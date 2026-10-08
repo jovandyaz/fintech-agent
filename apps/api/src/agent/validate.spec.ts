@@ -987,14 +987,14 @@ describe('validate, then fill', () => {
   it('fills an accepted draft with the approved wording and its dates', () => {
     const filled = filledFor(RECEIVED_AT);
     expect(filled).toBe(
-      'Hola Ana, tu folio es AC-K7Q3-M9X2. Te daremos una respuesta por escrito a más tardar el 21 de noviembre de 2026. Si no estás de acuerdo con ella, puedes acudir a la CONDUSEF. Te abonaremos el importe del cargo a más tardar el 9 de octubre de 2026, mientras resolvemos tu aclaración.',
+      'Hola Ana, tu folio es AC-K7Q3-M9X2. Te daremos una respuesta por escrito a más tardar el 21/11/2026. Si no estás de acuerdo con ella, puedes acudir a la CONDUSEF. Te abonaremos el importe del cargo a más tardar el 09/10/2026, mientras resolvemos tu aclaración.',
     );
     expect(replyViolations(filled)).toEqual([]);
   });
 
   it('skips a weekend and a bank holiday in the credit deadline', () => {
     expect(filledFor(new Date('2026-10-30T18:00:00Z'))).toContain(
-      'a más tardar el 4 de noviembre de 2026, mientras',
+      'a más tardar el 04/11/2026, mientras',
     );
   });
 });

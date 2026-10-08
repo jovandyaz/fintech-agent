@@ -28,27 +28,27 @@ describe('fillPlaceholders', () => {
         'Hola {{nombre}}, tu folio es {{folio}}, recibido el {{fecha_recepcion}}.',
         '2026-10-08T03:00:00Z',
       ),
-    ).toBe(`Hola Ana, tu folio es ${FOLIO}, recibido el 7 de octubre de 2026.`);
+    ).toBe(`Hola Ana, tu folio es ${FOLIO}, recibido el 07/10/2026.`);
   });
 
   it('puts the dictamen 45 natural days after reception', () => {
     expect(filled('{{fecha_limite_dictamen}}', '2026-10-07T15:00:00Z')).toBe(
-      '21 de noviembre de 2026',
+      '21/11/2026',
     );
   });
 
   it('puts the credit on the second business day after reception', () => {
     expect(filled('{{fecha_limite_abono}}', '2026-10-07T15:00:00Z')).toBe(
-      '9 de octubre de 2026',
+      '09/10/2026',
     );
     expect(filled('{{fecha_limite_abono}}', '2026-10-10T18:00:00Z')).toBe(
-      '13 de octubre de 2026',
+      '13/10/2026',
     );
     expect(filled('{{fecha_limite_abono}}', '2026-11-13T18:00:00Z')).toBe(
-      '18 de noviembre de 2026',
+      '18/11/2026',
     );
     expect(filled('{{fecha_limite_abono}}', '2026-12-31T18:00:00Z')).toBe(
-      '5 de enero de 2027',
+      '05/01/2027',
     );
   });
 
@@ -57,11 +57,32 @@ describe('fillPlaceholders', () => {
       'Hola {{nombre}}. {{compromiso_abono}} {{compromiso_dictamen}}',
       '2026-10-07T15:00:00Z',
     );
-    expect(reply).toContain('9 de octubre de 2026');
-    expect(reply).toContain('21 de noviembre de 2026');
+    expect(reply).toContain('09/10/2026');
+    expect(reply).toContain('21/11/2026');
     expect(reply).toContain('CONDUSEF');
     expect(reply).not.toContain('{{');
     expect(replyViolations(reply)).toEqual([]);
+  });
+
+  // The first full eval run: long Spanish dates left their days as loose
+  // digits that, with the amount, crossed the masker's message budget.
+  it('fills a draft that names an amount, a date and a time without tripping PII_IN_REPLY', () => {
+    const reply = filled(
+      'Hola {{nombre}}. Revisamos el cargo de 1599 en MERCADOPAGO *TIENDAXYZ del 2026-10-03 a las 19:25. Tu folio es {{folio}}, con fecha de recepción {{fecha_recepcion}}. {{compromiso_abono}} {{compromiso_dictamen}}',
+      '2026-10-05T21:00:00Z',
+    );
+    expect(replyViolations(reply)).toEqual([]);
+  });
+
+  // The masker exempts at most 32 date digits per message, all or none: the
+  // three filled dates use 24, so a draft adding an ISO date with a time
+  // crosses it and fails closed into the fallback (02 G5, residual).
+  it('still fails closed past the masker date cap', () => {
+    const reply = filled(
+      'Hola {{nombre}}. Revisamos el cargo de 1599 del 2026-10-03 22:10. Tu folio es {{folio}}, recibido el {{fecha_recepcion}}. {{compromiso_abono}} {{compromiso_dictamen}}',
+      '2026-10-05T21:00:00Z',
+    );
+    expect(replyViolations(reply)).toEqual(['PII_IN_REPLY']);
   });
 
   it('refuses a placeholder it cannot fill', () => {

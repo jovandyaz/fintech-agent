@@ -1,5 +1,4 @@
 import { addBusinessDays, addNaturalDays, localDateOf } from '../calendar.js';
-import { SPANISH_MONTHS } from './spanish.js';
 
 /** The placeholders a draft may carry (02 G5); the harness fills them after validation. */
 export const PLACEHOLDERS = [
@@ -33,9 +32,12 @@ const COMMITMENTS = {
     'Te abonaremos el importe del cargo a más tardar el {{fecha_limite_abono}}, mientras resolvemos tu aclaración.',
 } as const satisfies Partial<Record<Placeholder, string>>;
 
-const spanishDate = (day: string): string => {
-  const [year, month, dayOfMonth] = day.split('-').map(Number);
-  return `${dayOfMonth} de ${SPANISH_MONTHS[month! - 1]} de ${year}`;
+// dd/mm/aaaa: the masker reads it as a date. A long Spanish date leaves its
+// day as loose digits that, with an amount in the same reply, cross the
+// masker's message budget and fail PII_IN_REPLY after filling.
+const calendarDate = (day: string): string => {
+  const [year, month, dayOfMonth] = day.split('-');
+  return `${dayOfMonth}/${month}/${year}`;
 };
 
 function personName(firstName: string | null): string {
@@ -82,11 +84,11 @@ export function fillPlaceholders(text: string, context: FillContext): string {
       case 'folio':
         return context.folio;
       case 'fecha_recepcion':
-        return spanishDate(received);
+        return calendarDate(received);
       case 'fecha_limite_dictamen':
-        return spanishDate(addNaturalDays(received, DICTAMEN_NATURAL_DAYS));
+        return calendarDate(addNaturalDays(received, DICTAMEN_NATURAL_DAYS));
       case 'fecha_limite_abono':
-        return spanishDate(addBusinessDays(received, ABONO_BUSINESS_DAYS));
+        return calendarDate(addBusinessDays(received, ABONO_BUSINESS_DAYS));
       case 'compromiso_dictamen':
       case 'compromiso_abono':
         return fill(COMMITMENTS[name]);
