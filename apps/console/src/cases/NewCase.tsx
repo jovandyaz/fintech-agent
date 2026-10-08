@@ -27,6 +27,8 @@ export function NewCase(props: {
   const [customerId, setCustomerId] = useState('');
   const [text, setText] = useState('');
   const headingId = useId();
+  const customerFieldId = useId();
+  const textFieldId = useId();
   const headingRef = useFocusWhenReady(true);
   const flight = useSingleFlight();
   const customers = useQuery({
@@ -60,9 +62,10 @@ export function NewCase(props: {
         Nuevo caso
       </h2>
       <form className="form-stack" onSubmit={submit}>
-        <label>
-          Cliente
+        <div className="field">
+          <label htmlFor={customerFieldId}>Cliente</label>
           <select
+            id={customerFieldId}
             value={customerId}
             onChange={(event) => setCustomerId(event.target.value)}
           >
@@ -73,7 +76,7 @@ export function NewCase(props: {
               </option>
             ))}
           </select>
-        </label>
+        </div>
         {customers.isError && (
           <div className="notice notice-alerta notice-retry">
             <p role="alert">No pudimos cargar los clientes.</p>
@@ -86,14 +89,15 @@ export function NewCase(props: {
             </button>
           </div>
         )}
-        <label>
-          Mensaje del cliente
+        <div className="field">
+          <label htmlFor={textFieldId}>Mensaje del cliente</label>
           <textarea
+            id={textFieldId}
             rows={6}
             value={text}
             onChange={(event) => setText(event.target.value)}
           />
-        </label>
+        </div>
         {open.isError && (
           <p className="notice notice-alerta" role="alert">
             No pudimos crear el caso. Revisa el cliente y el mensaje e intenta

@@ -393,8 +393,6 @@ button:disabled {
 }
 
 .form-stack label {
-  display: grid;
-  gap: var(--space-1);
   font-size: var(--text-sm);
   font-weight: 600;
 }
@@ -492,8 +490,6 @@ button:disabled {
 
 .decision label,
 .reply-editor label {
-  display: grid;
-  gap: var(--space-1);
   font-size: var(--text-sm);
   font-weight: 600;
 }
@@ -656,4 +652,9 @@ button:disabled {
   margin: 0;
   font-size: var(--text-xs);
   color: var(--tinta-suave);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
 }
