@@ -4,6 +4,7 @@ import { AgentWorkerModule } from './agent/agent-worker.module.js';
 import { agentConfigOf } from './agent/core/deps.js';
 import { ApprovalsModule } from './approvals/approvals.module.js';
 import { CasesModule } from './cases/cases.module.js';
+import { ConsoleModule } from './console/console.module.js';
 import type { ApiConfig } from './config.js';
 import { DatabaseModule } from './database/index.js';
 import { OperatorsModule } from './operators/operators.module.js';
@@ -20,6 +21,7 @@ export class AppModule {
         OperatorsModule.register(config.OPERATOR_TOKENS),
         ApprovalsModule.register(config),
         CasesModule,
+        ConsoleModule.register(config),
         WebhooksModule.register(config),
         ...(config.AGENT_WORKER === 'on'
           ? [AgentWorkerModule.register(agentConfigOf(config))]

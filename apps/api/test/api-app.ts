@@ -110,8 +110,8 @@ export async function seedProposal(
     reason_code: 'unrecognized_charge',
   };
   await owner`
-    insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked, status, flags, review_tier, category, claim_token, locked_until)
-    values (${caseId}, ${`T-${caseId}`}, ${`AC-${key.toUpperCase().padStart(4, '0')}-TEST`}, now(), 'webhook', 'cus_01', 'hola',
+    insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked, text_redacted, status, flags, review_tier, category, claim_token, locked_until)
+    values (${caseId}, ${`T-${caseId}`}, ${`AC-${key.toUpperCase().padStart(4, '0')}-TEST`}, now(), 'webhook', 'cus_01', 'hola', 'hola',
       ${fixture.caseStatus ?? 'needs_review'}, ${owner.json(fixture.flags ?? [])}, ${fixture.tier === undefined ? 'standard' : fixture.tier}, 'unrecognized_card_charge',
       ${claimed ? randomUUID() : null}, ${claimed ? new Date(Date.now() + CLAIM_LEASE_MS) : null})`;
 

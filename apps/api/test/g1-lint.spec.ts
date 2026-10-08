@@ -209,6 +209,21 @@ describe('G1/G4 lint boundary around agent/ and executor/ (02 Process boundary)'
       `export const token = 'DECIDE_DEPS';\n`,
     ],
     [
+      'the console module imported into agent/',
+      AGENT_FILE,
+      `import { caseDetailOf } from '../../console/read-model.js';\nexport { caseDetailOf };\n`,
+    ],
+    [
+      'the console module loaded dynamically from agent/',
+      AGENT_FILE,
+      `export const load = () => import('../../console/console.module.js');\n`,
+    ],
+    [
+      'the console dependencies looked up by their token in agent/',
+      AGENT_FILE,
+      `export const token = 'CONSOLE_DEPS';\n`,
+    ],
+    [
       'the core key header written as a template literal in agent/',
       AGENT_FILE,
       'export const header = `x-core-key`;\n',

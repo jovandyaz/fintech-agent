@@ -67,6 +67,8 @@ export async function injectCanaries(
         source: 'webhook',
         customerId: seed.customerId,
         textMasked: maskPii(seed.text),
+        // A real case in review always carries its redacted text (02 G6 Step 7).
+        textRedacted: maskPii(seed.text),
         status: 'needs_review',
         category: seed.category,
         flags: seed.flags,

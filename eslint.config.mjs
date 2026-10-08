@@ -40,6 +40,8 @@ const CORE_READ_CLIENT = [
   "Identifier[name='CORE_CLIENT']",
   "Literal[value='CORE_CLIENT']",
   "Literal[value='DECIDE_DEPS']",
+  "Identifier[name='CONSOLE_DEPS']",
+  "Literal[value='CONSOLE_DEPS']",
   'Literal[value=/^x-core-key$/i]',
   'TemplateElement[value.raw=/x-core-key/i]',
 ].map((selector) => ({ selector, message: AGENT_TO_CORE_READ }));
@@ -83,7 +85,8 @@ export default defineConfig(
     // 02 G1: the process running the model has no write path, so nothing under
     // the agent module may import the executor or the core-mock write client.
     // 02 G4: its core data comes only through the MCP tools, so it may not
-    // reach the API's core read client, its key or the approvals module.
+    // reach the API's core read client, its key, or the approvals and console
+    // modules that hold it.
     files: ['apps/api/src/agent/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
     linterOptions: { noInlineConfig: true },
     rules: {
@@ -97,7 +100,12 @@ export default defineConfig(
               message: AGENT_TO_EXECUTOR,
             },
             {
-              group: ['**/approvals', '**/approvals/**'],
+              group: [
+                '**/approvals',
+                '**/approvals/**',
+                '**/console',
+                '**/console/**',
+              ],
               message: AGENT_TO_CORE_READ,
             },
             {
@@ -120,6 +128,7 @@ export default defineConfig(
         dynamicImportOf('core-mock', AGENT_TO_WRITE_CLIENT),
         COMPUTED_DYNAMIC_IMPORT,
         dynamicImportOf('approvals', AGENT_TO_CORE_READ),
+        dynamicImportOf('console', AGENT_TO_CORE_READ),
         ...LOADER_SYNTAX,
         ...CORE_READ_CLIENT,
       ],

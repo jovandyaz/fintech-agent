@@ -1,16 +1,17 @@
 import { BadRequestException, type PipeTransform } from '@nestjs/common';
 import type { z } from 'zod';
 
-/** What a 400 says failed: the body or a path parameter. */
+/** What a 400 says failed: the body, a path parameter or the query string. */
 export const INPUT_PART = {
   body: 'invalid_body',
   path: 'invalid_path',
+  query: 'invalid_query',
 } as const;
 
 /**
- * Validates a request body or path parameter with a contracts schema (rule:
- * Zod at the edge). The 400 names each failing path and issue code, never the
- * input values.
+ * Validates a request body, path parameter or query string with a contracts
+ * schema (rule: Zod at the edge). The 400 names each failing path and issue
+ * code, never the input values.
  */
 export class ZodPipe<T> implements PipeTransform<unknown, T> {
   constructor(
