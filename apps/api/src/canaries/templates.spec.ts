@@ -22,8 +22,7 @@ import {
 import { factFlags } from '../agent/core/validate/flags.js';
 import { validate } from '../agent/core/validate/index.js';
 import { replyViolations } from '../replies/reply-checks.js';
-import { POLICIES_DIR } from '../retrieval/corpus-write.js';
-import { loadCorpus } from '../retrieval/ingest.js';
+import { POLICIES_DIR, loadCorpus } from '../retrieval/ingest.js';
 import { CANARY_DEFECTS, CANARY_TEMPLATES } from './templates.js';
 
 const DATASET = z

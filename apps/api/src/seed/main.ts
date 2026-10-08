@@ -5,7 +5,8 @@ import { reasonOf } from '../common/errors/reason-of.js';
 import { JsonConsoleLogger } from '../common/logging/json-console-logger.js';
 import { migrateDatabase } from '../database/migrate.js';
 import { setRolePasswords } from '../database/roles.js';
-import { POLICIES_DIR, seedPolicies } from '../retrieval/corpus-write.js';
+import { seedPolicies } from '../retrieval/corpus-write.js';
+import { POLICIES_DIR } from '../retrieval/ingest.js';
 
 const SeedConfigSchema = z.object({
   DATABASE_URL: z.url(),

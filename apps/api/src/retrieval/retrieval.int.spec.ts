@@ -9,8 +9,8 @@ import {
 } from '../../test/database.js';
 import type { Retrieval } from '../agent/core/tools.js';
 import * as schema from '../database/schema.js';
-import { POLICIES_DIR, seedPolicies } from './corpus-write.js';
-import { loadManifest } from './ingest.js';
+import { seedPolicies } from './corpus-write.js';
+import { POLICIES_DIR, loadManifest } from './ingest.js';
 import { createRetrieval, policyCatalog } from './search.js';
 
 // 04 Step 5 "Done when": recall@4 ≥ 0.9 on the paraphrases.

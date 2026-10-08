@@ -1,14 +1,6 @@
-import { resolve } from 'node:path';
-
 import postgres from 'postgres';
 
 import { loadCorpus, type IngestedChunk } from './ingest.js';
-
-/** `data/policies`, resolved from the source tree as the image lays it out. */
-export const POLICIES_DIR = resolve(
-  import.meta.dirname,
-  '../../../../data/policies',
-);
 
 /** What `seed` logs once the corpus is written (02 G8: the seed prints quarantined chunks). */
 export interface CorpusReport {

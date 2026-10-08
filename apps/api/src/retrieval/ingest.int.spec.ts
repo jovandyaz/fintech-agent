@@ -13,8 +13,8 @@ import {
 } from '../../test/database.js';
 import { corpusStateRules } from '../agent/core/corpus.js';
 import * as schema from '../database/schema.js';
-import { POLICIES_DIR, seedPolicies } from './corpus-write.js';
-import { CorpusRefusedError, loadCorpus } from './ingest.js';
+import { seedPolicies } from './corpus-write.js';
+import { CorpusRefusedError, POLICIES_DIR, loadCorpus } from './ingest.js';
 
 let testDb: TestDatabase;
 let owner: postgres.Sql;
