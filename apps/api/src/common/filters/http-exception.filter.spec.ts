@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   HttpException,
   HttpStatus,
@@ -71,6 +72,27 @@ describe('GlobalExceptionFilter', () => {
     expect(body.message).toBe('Internal server error');
     expect(body.error).toBe('Internal Server Error');
     expect(JSON.stringify(body)).not.toContain('ECONNREFUSED');
+  });
+
+  it('passes a deliberate 503 this API built through, without an error log', () => {
+    const { host, getStatus, getBody } = createHost();
+    const refusal = { message: 'core_unavailable' };
+    filter.catch(
+      new HttpException(refusal, HttpStatus.SERVICE_UNAVAILABLE),
+      host,
+    );
+    expect(getStatus()).toBe(503);
+    expect(getBody()).toEqual(refusal);
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('hides and logs any other 5xx, which a library may build from internals', () => {
+    const { host, getStatus, getBody } = createHost();
+    filter.catch(new BadGatewayException('upstream said tel 5512345678'), host);
+    expect(getStatus()).toBe(502);
+    expect(getBody().message).toBe('Internal server error');
+    expect(JSON.stringify(getBody())).not.toContain('5512345678');
+    expect(loggerError).toHaveBeenCalled();
   });
 
   it('responds with a generic message for 5xx HttpExceptions', () => {
@@ -182,47 +204,22 @@ describe('GlobalExceptionFilter', () => {
     expect(getBody().errors).toEqual(errors);
   });
 
-  describe('details', () => {
-    it('passes a refusal’s details through to the body', () => {
+  describe('a refusal this API built', () => {
+    it('passes the 4xx body through exactly as the exception built it', () => {
       const { host, getStatus, getBody } = createHost();
+      const refusal = { message: 'invalid_reply', codes: ['PII_IN_REPLY'] };
       new GlobalExceptionFilter().catch(
-        new HttpException(
-          {
-            message: 'model unavailable',
-            code: 'MODEL_UNAVAILABLE',
-            details: { reason: 'not_in_tier' },
-          },
-          HttpStatus.UNPROCESSABLE_ENTITY,
-        ),
+        new HttpException(refusal, HttpStatus.BAD_REQUEST),
         host,
       );
-      expect(getStatus()).toBe(422);
-      expect(getBody()).toEqual(
-        expect.objectContaining({
-          statusCode: 422,
-          code: 'MODEL_UNAVAILABLE',
-          details: { reason: 'not_in_tier' },
-        }),
-      );
+      expect(getStatus()).toBe(400);
+      expect(getBody()).toEqual(refusal);
     });
 
     it('never leaks details on a 5xx', () => {
       const { host, getBody } = createHost();
       new GlobalExceptionFilter().catch(
         new InternalServerErrorException({ message: 'x', details: { a: 1 } }),
-        host,
-      );
-      expect(getBody()).not.toHaveProperty('details');
-    });
-
-    it.each([
-      ['a string', 'oops'],
-      ['an array', [1]],
-      ['null', null],
-    ])('drops details that are %s on a 4xx', (_label, details) => {
-      const { host, getBody } = createHost();
-      new GlobalExceptionFilter().catch(
-        new BadRequestException({ message: 'x', details }),
         host,
       );
       expect(getBody()).not.toHaveProperty('details');

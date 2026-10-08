@@ -8,12 +8,14 @@ import type {
   ReviewTier,
 } from '@fintech-agent/contracts';
 import type { INestApplication, LoggerService } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import type { Sql } from 'postgres';
 
 import { CORE_CLIENT } from '../src/approvals/approvals.module.js';
 import { AppModule } from '../src/app.module.js';
 import { loadApiConfig } from '../src/config.js';
+import { HTTP_APP_OPTIONS, configureHttpApp } from '../src/http-app.js';
 import type { TestDatabase } from './database.js';
 
 export const ANA = 'dev-operator-ana-token-0123456789';
@@ -67,7 +69,11 @@ export async function startApiApp(
     .overrideProvider(CORE_CLIENT)
     .useValue(core)
     .compile();
-  const app = moduleRef.createNestApplication({ logger });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({
+    ...HTTP_APP_OPTIONS,
+    logger,
+  });
+  configureHttpApp(app);
   await app.listen(0, '127.0.0.1');
   return { app, base: await app.getUrl() };
 }
