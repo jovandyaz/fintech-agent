@@ -2,10 +2,12 @@ import type { z } from 'zod';
 
 import {
   CorePageSchema,
+  CustomerOptionSchema,
   CustomerRecordSchema,
   TransactionRecordSchema,
   type CorePage,
   type Customer,
+  type CustomerOption,
   type Transaction,
 } from './core.js';
 
@@ -23,6 +25,7 @@ export class CoreUnavailableError extends Error {}
 
 export interface CoreClient {
   customer: (id: string) => Promise<Customer | null>;
+  customerOptions: () => Promise<CustomerOption[]>;
   transaction: (id: string) => Promise<Transaction | null>;
   transactions: (
     customerId: string,
@@ -70,6 +73,11 @@ export function createCoreClient(options: {
   const segment = encodeURIComponent;
   return {
     customer: (id) => get(`/customers/${segment(id)}`, CustomerRecordSchema),
+    customerOptions: async () => {
+      const options = await get('/customers', CustomerOptionSchema.array());
+      if (!options) throw new CoreUnavailableError('core has no customer list');
+      return options;
+    },
     transaction: (id) =>
       get(`/transactions/${segment(id)}`, TransactionRecordSchema),
     transactions: (customerId, query) =>

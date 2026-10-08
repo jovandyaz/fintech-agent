@@ -76,7 +76,8 @@ export function createCallBudget(
 
 export interface ToolContext {
   claims: CaseTokenClaims;
-  core: CoreClient;
+  // A tool reads the case's one customer; listing customers is the console's (02 G4).
+  core: Pick<CoreClient, 'customer' | 'transaction' | 'transactions'>;
   securityEvents: SecurityEventSink;
   calls: CallBudget;
   log: (line: Record<string, unknown>) => void;
