@@ -22,6 +22,8 @@ import {
 import { factFlags } from '../agent/core/validate/flags.js';
 import { validate } from '../agent/core/validate/index.js';
 import { replyViolations } from '../replies/reply-checks.js';
+import { POLICIES_DIR } from '../retrieval/corpus-write.js';
+import { loadCorpus } from '../retrieval/ingest.js';
 import { CANARY_DEFECTS, CANARY_TEMPLATES } from './templates.js';
 
 const DATASET = z
@@ -79,11 +81,20 @@ describe('canary templates (02 G3)', () => {
   });
 });
 
-// What a run on the canary's case would have seen: the customer's movements
-// and the status output of every transaction the action names.
+const CORPUS = loadCorpus(POLICIES_DIR);
+const STATE_RULES = CORPUS.map(({ id, quarantined, stateRules }) => ({
+  chunk_id: id,
+  quarantined,
+  rules: stateRules,
+}));
+
+// What a run on the canary's case would have seen: the customer's movements,
+// the status output of every transaction the action names and the policy
+// chunks it cites, as search_policies returns them.
 function runFor(
   customerId: string,
   transactionIds: readonly string[],
+  citedChunkIds: readonly string[],
 ): ToolResult[] {
   const rows = DATASET.filter((tx) => tx.customer_id === customerId);
   const statuses = transactionIds.flatMap((id): ToolResult[] => {
@@ -106,6 +117,19 @@ function runFor(
       },
     },
     ...statuses,
+    {
+      tool: 'search_policies',
+      output: {
+        chunks: CORPUS.filter(
+          ({ id, quarantined }) => !quarantined && citedChunkIds.includes(id),
+        ).map((chunk) => ({
+          chunk_id: chunk.id,
+          doc_id: chunk.docId,
+          section: chunk.section,
+          content: chunk.content,
+        })),
+      },
+    },
   ];
 }
 
@@ -113,12 +137,12 @@ describe('canary templates through the validator (02 G3, G5)', () => {
   const at = new Date(DATASET_NOW);
 
   it.each(CANARY_TEMPLATES)(
-    '$defect passes every check but the citations Step 5 adds, with the flags Persist computes',
+    '$defect passes every check, citing real policy, with the flags Persist computes',
     ({ seed }) => {
       const resolution: Resolution = {
         category: seed.category,
         draft_reply: seed.draftReply,
-        citations: [],
+        citations: seed.citations,
         abstained: false,
         evidence: seed.action.transaction_ids.map((id) => ({
           kind: 'transaction' as const,
@@ -128,17 +152,20 @@ describe('canary templates through the validator (02 G3, G5)', () => {
         reasoning_summary: seed.reasoningSummary,
       };
       const evidence = buildEvidence({
-        toolResults: runFor(seed.customerId, seed.action.transaction_ids),
+        toolResults: runFor(
+          seed.customerId,
+          seed.action.transaction_ids,
+          seed.citations.map(({ chunk_id }) => chunk_id),
+        ),
         receivedAt: at,
         now: at,
         injectionSignal: false,
         crossCustomerLookup: false,
       });
-      expect(validate(resolution, { evidence, stateRules: [] })).toEqual({
-        ok: false,
-        codes: ['NO_SUPPORT'],
-        conflicts: [],
-      });
+      expect(
+        validate(resolution, { evidence, stateRules: STATE_RULES }),
+      ).toMatchObject({ ok: true, conflicts: [] });
+      expect(seed.citations).not.toEqual([]);
       expect(factFlags(resolution, evidence, { priorOpenDisputes: 0 })).toEqual(
         seed.flags,
       );

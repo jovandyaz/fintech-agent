@@ -80,13 +80,14 @@ describe('canary:inject (02 G3)', () => {
         run_status: string;
         input_tokens: number;
         draft_reply: string;
+        citations: unknown;
       }[]
     >`
       select a.id as action_id, c.id as case_id, r.id as run_id, a.is_canary, a.status, a.type,
         c.status as case_status, c.source, c.review_tier, c.flags, c.folio, c.ticket_id,
         c.received_at, r.started_at, r.finished_at, r.latency_ms,
         c.text_masked, c.customer_id, c.category, r.variant, r.model, r.prompt_version,
-        r.status as run_status, r.input_tokens, s.draft_reply
+        r.status as run_status, r.input_tokens, s.draft_reply, s.citations
       from proposed_actions a
       join cases c on c.id = a.case_id
       join agent_runs r on r.id = a.run_id
@@ -104,6 +105,7 @@ describe('canary:inject (02 G3)', () => {
           seed.action.type === row.type,
       );
       expect(template).toBeDefined();
+      expect(row.citations).toEqual(template?.seed.citations);
       expect(row).toMatchObject({
         is_canary: true,
         status: 'proposed',
