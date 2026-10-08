@@ -80,7 +80,9 @@ const INJECTION_PATTERNS: readonly {
 
   {
     pattern:
-      /(?:decode|execute|run)\s*(?:this|the\s+following)?:?\s*[A-Za-z0-9+/=]{20,}/i,
+      // One whitespace run between verb and payload: two adjacent `\s*` make a
+      // long blank run cost quadratic time.
+      /\b(?:decode|execute|run)\b(?:\s+(?:this|the\s+following))?\s*(?::\s*)?[A-Za-z0-9+/=]{20,}/i,
     weight: 0.8,
     reason: 'Encoded payload detected',
   },
@@ -192,8 +194,14 @@ const STRIP_PATTERN = new RegExp(
   'g',
 );
 
-function normalizeForGuard(text: string): string {
-  return text.normalize('NFKC').replace(STRIP_PATTERN, '');
+// Two readings: a zero-width mark inside a word is deleted, one between
+// words stands for the space it replaces.
+function guardReadings(text: string): string[] {
+  const folded = text.normalize('NFKC');
+  return [
+    folded.replace(STRIP_PATTERN, ''),
+    folded.replace(STRIP_PATTERN, ' '),
+  ];
 }
 
 interface InjectionPatternHit {
@@ -201,9 +209,11 @@ interface InjectionPatternHit {
   readonly reason: string;
 }
 
-function matchInjectionPatterns(normalized: string): InjectionPatternHit[] {
+function matchInjectionPatterns(
+  readings: readonly string[],
+): InjectionPatternHit[] {
   return INJECTION_PATTERNS.filter(({ pattern }) =>
-    pattern.test(normalized),
+    readings.some((reading) => pattern.test(reading)),
   ).map(({ weight, reason }) => ({ weight, reason }));
 }
 
@@ -241,5 +251,5 @@ export function detectPromptInjection(text: string): PromptGuardResult {
     return { safe: false, score: 1, reason: 'Input exceeds safety limit' };
   }
 
-  return scoreInjectionHits(matchInjectionPatterns(normalizeForGuard(text)));
+  return scoreInjectionHits(matchInjectionPatterns(guardReadings(text)));
 }
