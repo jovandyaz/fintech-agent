@@ -65,7 +65,7 @@ export function intakeEvent(db: Database, input: IntakeInput): Promise<Intake> {
 export interface IntakeInput {
   event: WebhookEvent;
   payloadHash: string;
-  source: Extract<CaseSource, 'webhook' | 'console'>;
+  source: CaseSource;
   opener: Opener;
   now: Date;
 }

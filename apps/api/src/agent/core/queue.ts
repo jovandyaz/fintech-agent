@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
-import type { CaseStatus, RunStatus } from '@fintech-agent/contracts';
-import { and, asc, eq, lt, lte, or, sql } from 'drizzle-orm';
+import type {
+  CaseSource,
+  CaseStatus,
+  RunStatus,
+} from '@fintech-agent/contracts';
+import { and, asc, eq, lt, lte, ne, or, sql } from 'drizzle-orm';
 
 import type { Database, DbTransaction } from '../../database/index.js';
 import {
@@ -23,6 +27,9 @@ const QUEUED = 'queued' satisfies CaseStatus;
 const INVESTIGATING = 'investigating' satisfies CaseStatus;
 const FAILED = 'failed' satisfies CaseStatus;
 const RUNNING = 'running' satisfies RunStatus;
+// The eval runner claims its own cases by id, so a worker never races it
+// with another variant's model (03 §Runner).
+const EVAL = 'eval' satisfies CaseSource;
 const ABANDONED = 'abandoned' satisfies RunStatus;
 // The case key never changes, so the lock need not block foreign-key inserts
 // into its child rows, such as the MCP server's security events mid-run.
@@ -65,8 +72,9 @@ const released = { claimToken: null, lockedUntil: null };
  * `SKIP LOCKED` so concurrent workers never share one. The claim gets a
  * fresh `claim_token`, a lease of `runTimeoutMs` plus 30 s and one more
  * attempt; a reclaimed lease abandons the old attempt's run, and one that
- * was the last attempt fails the case instead. A case holding a canary is
- * never claimed.
+ * was the last attempt fails the case instead. A case holding a canary
+ * without its marker is never claimed, and neither is an eval case: the eval
+ * runner claims those by id.
  */
 export async function claimNextCase(
   db: Database,
@@ -90,6 +98,7 @@ export async function claimNextCase(
               and(eq(cases.status, INVESTIGATING), lt(cases.lockedUntil, now)),
             ),
             lte(cases.nextAttemptAt, now),
+            ne(cases.source, EVAL),
             notAnUnscriptedCanary,
           ),
         )
@@ -107,24 +116,63 @@ export async function claimNextCase(
           return FAILED;
         }
       }
-      const claim: Claim = {
-        caseId: candidate.id,
-        claimToken: randomUUID(),
-        attempt: candidate.attempts + 1,
-      };
-      await tx
-        .update(cases)
-        .set({
-          status: INVESTIGATING,
-          claimToken: claim.claimToken,
-          lockedUntil: new Date(now.getTime() + leaseMs),
-          attempts: claim.attempt,
-        })
-        .where(eq(cases.id, candidate.id));
-      return claim;
+      return holdCase(tx, candidate, { now, leaseMs });
     });
     if (outcome !== FAILED) return outcome;
   }
+}
+
+async function holdCase(
+  tx: DbTransaction,
+  candidate: { id: string; attempts: number },
+  options: { now: Date; leaseMs: number },
+): Promise<Claim> {
+  const claim: Claim = {
+    caseId: candidate.id,
+    claimToken: randomUUID(),
+    attempt: candidate.attempts + 1,
+  };
+  await tx
+    .update(cases)
+    .set({
+      status: INVESTIGATING,
+      claimToken: claim.claimToken,
+      lockedUntil: new Date(options.now.getTime() + options.leaseMs),
+      attempts: claim.attempt,
+    })
+    .where(eq(cases.id, candidate.id));
+  return claim;
+}
+
+/**
+ * Claims one queued eval case by id, with the same token, lease and
+ * attempt count as `claimNextCase` and the same canary rule; null for any
+ * other case: not queued, not an eval case (the worker owns those), or a
+ * canary without its marker (02 G3). The eval runner uses it for the cases
+ * it opens.
+ */
+export async function claimCase(
+  db: Database,
+  caseId: string,
+  options: { now: Date; runTimeoutMs: number },
+): Promise<Claim | null> {
+  const leaseMs = options.runTimeoutMs + LEASE_MARGIN_MS;
+  return db.transaction(async (tx) => {
+    const [candidate] = await tx
+      .select({ id: cases.id, attempts: cases.attempts })
+      .from(cases)
+      .where(
+        and(
+          eq(cases.id, caseId),
+          eq(cases.status, QUEUED),
+          eq(cases.source, EVAL),
+          notAnUnscriptedCanary,
+        ),
+      )
+      .for(ROW_LOCK);
+    if (!candidate) return null;
+    return holdCase(tx, candidate, { now: options.now, leaseMs });
+  });
 }
 
 /**
