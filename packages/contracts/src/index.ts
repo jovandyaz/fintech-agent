@@ -9,3 +9,4 @@ export * from './boot-failure.js';
 export * from './core-client.js';
 export * from './policy.js';
 export * from './mcp-views.js';
+export * from './webhook-signature.js';
