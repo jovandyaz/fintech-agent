@@ -1,0 +1,13 @@
+{
+  "name": "@fintech-agent/e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "postgres": "3.4.9"
+  }
+}
