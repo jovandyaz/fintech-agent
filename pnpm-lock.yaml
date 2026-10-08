@@ -391,6 +391,13 @@ importers:
       promptfoo:
         specifier: 0.124.0
         version: 0.124.0(@aws-sdk/credential-provider-node@3.972.84)(@aws-sdk/credential-providers@3.1147.0)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(@types/json-schema@7.0.15)(@types/node@24.19.1)(pg@8.23.1)(playwright@1.63.0)(postgres@3.4.9)(socks@2.8.10)
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
 
   packages/contracts:
     dependencies:
