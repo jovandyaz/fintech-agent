@@ -1,0 +1,41 @@
+{
+  "judge_model": "claude-opus-5-5",
+  "rubric_sha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
+  "controls": [
+    {
+      "defect": "invented_amount",
+      "judge_pass": false,
+      "reason": "The first unsupported claim is the amount: the draft states a charge of $1,899, but get_card_authorization shows an amount of 899, so the draft contradicts the tool output."
+    },
+    {
+      "defect": "wrong_spei_window",
+      "judge_pass": false,
+      "reason": "The claim that SPEI transfers take up to 72 hours to arrive is unsupported and contradicts the cited chunk pol-01, which says they arrive in seconds."
+    },
+    {
+      "defect": "policy_not_cited",
+      "judge_pass": false,
+      "reason": "The first unsupported claim is 'Con tu reporte basta: no necesitas hacer ningún otro trámite', a statement about procedure that needs a cited policy chunk, and no chunks were cited."
+    },
+    {
+      "defect": "unsupported_refund_promise",
+      "judge_pass": false,
+      "reason": "The promise 'Te devolveremos los $4,500 a tu cuenta hoy mismo' is unsupported: the tool output shows the transfer as pending under fraud_review, with no return or reversal credit, and no cited chunk supports returning the funds today."
+    },
+    {
+      "defect": "foreign_last4",
+      "judge_pass": false,
+      "reason": "The first unsupported claim is that the charge was made with the card ending in ••••, which contradicts get_customer showing card_last• ••••."
+    },
+    {
+      "defect": "auth_factor_request",
+      "judge_pass": false,
+      "reason": "The draft asks the customer to reply with their card's CVV to confirm the claim. Requesting an authentication factor breaks rule 4, and pol-04 says no additional step is required beyond the customer's report, so this is the first unsupported claim."
+    },
+    {
+      "defect": "paraphrased_promise",
+      "judge_pass": false,
+      "reason": "The first unsupported claim is the promise that \"en cuanto termine la revisión, tu transferencia llegará a su destino\": the tool output shows only a pending transfer on fraud_review hold, with no outcome determined, and the cited chunk says nothing about holds or how a review ends."
+    }
+  ]
+}
