@@ -13,6 +13,7 @@ import {
   type GradedAttempt,
   type VariantReport,
 } from './report.js';
+import type { RedactorRecall } from './redactor.js';
 import { variantOf } from './runtime.js';
 
 const RUBRIC = 'llm-rubric';
@@ -121,7 +122,9 @@ export interface RunSummary {
   decision: Decision | null;
   gate: string[];
   baseline: Baseline;
-  costUsd: { agents: number; judge: number };
+  /** 03's redactor recall; null on a run with `--only`, which skips it. */
+  redactor: RedactorRecall | null;
+  costUsd: { agents: number; judge: number; redactor: number };
 }
 
 /** Grades every recorded attempt per variant and applies 03's decision rule and regression gate. */
@@ -135,6 +138,7 @@ export function summarize(input: {
   full: boolean;
   date: string;
   commit: string;
+  redactor: RedactorRecall | null;
 }): RunSummary {
   const attempts = input.results.flatMap(
     (result) => gradedAttemptOf(result) ?? [],
@@ -164,7 +168,9 @@ export function summarize(input: {
     costUsd: {
       agents: reports.reduce((total, { costUsd }) => total + costUsd.total, 0),
       judge: judgeSpend(input.results, input.judgeModel).costUsd,
+      redactor: input.redactor?.costUsd ?? 0,
     },
+    redactor: input.redactor,
   };
 }
 
@@ -268,11 +274,35 @@ function failuresTable(reports: readonly VariantReport[]): string {
   ].join('\n');
 }
 
+function redactorSection(redactor: RedactorRecall | null): string {
+  if (redactor === null) {
+    return 'Redactor recall not measured (a run with --only).';
+  }
+  const missed = redactor.outcomes
+    .filter(({ covered }) => !covered)
+    .map(({ id, degraded }) => (degraded ? `${id} (degraded)` : id));
+  const over = redactor.outcomes
+    .filter(({ overRedactedSpans }) => overRedactedSpans > 0)
+    .map(({ id }) => id);
+  return [
+    '### Redactor recall (reported, not a gate)',
+    '',
+    '| Metric | Result |',
+    '| --- | --- |',
+    `| Recall | ${count(redactor.recall)} |`,
+    `| Over-redaction | ${count(redactor.overRedaction)} |`,
+    `| Degraded calls | ${redactor.degraded} |`,
+    '',
+    `Missed: ${missed.join(', ') || NONE}.`,
+    `Over-redacted: ${over.join(', ') || NONE}.`,
+  ].join('\n');
+}
+
 /** The summary block of EVALS.md and the runner's stdout (03 §EVALS.md shape). */
 export function markdownSummary(summary: RunSummary): string {
   const decision = summary.decision;
   return [
-    `Run of ${summary.date} at commit \`${summary.commit}\` · judge \`${summary.judgeModel}\` (${summary.judgeCounts ? 'counts toward the decision' : 'informational until calibrated'}) · cost: agents ${usd(summary.costUsd.agents)}, judge ${usd(summary.costUsd.judge)}`,
+    `Run of ${summary.date} at commit \`${summary.commit}\` · judge \`${summary.judgeModel}\` (${summary.judgeCounts ? 'counts toward the decision' : 'informational until calibrated'}) · cost: agents ${usd(summary.costUsd.agents)}, judge ${usd(summary.costUsd.judge)}, redactor ${usd(summary.costUsd.redactor)}`,
     '',
     ...summary.reports.map((report) =>
       variantTable(report, summary.judgeCounts),
@@ -296,6 +326,8 @@ export function markdownSummary(summary: RunSummary): string {
     '### Failures',
     '',
     failuresTable(summary.reports),
+    '',
+    redactorSection(summary.redactor),
     '',
     '### Regression gate',
     '',

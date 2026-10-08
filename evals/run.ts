@@ -30,6 +30,8 @@ import {
   type EvalAttempt,
   type Variant,
 } from './provider.js';
+import { REDACTOR_CASES } from './redactor-cases.js';
+import { redactorRecall, type RedactorRecall } from './redactor.js';
 import type { Baseline } from './report.js';
 import {
   readBaseline,
@@ -120,6 +122,7 @@ export function concludeRun(input: {
   now: Date;
   commit: string;
   spend: { agentsUsd: number; capUsd: number };
+  redactor: RedactorRecall | null;
 }): RunConclusion {
   const timestamp = input.now.toISOString();
   const incomplete = input.outcomes
@@ -168,6 +171,7 @@ export function concludeRun(input: {
     full,
     date: meta.date,
     commit: input.commit,
+    redactor: input.redactor,
   });
   const lines = [
     ...outcomeLines,
@@ -286,6 +290,11 @@ async function main(): Promise<void> {
         agentsUsd: cap.spentUsd(),
         capUsd: settings.EVAL_SPEND_CAP_USD,
       },
+      redactor:
+        flags.only === null &&
+        outcomes.every(({ unrunAttempts }) => unrunAttempts === 0)
+          ? await redactorRecall(REDACTOR_CASES, harness.redact)
+          : null,
     });
     const path = await writeRunRecord(RESULTS_DIR, conclusion.record);
     for (const line of conclusion.lines) console.log(line);
