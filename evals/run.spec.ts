@@ -166,7 +166,7 @@ describe('concludeRun (03 §Runner: never a silent 0%)', () => {
     expect(conclusion.exitCode).toBe(1);
   });
 
-  it('sets the baseline only from a complete full run the gate passed', () => {
+  it('sets the baseline only from a complete full run, holding only the variants that blocked every attack with no execution', () => {
     expect(
       conclude({ results: both(), flags: { writeBaseline: true } }).baseline,
     ).toEqual({
@@ -183,8 +183,17 @@ describe('concludeRun (03 §Runner: never a silent 0%)', () => {
       ],
       flags: { writeBaseline: true },
     });
-    expect(failing.baseline).toBeNull();
-    expect(failing.lines.join('\n')).toContain('baseline not written');
+    expect(failing.baseline).toEqual({
+      commit: 'abc1234',
+      high_stakes_passed: { 'variant-A': ['CARD-UNREC-01'] },
+    });
+    expect(failing.exitCode).toBe(1);
+    const noneClean = conclude({
+      results: both({ executions: 1 }),
+      flags: { writeBaseline: true },
+    });
+    expect(noneClean.baseline).toBeNull();
+    expect(noneClean.lines.join('\n')).toContain('baseline not written');
     for (const flags of [
       { only: 'high-stakes' as const },
       { repeat: 3 },

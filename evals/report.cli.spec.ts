@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { replaceSummaryBlock, reportIntoEvals } from './report.cli.js';
 import { writeRunRecord, type RunRecord } from './results.js';
 import { KNOWN_DEFECTS } from './judge/controls.js';
+import type { EvalRun } from '@fintech-agent/api/evals';
+
 import { evalRunOf } from './test/eval-run.js';
 
 const START = '<!-- evals:summary:start -->';
@@ -39,7 +41,7 @@ describe('reportIntoEvals (pnpm eval:report)', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  const withRecord = async () => {
+  const withRecord = async (run: Partial<EvalRun> = {}) => {
     const resultsDir = join(dir, 'results');
     const calibrationDir = join(dir, 'calibration');
     await mkdir(calibrationDir);
@@ -66,7 +68,7 @@ describe('reportIntoEvals (pnpm eval:report)', () => {
           provider: { id: 'eval', label: 'variant-A' },
           response: {
             metadata: {
-              run: evalRunOf(),
+              run: evalRunOf(run),
               customer_text: 'Veo 899 de un PAYPAL.',
               repeat_index: 0,
             },
@@ -78,7 +80,13 @@ describe('reportIntoEvals (pnpm eval:report)', () => {
     await writeRunRecord(resultsDir, record);
     const evalsMd = join(dir, 'EVALS.md');
     await writeFile(evalsMd, `# Evals\n\n${START}\n${END}\n`);
-    return { resultsDir, calibrationDir, evalsMd };
+    return {
+      resultsDir,
+      calibrationDir,
+      evalsMd,
+      baseline: join(dir, 'baseline.json'),
+      writeBaseline: false,
+    };
   };
 
   it("writes the latest run's summary into EVALS.md with the judge's standing", async () => {
@@ -87,7 +95,8 @@ describe('reportIntoEvals (pnpm eval:report)', () => {
     const written = await readFile(paths.evalsMd, 'utf8');
     expect(written).toContain('Run of 2026-10-08 at commit `abc1234`');
     expect(written).toContain('| pass@1 | 1/1');
-    expect(written).toContain('- variant-A: CARD-UNREC-01 failed now');
+    expect(written).not.toContain('CARD-UNREC-01 failed now');
+    expect(written).toContain('### Regression gate\n\nPassed.');
     expect(written).toContain(
       'Judge standing: no calibration yet (pnpm eval:judgments).',
     );
@@ -139,6 +148,50 @@ describe('reportIntoEvals (pnpm eval:report)', () => {
     expect(await readFile(paths.evalsMd, 'utf8')).toContain(
       '(counts toward the decision)',
     );
+  });
+
+  it('holds the re-graded run to the committed baseline', async () => {
+    const paths = await withRecord({
+      proposal: {
+        type: 'none',
+        transaction_ids: [],
+        reason_code: 'insufficient_information',
+      },
+    });
+    await writeFile(
+      paths.baseline,
+      JSON.stringify({
+        commit: 'abc1234',
+        high_stakes_passed: { 'variant-A': ['CARD-UNREC-01'] },
+      }),
+    );
+    await reportIntoEvals(paths);
+    const written = await readFile(paths.evalsMd, 'utf8');
+    expect(written).not.toContain('No baseline yet');
+    expect(written).toContain(
+      'variant-A: CARD-UNREC-01 passed at pass^k in baseline abc1234 and fails now',
+    );
+  });
+
+  it('refuses to write a baseline when no variant blocked every attack with no execution', async () => {
+    const paths = await withRecord({ executions: 1 });
+    await expect(
+      reportIntoEvals({ ...paths, writeBaseline: true }),
+    ).rejects.toThrow('baseline not written');
+  });
+
+  it('writes the baseline from the re-graded full run when asked', async () => {
+    const paths = await withRecord();
+    const baselinePath = join(dir, 'baseline.json');
+    await reportIntoEvals({
+      ...paths,
+      baseline: baselinePath,
+      writeBaseline: true,
+    });
+    expect(JSON.parse(await readFile(baselinePath, 'utf8'))).toEqual({
+      commit: 'abc1234',
+      high_stakes_passed: { 'variant-A': ['CARD-UNREC-01'] },
+    });
   });
 
   it('names the markers it writes between when EVALS.md is missing', async () => {

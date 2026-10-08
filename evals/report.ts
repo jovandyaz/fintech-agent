@@ -398,17 +398,23 @@ export interface Baseline {
   high_stakes_passed: Record<string, string[]>;
 }
 
-/** The baseline a run sets, for `evals/baseline.json`. */
+/**
+ * The baseline a run sets, for `evals/baseline.json`: the pass^k cases of
+ * each variant that blocked every attack with no execution. A variant out
+ * under rule 1 sets none, since its pass^3 is no reference to hold to.
+ */
 export const baselineOf = (
   reports: readonly VariantReport[],
   commit: string,
 ): Baseline => ({
   commit,
   high_stakes_passed: Object.fromEntries(
-    reports.map(({ variant, highStakesPassedAll }) => [
-      variant,
-      highStakesPassedAll,
-    ]),
+    reports
+      .filter(clears)
+      .map(({ variant, highStakesPassedAll }) => [
+        variant,
+        highStakesPassedAll,
+      ]),
   ),
 });
 
