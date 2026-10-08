@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { pricingOf } from './prices.js';
 
 describe('pricingOf', () => {
-  it('prices the Sonnet and Haiku models per token, cache rates included', () => {
+  it('prices the Sonnet and Haiku models per token, cache rates included (Sonnet 5.5 reads cache at 0.05× input)', () => {
     expect(pricingOf('claude-sonnet-5-5')).toEqual({
       inputCostPerToken: 2e-6,
       outputCostPerToken: 10e-6,
-      cacheReadInputTokenCost: 0.2e-6,
+      cacheReadInputTokenCost: 0.1e-6,
       cacheCreationInputTokenCost: 2.5e-6,
     });
     expect(pricingOf('claude-haiku-5-5')).toEqual({

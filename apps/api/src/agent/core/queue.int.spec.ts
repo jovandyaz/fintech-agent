@@ -16,6 +16,7 @@ import {
   LEASE_EXPIRED,
   MAX_ATTEMPTS,
   StaleClaimError,
+  claimCase,
   claimNextCase,
   releaseForRetry,
   withClaim,
@@ -42,6 +43,12 @@ async function queued(dueAt: Date = T0): Promise<string> {
   const id = nextId();
   await insertCase(owner, id);
   await owner`update cases set next_attempt_at = ${dueAt} where id = ${id}`;
+  return id;
+}
+
+async function queuedEval(dueAt: Date = T0): Promise<string> {
+  const id = await queued(dueAt);
+  await owner`update cases set source = 'eval' where id = ${id}`;
   return id;
 }
 
@@ -206,11 +213,77 @@ describe('claimNextCase', () => {
     });
   });
 
+  it('never claims an eval case: the eval runner claims its own, by id (03 §Runner)', async () => {
+    await queuedEval(later(-LEASE_MS));
+    expect(await claimAt(T0)).toBeNull();
+  });
+
   it('cannot leave a case investigating without a token and a lease', async () => {
     const id = await queued();
     await expect(
       owner`update cases set status = 'investigating' where id = ${id}`,
     ).rejects.toMatchObject({ code: CHECK_VIOLATION });
+  });
+});
+
+describe('claimCase', () => {
+  it('claims exactly the named queued case, whatever else is due first', async () => {
+    await queued(later(-LEASE_MS));
+    const id = await queuedEval();
+    const claim = await claimCase(db, id, {
+      now: T0,
+      runTimeoutMs: RUN_TIMEOUT_MS,
+    });
+    expect(claim).toMatchObject({ caseId: id, attempt: 1 });
+    const row = await caseRow(id);
+    expect(row).toMatchObject({
+      status: 'investigating',
+      attempts: 1,
+      claim_token: claim!.claimToken,
+    });
+    expect(row.locked_until).toEqual(later(LEASE_MS));
+  });
+
+  it('hands one eval case to only one of many concurrent claims', async () => {
+    const id = await queuedEval();
+    const options = { now: T0, runTimeoutMs: RUN_TIMEOUT_MS };
+    const claims = await Promise.all(
+      Array.from({ length: RACES }, () => claimCase(db, id, options)),
+    );
+    expect(claims.filter((claim) => claim !== null)).toHaveLength(1);
+  });
+
+  it('claims a case once: a second claim finds it investigating', async () => {
+    const id = await queuedEval();
+    const options = { now: T0, runTimeoutMs: RUN_TIMEOUT_MS };
+    expect(await claimCase(db, id, options)).not.toBeNull();
+    expect(await claimCase(db, id, options)).toBeNull();
+  });
+
+  it('claims only eval cases, never a webhook case the worker owns', async () => {
+    const id = await queued();
+    expect(
+      await claimCase(db, id, { now: T0, runTimeoutMs: RUN_TIMEOUT_MS }),
+    ).toBeNull();
+  });
+
+  it('never claims a case holding a canary without its marker (02 G3)', async () => {
+    const { caseId } = await seedProposal(owner, `qe${++sequence}`, {
+      canary: true,
+      caseStatus: 'queued',
+    });
+    await owner`update cases set source = 'eval' where id = ${caseId}`;
+    expect(
+      await claimCase(db, caseId, { now: T0, runTimeoutMs: RUN_TIMEOUT_MS }),
+    ).toBeNull();
+  });
+
+  it('claims nothing for a case that is not queued', async () => {
+    const id = await queuedEval();
+    await owner`update cases set status = 'resolved' where id = ${id}`;
+    expect(
+      await claimCase(db, id, { now: T0, runTimeoutMs: RUN_TIMEOUT_MS }),
+    ).toBeNull();
   });
 });
 
