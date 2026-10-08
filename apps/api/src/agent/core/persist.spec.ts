@@ -87,7 +87,7 @@ const failedValidation = (
       transaction_ids: [],
       reason_code: 'insufficient_information',
       justification:
-        'Validation failed after one repair: CITATION_QUOTE_MISMATCH',
+        'La propuesta no pasó la validación después de un intento de corrección (CITATION_QUOTE_MISMATCH).',
     },
     conflicts,
     evidence,
@@ -195,7 +195,9 @@ describe('settle: an accepted resolution (01 §Persist)', () => {
     expect(settled.resolution).toBeNull();
     expect(settled.category).toBeNull();
     expect(settled.action.type).toBe('none');
-    expect(settled.action.justification).toContain('LINK_IN_REPLY');
+    expect(settled.action.justification).toBe(
+      'La respuesta, ya con los datos del cliente, no pasó las revisiones (LINK_IN_REPLY).',
+    );
     expect(settled.flags).toContain('fallback');
   });
 
@@ -212,7 +214,9 @@ describe('settle: an accepted resolution (01 §Persist)', () => {
     expect(settled.stopReason).toBe('error');
     expect(settled.resolution).toBeNull();
     expect(settled.action.type).toBe('none');
-    expect(settled.action.justification).toBe('Placeholder fill failed');
+    expect(settled.action.justification).toBe(
+      'No se pudo completar la respuesta con los datos del cliente.',
+    );
     expect(logs).toEqual([
       expect.objectContaining({ event: 'placeholder_fill_failed' }),
     ]);
@@ -285,7 +289,9 @@ describe('settle: the fallback (01 §Agent pipeline)', () => {
       category: null,
     });
     expect(settled.action.type).toBe('none');
-    expect(settled.action.justification).toContain('budget');
+    expect(settled.action.justification).toBe(
+      'La investigación agotó su presupuesto antes de terminar.',
+    );
     expect(settled.flags).toContain('fallback');
   });
 
@@ -300,8 +306,8 @@ describe('settle: the fallback (01 §Agent pipeline)', () => {
       context(),
     );
     expect(settled.stopReason).toBe('error');
-    expect(settled.action.justification).toContain(
-      'tool_failed:get_spei_status',
+    expect(settled.action.justification).toBe(
+      'La investigación se detuvo antes de terminar (tool_failed:get_spei_status).',
     );
   });
 
@@ -336,7 +342,10 @@ describe('settle: the fallback (01 §Agent pipeline)', () => {
       flags: ['fallback'],
       reviewTier: 'high',
     });
-    expect(settled.action.type).toBe('none');
+    expect(settled.action).toMatchObject({
+      type: 'none',
+      justification: 'El agente está apagado: el caso no se investigó.',
+    });
   });
 
   it('keeps the intake injection flag and the dispute history with the agent off', () => {

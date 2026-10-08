@@ -16,6 +16,7 @@ import {
   type ChunkStateRules,
   type PolicyConflict,
 } from './state-rules.js';
+import { FALLBACK_REASON } from '../fallback-reason.js';
 
 export interface ValidationContext {
   evidence: RunEvidence;
@@ -55,7 +56,7 @@ function forcedNone(
   const ruleIds = [...new Set(conflicts.map(({ rule_id }) => rule_id))];
   return {
     ...resolution,
-    proposed_action: noneAction(`POLICY_DATA_CONFLICT: ${ruleIds.join(', ')}`),
+    proposed_action: noneAction(FALLBACK_REASON.policyConflict(ruleIds)),
   };
 }
 

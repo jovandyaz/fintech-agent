@@ -2,7 +2,7 @@ import {
   APPROVED_FACTOR_WARNINGS,
   MAX_REPLY_CHARS,
 } from '@fintech-agent/contracts/console';
-import { useLayoutEffect, useRef } from 'react';
+import { useId, useLayoutEffect, useRef } from 'react';
 
 const ENDS_IN_SPACE = /\s$/;
 const STARTS_WITH_SPACE = /^\s/;
@@ -34,6 +34,7 @@ export function ReplyEditor(props: {
   onChange: (value: string) => void;
 }) {
   const field = useRef<HTMLTextAreaElement>(null);
+  const replyFieldId = useId();
   const caretAfterInsert = useRef<number | null>(null);
   // A value set from code puts the caret at the end; it belongs after the
   // sentence just inserted.
@@ -55,16 +56,17 @@ export function ReplyEditor(props: {
     props.value.length + sentence.length + SEPARATORS <= MAX_REPLY_CHARS;
   return (
     <div className="reply-editor">
-      <label>
-        Respuesta al cliente
+      <div className="field">
+        <label htmlFor={replyFieldId}>Respuesta al cliente</label>
         <textarea
+          id={replyFieldId}
           ref={field}
           rows={8}
           maxLength={MAX_REPLY_CHARS}
           value={props.value}
           onChange={(event) => props.onChange(event.target.value)}
         />
-      </label>
+      </div>
       <div className="reply-inserts">
         {APPROVED_FACTOR_WARNINGS.map((sentence) => (
           <button

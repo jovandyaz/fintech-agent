@@ -7,6 +7,7 @@ import type {
 import type { RunEvidence } from './evidence.js';
 import { noneAction, validate, type ValidationContext } from './index.js';
 import type { PolicyConflict } from './state-rules.js';
+import { FALLBACK_REASON } from '../fallback-reason.js';
 
 const RUN_KIND = { valid: 'valid', fallback: 'fallback' } as const;
 
@@ -98,9 +99,7 @@ export async function validateWithRepair(
   return {
     kind: RUN_KIND.fallback,
     codes: retried.codes,
-    action: noneAction(
-      `Validation failed after one repair: ${retried.codes.join(', ')}`,
-    ),
+    action: noneAction(FALLBACK_REASON.repairFailed(retried.codes)),
     conflicts: retried.conflicts,
     evidence,
   };

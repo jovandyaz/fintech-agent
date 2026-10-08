@@ -297,7 +297,9 @@ describe('persistRun (01 §Agent pipeline, Persist)', () => {
     const [proposal] = await owner`
       select type, justification from proposed_actions where run_id = ${claimed.runId}`;
     expect(proposal!.type).toBe('none');
-    expect(proposal!.justification).toContain('budget');
+    expect(proposal!.justification).toBe(
+      'La investigación agotó su presupuesto antes de terminar.',
+    );
     expect(await caseRow(claimed.claim.caseId)).toMatchObject({
       status: 'needs_review',
       category: null,

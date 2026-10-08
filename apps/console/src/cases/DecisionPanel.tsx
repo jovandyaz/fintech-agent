@@ -113,12 +113,17 @@ export function DecisionPanel(props: {
   proposal: ProposalView;
   options: OverrideOptions | null;
   draft: string;
-  onDecided: (status: ActionStatus) => void;
+  /** The answer's status, and the action type the decision named. */
+  onDecided: (status: ActionStatus, type: ActionType) => void;
   onConflict: () => void;
 }) {
   const api = useApi();
   const flight = useSingleFlight();
   const headingId = useId();
+  const actionFieldId = useId();
+  const reasonFieldId = useId();
+  const rejectCodeFieldId = useId();
+  const rejectNoteFieldId = useId();
   const approveHintId = useId();
   const rejectHintId = useId();
   const { proposal, options } = props;
@@ -146,7 +151,13 @@ export function DecisionPanel(props: {
         decision,
         DecisionAnswerSchema,
       ),
-    onSuccess: ({ status }) => props.onDecided(status),
+    onSuccess: ({ status }, decision) =>
+      props.onDecided(
+        status,
+        decision.decision === 'approve'
+          ? (decision.override?.type ?? proposal.type)
+          : proposal.type,
+      ),
     onError: (error) => {
       if (
         error instanceof ApiError &&
@@ -267,9 +278,10 @@ export function DecisionPanel(props: {
         {overriding && (
           <fieldset>
             <legend>Otra acción</legend>
-            <label>
-              Acción
+            <div className="field">
+              <label htmlFor={actionFieldId}>Acción</label>
               <select
+                id={actionFieldId}
                 value={overrideType}
                 onChange={(event) => {
                   const type = oneOf(ACTION_TYPES, event.target.value);
@@ -284,7 +296,7 @@ export function DecisionPanel(props: {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
             {choice && choice.max > 0 && (
               <fieldset>
                 <legend>
@@ -303,9 +315,10 @@ export function DecisionPanel(props: {
                 ))}
               </fieldset>
             )}
-            <label>
-              Motivo
+            <div className="field">
+              <label htmlFor={reasonFieldId}>Motivo</label>
               <select
+                id={reasonFieldId}
                 value={reason}
                 onChange={(event) =>
                   setReason(oneOf(REASON_CODES, event.target.value) ?? reason)
@@ -317,7 +330,7 @@ export function DecisionPanel(props: {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
           </fieldset>
         )}
 
@@ -355,9 +368,10 @@ export function DecisionPanel(props: {
 
       <fieldset className="decision-reject">
         <legend>Rechazar la propuesta</legend>
-        <label>
-          Motivo del rechazo
+        <div className="field">
+          <label htmlFor={rejectCodeFieldId}>Motivo del rechazo</label>
           <select
+            id={rejectCodeFieldId}
             value={rejectCode ?? NO_REJECT_CODE}
             onChange={(event) =>
               setRejectCode(oneOf(REJECT_CODES, event.target.value))
@@ -370,16 +384,19 @@ export function DecisionPanel(props: {
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          Nota interna (no se envía al cliente)
+        </div>
+        <div className="field">
+          <label htmlFor={rejectNoteFieldId}>
+            Nota interna (no se envía al cliente)
+          </label>
           <textarea
+            id={rejectNoteFieldId}
             rows={3}
             maxLength={MAX_REJECT_REASON_CHARS}
             value={rejectReason}
             onChange={(event) => setRejectReason(event.target.value)}
           />
-        </label>
+        </div>
         {toReject.length > 0 && (
           <p id={rejectHintId} className="hint">
             {`Para rechazar falta: ${toReject.join(', ')}.`}

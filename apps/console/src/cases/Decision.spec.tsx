@@ -582,6 +582,71 @@ describe('decision panel (02 G3)', () => {
     expect(seen.filter(({ method }) => method === 'POST')).toHaveLength(1);
   });
 
+  it('says an approved reply without an action has nothing to execute', async () => {
+    const data = detail();
+    const noAction = {
+      ...data,
+      case: { ...data.case, review_tier: 'standard' as const, flags: [] },
+      proposal: {
+        ...data.proposal!,
+        type: 'none' as const,
+        params: { transaction_ids: [], reason_code: 'informational' as const },
+      },
+    };
+    openCase(noAction, { [DECISION]: answer('approved') });
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Responder sin acción' }),
+    );
+    expect((await screen.findByRole('status')).textContent).toBe(
+      'Aprobaste la respuesta. No hay acción que ejecutar.',
+    );
+  });
+
+  it('says the executor will act when a reply without an action is overridden to one', async () => {
+    const data = detail();
+    openCase(
+      {
+        ...data,
+        case: { ...data.case, review_tier: 'standard', flags: [] },
+        proposal: {
+          ...data.proposal!,
+          type: 'none',
+          params: { transaction_ids: [], reason_code: 'informational' },
+        },
+      },
+      { [DECISION]: answer('approved') },
+    );
+    await screen.findByRole('button', { name: 'Responder sin acción' });
+    check('Cambiar la acción propuesta');
+    fireEvent.change(screen.getByLabelText('Acción'), {
+      target: { value: 'open_dispute' },
+    });
+    check(/^tx_card01/);
+    fireEvent.click(button('Abrir aclaración sobre tx_card01'));
+    expect((await screen.findByRole('status')).textContent).toBe(
+      'Aprobaste la propuesta. El ejecutor aplicará la acción.',
+    );
+  });
+
+  it('shows an approved proposal without an action as having nothing to execute', async () => {
+    const data = detail();
+    openCase({
+      ...data,
+      case: { ...data.case, status: 'resolved' },
+      proposal: {
+        ...data.proposal!,
+        type: 'none',
+        params: { transaction_ids: [], reason_code: 'informational' },
+        status: 'approved',
+      },
+    });
+    expect(
+      await screen.findByText(
+        'Estado de la propuesta: Aprobada, sin acción que ejecutar',
+      ),
+    ).toBeTruthy();
+  });
+
   it('shows a decided proposal by its outcome, with nothing left to decide', async () => {
     const data = detail();
     openCase({

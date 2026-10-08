@@ -28,6 +28,7 @@ import {
   resolutions,
   runSteps,
 } from '../../database/schema.js';
+import { FALLBACK_REASON } from './fallback-reason.js';
 import { replyViolations } from '../../replies/reply-checks.js';
 import { traceTotals, type AgentOutcome, type StepRecord } from './agent.js';
 import { MS_PER_DAY } from './calendar.js';
@@ -177,13 +178,13 @@ function acceptedSettlement(
     });
   } catch (error) {
     context.log({ event: FILL_FAILED, error: maskPii(String(error)) });
-    return fallback(STOP.error, 'Placeholder fill failed');
+    return fallback(STOP.error, FALLBACK_REASON.fillFailed);
   }
   const violations = replyViolations(draft);
   if (violations.length > 0) {
     return fallback(
       STOP.validation,
-      `Filled reply failed: ${violations.join(', ')}`,
+      FALLBACK_REASON.filledReplyFailed(violations),
     );
   }
   const flags: CaseFlag[] = factFlags(resolution, evidence, {
@@ -219,7 +220,7 @@ export function settle(
       return fallbackSettlement(
         {
           stopReason: STOP.agentDisabled,
-          action: noneAction('Agent disabled (AGENT_MODE=off)'),
+          action: noneAction(FALLBACK_REASON.agentDisabled),
           evidence: null,
           injectionSignal: outcome.injectionSignal,
           hasConflicts: false,
@@ -230,7 +231,7 @@ export function settle(
       return fallbackSettlement(
         {
           stopReason: outcome.stopReason,
-          action: noneAction(`Run stopped: ${outcome.reason}`),
+          action: noneAction(FALLBACK_REASON.stopped(outcome.reason)),
           evidence: outcome.evidence,
           injectionSignal: outcome.evidence.injectionSignal,
           hasConflicts:

@@ -15,7 +15,8 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:hooks",
     "test": "vitest run && pnpm test:hooks",
     "canary:inject": "pnpm --filter @fintech-agent/api canary:inject",
-    "demo:post": "pnpm --filter @fintech-agent/api demo:post"
+    "demo:post": "pnpm --filter @fintech-agent/api demo:post",
+    "e2e": "pnpm --filter @fintech-agent/e2e e2e"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

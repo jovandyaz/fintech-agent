@@ -3,6 +3,8 @@ import {
   CaseDetailSchema,
   OPEN_PROPOSAL,
   type ActionStatus,
+  type ActionType,
+  type ProposalView,
 } from '@fintech-agent/contracts/console';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
@@ -41,6 +43,26 @@ const DECIDED: Record<ActionStatus, string> = {
   canary_missed: `${CANARY_TOLD} Se aprobó sin detectarlo; no se ejecuta nada.`,
 };
 
+// The executor never picks up a `none` (it has no effect to apply), so an
+// approved one is final, not waiting.
+const NO_ACTION: ActionType = 'none';
+const APPROVED_STATUS: ActionStatus = 'approved';
+
+interface Decided {
+  status: ActionStatus;
+  type: ActionType;
+}
+
+const decidedText = ({ status, type }: Decided): string =>
+  status === APPROVED_STATUS && type === NO_ACTION
+    ? 'Aprobaste la respuesta. No hay acción que ejecutar.'
+    : DECIDED[status];
+
+const proposalStatusText = (proposal: ProposalView): string =>
+  proposal.status === APPROVED_STATUS && proposal.type === NO_ACTION
+    ? 'Aprobada, sin acción que ejecutar'
+    : ACTION_STATUS_LABEL[proposal.status];
+
 const caseKey = (caseId: string): readonly ['case', string] => ['case', caseId];
 
 /**
@@ -55,7 +77,7 @@ export function CaseView(props: { caseId: string; onClose: () => void }) {
   const headingId = useId();
   const textId = useId();
   const traceId = useId();
-  const [decided, setDecided] = useState<ActionStatus | null>(null);
+  const [decided, setDecided] = useState<Decided | null>(null);
   const detail = useQuery({
     queryKey: caseKey(props.caseId),
     queryFn: () => api.get(API_PATH.case(props.caseId), CaseDetailSchema),
@@ -143,7 +165,7 @@ export function CaseView(props: { caseId: string; onClose: () => void }) {
           role="status"
           tabIndex={-1}
         >
-          {DECIDED[decided]}
+          {decidedText(decided)}
         </p>
       )}
       {proposal && decidable && (
@@ -153,15 +175,15 @@ export function CaseView(props: { caseId: string; onClose: () => void }) {
           proposal={proposal}
           options={detail.data.override_options}
           draft={resolution?.draft_reply ?? ''}
-          onDecided={(status) => {
-            setDecided(status);
+          onDecided={(status, type) => {
+            setDecided({ status, type });
             refresh();
           }}
           onConflict={refresh}
         />
       )}
       {proposal && proposal.status !== OPEN_PROPOSAL && (
-        <p className="decided">{`Estado de la propuesta: ${ACTION_STATUS_LABEL[proposal.status]}`}</p>
+        <p className="decided">{`Estado de la propuesta: ${proposalStatusText(proposal)}`}</p>
       )}
       <section className="panel-section" aria-labelledby={traceId}>
         <h3 id={traceId}>Investigaciones del agente</h3>

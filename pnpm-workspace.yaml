@@ -3,6 +3,7 @@ packages:
   - packages/*
   - data
   - evals
+  - e2e
 allowBuilds:
   cpu-features: false
   esbuild: true
