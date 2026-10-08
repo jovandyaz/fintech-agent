@@ -84,6 +84,28 @@ describe('loadApiConfig', () => {
     expect(loadApiConfig({ ...ENV, AGENT_MODE: 'off' }).AGENT_MODE).toBe('off');
   });
 
+  it('runs the worker by default and polls every second when idle', () => {
+    expect(loadApiConfig(ENV)).toMatchObject({
+      AGENT_WORKER: 'on',
+      AGENT_POLL_MS: 1_000,
+    });
+  });
+
+  it('refuses an AGENT_WORKER other than on or off', () => {
+    expect(() => loadApiConfig({ ...ENV, AGENT_WORKER: 'paused' })).toThrow(
+      /AGENT_WORKER/,
+    );
+  });
+
+  it.each(['0', '-1', '1.5', '60001'])(
+    'refuses AGENT_POLL_MS=%s: Node clamps an oversized timer to 1 ms',
+    (value) => {
+      expect(() => loadApiConfig({ ...ENV, AGENT_POLL_MS: value })).toThrow(
+        /AGENT_POLL_MS/,
+      );
+    },
+  );
+
   it('refuses an AGENT_MODE other than on or off', () => {
     expect(() => loadApiConfig({ ...ENV, AGENT_MODE: 'paused' })).toThrow(
       /AGENT_MODE/,
