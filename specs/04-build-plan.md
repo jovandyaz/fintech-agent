@@ -126,8 +126,9 @@ Done when: `pnpm eval` prints every metric in 03 for both variants, cost and lat
   - **New case form**: pick a customer, type the text, submit. It takes the real webhook path, so the interview cases need no code change.
   - Case detail: trace (tool calls with masked args, retrieval, validator codes, cost, latency), reasoning summary, citations, editable reply.
   - Operator sign-in with a token (dev tokens in the README); no operator selector.
-  - Decision: edited reply, approve or reject. Flags sit next to Approve and need an explicit acknowledgment; on `high` tier each transaction is checked off; an override picks another allowed action and transactions; the Approve button names the effect ("Abrir aclaración sobre tx_…"); reject requires a `reject_code`. After deciding a canary, the operator is told it was one. **Run / Re-run agent** on any case (max 3 re-runs). A banner shows when `AGENT_MODE=off`.
+  - Decision: edited reply, approve or reject. Flags sit next to Approve and need an explicit acknowledgment; on `high` tier each transaction is checked off; an override picks another allowed action and transactions; the Approve button names the effect ("Abrir aclaración sobre tx_…"); reject requires a `reject_code`. After deciding a canary, the operator is told it was one. **Re-run agent**, one control because intake already queues the first run, on a case waiting for review, failed or resolved (02 G3, max 3 re-runs). A banner shows when `AGENT_MODE=off` or the API key is blank.
   - Everything rendered as plain text; CSP from 02 G7.
+- First end-to-end test through the UI: `pnpm e2e` (Playwright, package `e2e/`) against a fresh stack with the kill switch on, so it calls no model.
 
 Done when: `docker compose up` → sign in → submit a case in the form → it reaches `needs_review` → approve with an edited reply → case `resolved`, one `action_executions` row written by the executor container and one core-mock write log line; `pnpm demo:post ADV-01 ADV-06` shows both in the inbox with their flags; an injected canary approved ends `canary_missed` with no write. Webhook tests from 02 pass.
 
