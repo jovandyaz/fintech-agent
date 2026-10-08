@@ -222,6 +222,12 @@ export function createCoreMock(options: CoreMockOptions): CoreMock {
   function handleRead(req: IncomingMessage, url: URL): unknown {
     requireReader(req);
     const [, resource, id, sub] = url.pathname.split('/');
+    if (resource === 'customers' && id === undefined) {
+      return [...customers.values()].map((customer) => ({
+        id: customer.id,
+        first_name: customer.first_name,
+      }));
+    }
     if (!id) throw notFound();
     if (resource === 'customers' && sub === undefined) {
       const found = customers.get(id);

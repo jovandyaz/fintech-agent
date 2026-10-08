@@ -60,6 +60,7 @@ const capture: LoggerService = {
 };
 const fakeCore: CoreClient = {
   customer: () => Promise.resolve(null),
+  customerOptions: () => Promise.resolve([]),
   transactions: () => Promise.resolve(null),
   transaction: (id) => {
     coreCalls += 1;

@@ -136,6 +136,16 @@ describe('core-mock reads', () => {
     expect(await tx.json()).toEqual(speiOut);
   });
 
+  it('lists every customer by id and first name only, for the console picker', async () => {
+    const response = await read('/customers');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([
+      { id: OWNER, first_name: 'Ana' },
+      { id: OTHER, first_name: 'Ana' },
+    ]);
+    expect((await read('/customers', 'nope')).status).toBe(401);
+  });
+
   it('returns 404 for an unknown customer or transaction', async () => {
     expect((await read('/customers/cus_99')).status).toBe(404);
     expect((await read('/transactions/tx_nope')).status).toBe(404);

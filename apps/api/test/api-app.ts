@@ -39,6 +39,7 @@ export const HTTP = {
 /** A core-mock that holds nothing, for routes that never read it. */
 export const NO_CORE: CoreClient = {
   customer: () => Promise.resolve(null),
+  customerOptions: () => Promise.resolve([]),
   transaction: () => Promise.resolve(null),
   transactions: () => Promise.resolve(null),
 };

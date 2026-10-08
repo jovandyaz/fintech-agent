@@ -58,6 +58,26 @@ describe('createCoreClient', () => {
     ]);
   });
 
+  it('lists the customer options with the read key', async () => {
+    const options = [{ id: 'cus_01', first_name: 'Ana' }];
+    const { core, seen } = clientAnswering(() =>
+      Promise.resolve(Response.json(options)),
+    );
+    expect(await core.customerOptions()).toEqual(options);
+    expect(seen).toEqual([{ url: 'http://core/customers', key: READ_KEY }]);
+  });
+
+  it('refuses a customer list that carries more than the first name (02 G6)', async () => {
+    const { core } = clientAnswering(() =>
+      Promise.resolve(
+        Response.json([
+          { id: 'cus_01', first_name: 'Ana', last_names: 'Gómez Pérez' },
+        ]),
+      ),
+    );
+    await expect(core.customerOptions()).rejects.toThrow(CoreUnavailableError);
+  });
+
   it('encodes the id into one path segment', async () => {
     const { core, seen } = clientAnswering(() =>
       Promise.resolve(new Response(null, { status: 404 })),

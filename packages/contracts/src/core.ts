@@ -64,6 +64,13 @@ export const CustomerRecordSchema = z.object({
 });
 export type Customer = z.infer<typeof CustomerRecordSchema>;
 
+/** A customer as the console's new case picker lists them: id and first name only (02 G6). */
+export const CustomerOptionSchema = z.strictObject({
+  id: z.string().min(1),
+  first_name: z.string().min(1),
+});
+export type CustomerOption = z.infer<typeof CustomerOptionSchema>;
+
 const txBase = {
   id: z.string().min(1),
   customer_id: z.string().min(1),
