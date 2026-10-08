@@ -18,6 +18,7 @@ import {
   StaleClaimError,
   claimCase,
   claimNextCase,
+  failLeftoverEvalCases,
   releaseForRetry,
   withClaim,
   type Claim,
@@ -284,6 +285,41 @@ describe('claimCase', () => {
     expect(
       await claimCase(db, id, { now: T0, runTimeoutMs: RUN_TIMEOUT_MS }),
     ).toBeNull();
+  });
+});
+
+describe('failLeftoverEvalCases', () => {
+  it('fails the eval cases an earlier runner left queued or holding a dead lease, and abandons their runs', async () => {
+    const opened = await queuedEval();
+    const dead = await queuedEval();
+    await owner`
+      update cases set status = 'investigating', attempts = 1,
+        claim_token = gen_random_uuid(), locked_until = ${T0}
+      where id = ${dead}`;
+    await insertRun(dead, `run_${dead}`);
+    expect((await failLeftoverEvalCases(db, later(1))).sort()).toEqual(
+      [opened, dead].sort(),
+    );
+    for (const id of [opened, dead]) {
+      expect(await caseRow(id)).toMatchObject({
+        status: 'failed',
+        claim_token: null,
+        locked_until: null,
+      });
+    }
+    expect(await runRow(`run_${dead}`)).toEqual({
+      status: 'abandoned',
+      error_code: LEASE_EXPIRED,
+    });
+  });
+
+  it('leaves an eval case whose lease still runs, and every case the worker owns', async () => {
+    const live = await queuedEval();
+    await claimCase(db, live, { now: T0, runTimeoutMs: RUN_TIMEOUT_MS });
+    const webhook = await queued();
+    expect(await failLeftoverEvalCases(db, later(1))).toEqual([]);
+    expect(await caseRow(live)).toMatchObject({ status: 'investigating' });
+    expect(await caseRow(webhook)).toMatchObject({ status: 'queued' });
   });
 });
 

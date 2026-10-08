@@ -176,6 +176,43 @@ export async function claimCase(
 }
 
 /**
+ * Fails the eval cases an earlier eval run left behind: queued (opened and
+ * never claimed, or released for a retry no runner makes) or investigating
+ * past their lease. Their running runs end abandoned as `lease_expired`.
+ * The runner calls it before it opens a case, so a case of its own is
+ * never touched; one runner runs at a time, since a second one's queued
+ * cases would read as left behind. It returns the ids it failed.
+ */
+export async function failLeftoverEvalCases(
+  db: Database,
+  now: Date,
+): Promise<string[]> {
+  return db.transaction(async (tx) => {
+    const leftovers = await tx
+      .select({ id: cases.id })
+      .from(cases)
+      .where(
+        and(
+          eq(cases.source, EVAL),
+          or(
+            eq(cases.status, QUEUED),
+            and(eq(cases.status, INVESTIGATING), lt(cases.lockedUntil, now)),
+          ),
+        ),
+      )
+      .for(ROW_LOCK, { skipLocked: true });
+    for (const { id } of leftovers) {
+      await abandonRuns(tx, id, now);
+      await tx
+        .update(cases)
+        .set({ status: FAILED, ...released })
+        .where(eq(cases.id, id));
+    }
+    return leftovers.map(({ id }) => id);
+  });
+}
+
+/**
  * Runs `write` in a transaction that first locks the case and checks the
  * claim is still the case's current one (fencing); otherwise nothing is
  * written and `StaleClaimError` is thrown.
