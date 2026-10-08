@@ -17,7 +17,7 @@ const PRICES: ReadonlyMap<string, Required<ModelPricing>> = new Map([
     {
       inputCostPerToken: 2e-6,
       outputCostPerToken: 10e-6,
-      cacheReadInputTokenCost: 0.2e-6,
+      cacheReadInputTokenCost: 0.1e-6,
       cacheCreationInputTokenCost: 2.5e-6,
     },
   ],
@@ -36,7 +36,7 @@ const PRICES: ReadonlyMap<string, Required<ModelPricing>> = new Map([
 export const PRICED_MODELS = [SONNET_MODEL, HAIKU_MODEL] as const;
 
 /**
- * The price of a configured model id, as published on 2026-10-07 at
+ * The price of a configured model id, as published on 2026-10-08 at
  * https://platform.claude.com/docs/en/about-claude/pricing, with cache writes
  * at the 5-minute rate (a 1-hour cache write costs more); throws for a model
  * the table lacks.
