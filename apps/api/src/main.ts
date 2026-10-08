@@ -18,7 +18,7 @@ try {
     AppModule.register(config),
     { ...HTTP_APP_OPTIONS, logger },
   );
-  configureHttpApp(app);
+  configureHttpApp(app, { trustProxy: config.TRUST_PROXY });
   app.enableShutdownHooks();
   await app.listen(config.API_PORT);
 } catch (error) {

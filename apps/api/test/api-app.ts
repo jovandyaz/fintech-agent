@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { AddressInfo } from 'node:net';
 
 import type {
   ActionType,
@@ -49,29 +50,28 @@ const CLAIM_LEASE_MS = 300_000;
 
 export const DRAFT = 'Hola Ana, registramos tu aclaración con folio {{folio}}.';
 
-/** The real `AppModule` as `copilot_api`, with core-mock replaced by `core`. */
+/** The real `AppModule` as `copilot_api`, with core-mock replaced by `core` and `env` over the test settings. */
 export async function startApiApp(
   db: TestDatabase,
   core: CoreClient,
   logger: LoggerService | false = false,
+  env: Record<string, string> = {},
+  host = '127.0.0.1',
 ): Promise<{ app: INestApplication; base: string }> {
+  const config = loadApiConfig({
+    API_DATABASE_URL: db.urlFor('copilot_api'),
+    OPERATOR_TOKENS,
+    CORE_MOCK_URL: 'http://core-mock.invalid',
+    CORE_READ_KEY: 'unused-in-tests',
+    AGENT_WORKER: 'off',
+    MCP_URL: 'http://mcp.invalid/mcp',
+    MCP_AUDIENCE: 'http://mcp:3020/mcp',
+    CASE_TOKEN_KEY: 'unused-in-tests-case-token-key-0123',
+    WEBHOOK_SECRET,
+    ...env,
+  });
   const moduleRef = await Test.createTestingModule({
-    imports: [
-      AppModule.register({
-        ...loadApiConfig({
-          API_DATABASE_URL: db.urlFor('copilot_api'),
-          OPERATOR_TOKENS,
-          CORE_MOCK_URL: 'http://core-mock.invalid',
-          CORE_READ_KEY: 'unused-in-tests',
-          AGENT_WORKER: 'off',
-          MCP_URL: 'http://mcp.invalid/mcp',
-          MCP_AUDIENCE: 'http://mcp:3020/mcp',
-          CASE_TOKEN_KEY: 'unused-in-tests-case-token-key-0123',
-          WEBHOOK_SECRET,
-        }),
-        API_PORT: 0,
-      }),
-    ],
+    imports: [AppModule.register({ ...config, API_PORT: 0 })],
   })
     .overrideProvider(CORE_CLIENT)
     .useValue(core)
@@ -80,9 +80,10 @@ export async function startApiApp(
     ...HTTP_APP_OPTIONS,
     logger,
   });
-  configureHttpApp(app);
-  await app.listen(0, '127.0.0.1');
-  return { app, base: await app.getUrl() };
+  configureHttpApp(app, { trustProxy: config.TRUST_PROXY });
+  await app.listen(0, host);
+  const { port } = app.getHttpServer().address() as AddressInfo;
+  return { app, base: `http://127.0.0.1:${port}` };
 }
 
 export interface ProposalFixture {

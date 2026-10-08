@@ -1,3 +1,5 @@
+import { isIP } from 'node:net';
+
 import {
   CASE_TOKEN_MAX_TTL_S,
   CASE_TOKEN_MIN_KEY_BYTES,
@@ -29,6 +31,61 @@ export const AGENT_MODES = ['on', 'off'] as const;
 export const AGENT_WORKER_STATES = ['on', 'off'] as const;
 /** The two agent variants the evals compare (01 §Stack, Models). */
 export const AGENT_VARIANTS = ['A', 'B'] as const;
+
+const PREFIX = /^\d+$/;
+// The widest subnet a proxy list may name: a whole private range, or /0, would
+// trust as good as everyone, which `true` already stands for.
+const PREFIX_BITS = {
+  4: { min: 16, max: 32 },
+  6: { min: 48, max: 128 },
+} as const;
+
+const IPV6_GROUPS = 8;
+const BITS_PER_BYTE = 8;
+// ::ffff:0:0/96, the IPv4-mapped range: its first six groups.
+const MAPPED_HEAD = [0, 0, 0, 0, 0, 0xffff];
+const MAPPED_PREFIX_BITS = 96;
+const ZONE_MARK = '%';
+
+const groupsOf = (text: string): number[] =>
+  text === ''
+    ? []
+    : text.split(':').flatMap((group) => {
+        if (!group.includes('.')) return [Number.parseInt(group, 16)];
+        const [a = 0, b = 0, c = 0, d = 0] = group.split('.').map(Number);
+        return [(a << BITS_PER_BYTE) | b, (c << BITS_PER_BYTE) | d];
+      });
+
+// proxy-addr matches an IPv4 client against an IPv4-mapped subnet, so
+// ::ffff:0.0.0.0/96 trusts every IPv4 address as much as 0.0.0.0/0 does.
+const isIpv4Mapped = (address: string): boolean => {
+  const [head = '', tail] = address.toLowerCase().split('::');
+  const left = groupsOf(head);
+  const right = tail === undefined ? [] : groupsOf(tail);
+  const groups = [
+    ...left,
+    ...Array<number>(IPV6_GROUPS - left.length - right.length).fill(0),
+    ...right,
+  ];
+  return MAPPED_HEAD.every((group, index) => groups[index] === group);
+};
+
+// Express also takes `true`, hop counts and named subnets; each would trust
+// addresses nobody listed, so only explicit addresses and narrow subnets pass.
+const isTrustedEntry = (entry: string): boolean => {
+  const [address = '', prefix, extra] = entry.trim().split('/');
+  const family = isIP(address);
+  // A proxy is never named by a link-local zone, and isIP accepts any text
+  // after %, which no group count can read.
+  if (address.includes(ZONE_MARK)) return false;
+  if ((family !== 4 && family !== 6) || extra !== undefined) return false;
+  if (prefix === undefined) return true;
+  if (!PREFIX.test(prefix)) return false;
+  const mapped = family === 6 && isIpv4Mapped(address);
+  const bits = PREFIX_BITS[mapped ? 4 : family];
+  const prefixBits = Number(prefix) - (mapped ? MAPPED_PREFIX_BITS : 0);
+  return prefixBits >= bits.min && prefixBits <= bits.max;
+};
 
 const pricedModel = (fallback: (typeof PRICED_MODELS)[number]) =>
   z.enum(PRICED_MODELS).default(fallback);
@@ -77,6 +134,13 @@ const ApiConfigSchema = z.object({
         new TextEncoder().encode(key).byteLength >= CASE_TOKEN_MIN_KEY_BYTES,
       { message: `must be at least ${CASE_TOKEN_MIN_KEY_BYTES} bytes` },
     ),
+  TRUST_PROXY: z
+    .string()
+    .trim()
+    .default('')
+    .refine((value) => value === '' || value.split(',').every(isTrustedEntry), {
+      message: 'must list IP addresses or subnets, comma-separated',
+    }),
   WEBHOOK_SECRET: z.string().refine(
     (raw) => {
       try {
