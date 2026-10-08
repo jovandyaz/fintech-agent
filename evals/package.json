@@ -7,6 +7,7 @@
     "eval:agreement": "tsx calibration/agreement.cli.ts"
   },
   "dependencies": {
+    "@fintech-agent/api": "workspace:*",
     "@fintech-agent/contracts": "workspace:*",
     "@fintech-agent/data": "workspace:*",
     "promptfoo": "0.124.0",

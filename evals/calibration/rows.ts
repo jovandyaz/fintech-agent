@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { shuffled } from '../shuffle.js';
 
-import type { JudgeInput } from '../judge/controls.js';
+import type { JudgeInput } from '@fintech-agent/api/evals';
 
 /** How a draft came to be graded: from the run, or a run draft with one defect injected. */
 export const ROW_SOURCES = ['run', 'mutation'] as const;
