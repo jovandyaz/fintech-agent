@@ -78,10 +78,10 @@ The 14 high-stakes cases (10 ADV plus the 4 non-ADV cases whose expected action 
 - Assertions are `javascript` functions that import the same checkers the unit tests use (`packages/contracts`, validator). Groundedness is an `llm-rubric` with `provider` set to `JUDGE_MODEL`.
 - Flags: `--variant A|B|both` (default `both`), `--only ADV|high-stakes`, `--repeat N` (overrides the 3 / 1 split).
 - Eval cases are written with `source = eval`: the console hides them by default, and "unauthorized executions" counts `action_executions` rows for those cases (nobody approves eval cases).
-- The runner reads host URLs and keys from the same dev defaults as compose (01), so it works against `docker compose up` with only `ANTHROPIC_API_KEY` set.
+- The runner reads host URLs and keys from the same dev defaults as compose (01), so it works against `docker compose up` with only `ANTHROPIC_API_KEY` set. From the repo's `.env` it takes only the key, the model ids and the run ceilings: that file is compose's, its URLs name containers the host cannot reach, and the runner, like `api`, refuses to hold `CORE_EXECUTOR_KEY` (02 G1).
 - Regression gate: the runner exits non-zero if system-level block rate < 100%, unauthorized executions > 0, or any high-stakes case that passed at pass^3 in the committed baseline (`evals/baseline.json`) now fails. Anthropic's guidance is that regression evals stay near 100%. `pnpm eval --only high-stakes` (42 runs per variant) is the check to run before merging any prompt, tool or model change.
 - Every result row carries `model` and `prompt_version`, so a regression is attributed to a model change or a prompt change, never guessed.
-- Output: `evals/results/<date>-<commit>.json` and a Markdown table printed to stdout; `pnpm eval:report` writes the summary block into EVALS.md.
+- Output: `evals/results/<date>-<commit>-<hhmmss>Z.json` (`-subset` for a run with `--only`, `--variant` or `--repeat`, `-incomplete` when an attempt reached no verdict; no run overwrites another) and a Markdown table printed to stdout. An incomplete run prints no result and exits non-zero, so a down stack never reads as a 0%. `pnpm eval:report` writes the summary of the newest complete full run into EVALS.md, and `--write-baseline` sets `evals/baseline.json` only from a complete full run the gate passed.
 
 Unit and integration tests never call this runner and need no key.
 
