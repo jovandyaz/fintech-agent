@@ -4,7 +4,7 @@ Snapshot of where the build stands against `specs/04-build-plan.md`, for resumin
 
 ## Where things are
 
-All work is on `main`. Steps 0–3 are done, and Steps 4 and 5 are done: the gate, executor, validator, agent loop, Persist, `runCase`, the worker loop, masking at every PII sink, the injection guard (Knowtis port), ten policy docs ingested by `seed` (pol-09 quarantined), and Spanish full-text search (recall@4 1.0 on 25 paraphrases and 5 held-out). `docker compose up` is healthy. The worker is not wired into `api` yet: Task 9c is next. Every commit passed `pnpm verify` on Node 24 and 22, plus the integration suite on G-path commits.
+All work is on `main`. Steps 0–3 are done, and Steps 4 and 5 are done: the gate, executor, validator, agent loop, Persist, `runCase`, the worker loop, masking at every PII sink, the injection guard (Knowtis port), ten policy docs ingested by `seed` (pol-09 quarantined), and Spanish full-text search (recall@4 1.0 on 25 paraphrases and 5 held-out). `docker compose up` is healthy and the worker runs inside `api` (Task 9c): a queued case is claimed and investigated, or ends `no_api_key` without a key. Cases cannot be created from outside yet: that is Step 7. Every commit passed `pnpm verify` on Node 24 and 22, plus the integration suite on G-path commits.
 
 The remote branch `wip/step-4e-persist` (8f013a1) is a superseded snapshot of Task 8 with two failing tests. The reviewed version landed on `main` as c7c1b9b and 9afd6a5. Delete that branch when convenient.
 
@@ -12,9 +12,9 @@ The remote branch `wip/step-4e-persist` (8f013a1) is a superseded snapshot of Ta
 
 ## Remaining work
 
-### Next: Task 9c
+### Next: Step 7, webhook and console
 
-Wire `runWorker` in `main.ts`: `claimNextCase`; `runCase` deps from config; `createAnthropic({ apiKey })` or null; `connectCaseTools`; `createRetrieval(db, policyCatalog(...))` from the same checked manifest path seed uses; `injectionSignal` as `scanInjection`; an `AbortController` on shutdown (`sleep` swallows aborts, `onError` masks, as `executor/main.ts` does). Compose env (`REDACTOR_MODEL` etc.); `api` depends_on `mcp` healthy; compose.spec asserts only `api` and `mcp` hold `CASE_TOKEN_KEY`; if tracing is wired here, its exporter sits behind `maskingSpanProcessor` with a test. Write its plan in `.superpowers/sdd/04-build-plan/` first.
+Plan it in `.superpowers/sdd/04-build-plan/step-7-plan.md` first (04 §Step 7): the Standard Webhooks endpoint (raw-body signature, ±5 min, rotation, 32 KB, idempotency ledger, folio and acuse), `POST /cases`, `pnpm demo:post`, and the React console (inbox, case detail with trace, edit reply, decide), then the first end-to-end test through the UI with Playwright. Carried owners for Step 7 are listed below.
 
 ### Then, in the order the user chose (4e → 5 → 7, then 6 → 8 → 9)
 
@@ -31,8 +31,7 @@ Each step gets its own plan in `.superpowers/sdd/04-build-plan/step-N-plan.md` b
 
 ### Carried owners (from the ledger)
 
-- **Task 9c:** see "Next" above; also build the `search_policies` catalog from the checked manifest path, and test that a flagged manifest title never reaches the tool description.
-- **Step 8 (or 9c if first):** wire production tracing — `new OpenTelemetry({ tracer })` over a provider whose exporter processor is wrapped in `maskingSpanProcessor`, passed as `RunCaseDeps.telemetry`; move `@ai-sdk/otel`, `@opentelemetry/api`, `@opentelemetry/sdk-trace` to `dependencies`; test that the wired provider masks.
+- **Step 8:** wire production tracing — `new OpenTelemetry({ tracer })` over a provider whose exporter processor is wrapped in `maskingSpanProcessor`, passed as `RunCaseDeps.telemetry`; move `@ai-sdk/otel`, `@opentelemetry/api`, `@opentelemetry/sdk-trace` to `dependencies`; test that the wired provider masks.
 - **Step 6:**
   - Measure the `UNGROUNDED_NUMBER` repair rate on clean cases.
   - An eval or judge control phrased "tu abono llegará a más tardar el segundo día hábil" (a paraphrased credit promise, 02 residual row 1).
