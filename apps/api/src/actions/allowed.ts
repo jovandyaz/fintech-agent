@@ -1,6 +1,8 @@
 import {
+  ACTION_TYPES,
   MAX_ACTION_TRANSACTIONS,
   type ActionType,
+  type OverrideOption,
   type Transaction,
 } from '@fintech-agent/contracts';
 
@@ -76,6 +78,26 @@ export function stateViolation(
   transactions: readonly TransactionShape[],
 ): G2Violation | null {
   return transactions.every(G2_TABLE[type].allows) ? null : 'transaction_state';
+}
+
+/**
+ * What the override picker offers (02 G2): each action with its count bounds
+ * and the transactions its row allows, so the console offers only what
+ * `shapeViolation` would accept at decision time.
+ */
+export function overrideOptionsOf(
+  transactions: readonly TransactionShape[],
+): OverrideOption[] {
+  return ACTION_TYPES.map((type) => {
+    const { min, max, allows } = G2_TABLE[type];
+    return {
+      type,
+      min,
+      max,
+      transaction_ids:
+        max === 0 ? [] : transactions.filter(allows).map(({ id }) => id),
+    };
+  });
 }
 
 /** The part of a G2 row that needs only the ids: how many, and no repeats. */

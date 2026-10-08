@@ -1,7 +1,16 @@
-import type { CardTx, SpeiTx, Transaction } from '@fintech-agent/contracts';
+import {
+  MAX_ACTION_TRANSACTIONS,
+  type CardTx,
+  type SpeiTx,
+  type Transaction,
+} from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { shapeViolation } from './allowed.js';
+import {
+  overrideOptionsOf,
+  shapeViolation,
+  stateViolation,
+} from './allowed.js';
 
 const spei = (id: string, over: Partial<SpeiTx> = {}): SpeiTx => ({
   id,
@@ -125,5 +134,44 @@ describe('shapeViolation (02 G2 table: count, uniqueness and state)', () => {
     ['escalate_fraud on 6', ['escalate_fraud', cards(6)], 'transaction_count'],
   ])('%s', (_, args, expected) => {
     expect(shapeViolation(...args)).toBe(expected);
+  });
+});
+
+describe('overrideOptionsOf', () => {
+  it('offers each action with the transactions its G2 row allows, as decide checks them', () => {
+    const transactions = [
+      card('tx_card', { status: 'settled' }),
+      card('tx_rejected', { status: 'rejected' }),
+      spei('tx_spei'),
+    ];
+    expect(overrideOptionsOf(transactions)).toEqual([
+      {
+        type: 'open_dispute',
+        min: 1,
+        max: 3,
+        transaction_ids: ['tx_card', 'tx_spei'],
+      },
+      { type: 'resend_cep', min: 1, max: 1, transaction_ids: ['tx_spei'] },
+      {
+        type: 'escalate_fraud',
+        min: 0,
+        max: MAX_ACTION_TRANSACTIONS,
+        transaction_ids: ['tx_card', 'tx_rejected', 'tx_spei'],
+      },
+      { type: 'none', min: 0, max: 0, transaction_ids: [] },
+    ]);
+  });
+
+  it('offers only transactions stateViolation accepts for that action alone', () => {
+    const transactions = [card('tx_card'), spei('tx_spei')];
+    for (const option of overrideOptionsOf(transactions)) {
+      for (const id of option.transaction_ids) {
+        const one = transactions.filter((tx) => tx.id === id);
+        expect(
+          stateViolation(option.type, one),
+          `${option.type} ${id}`,
+        ).toBeNull();
+      }
+    }
   });
 });
