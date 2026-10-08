@@ -1,0 +1,146 @@
+{
+  "docs": [
+    {
+      "doc_id": "pol-01",
+      "title": "Tiempos SPEI",
+      "file": "01-tiempos-spei.md",
+      "keywords": [
+        "no le llegó",
+        "cuánto tarda",
+        "transferencia pendiente",
+        "SPEI retenido",
+        "no ha llegado mi transferencia"
+      ],
+      "sha256": "548c6d1424fc9524bae9df61cc9376896f0b250a40fe41b381715a7e88470f43"
+    },
+    {
+      "doc_id": "pol-02",
+      "title": "Devoluciones SPEI y CEP",
+      "file": "02-devoluciones-spei-cep.md",
+      "keywords": [
+        "me regresaron la transferencia",
+        "devolución SPEI",
+        "comprobante",
+        "CEP",
+        "transferencia devuelta",
+        "cuenta inexistente"
+      ],
+      "sha256": "19a5a7925fbe1ab5798564cea2a811bad3a0f32d820b99a755a752e298b8828f"
+    },
+    {
+      "doc_id": "pol-03",
+      "title": "Aclaraciones",
+      "file": "03-aclaraciones.md",
+      "keywords": [
+        "aclaración",
+        "reclamación",
+        "folio",
+        "dictamen",
+        "CONDUSEF",
+        "queja"
+      ],
+      "sha256": "a2e9382a7e87653807db8254dd7d607537d2605b124028ff92d65ebe77c47ac3"
+    },
+    {
+      "doc_id": "pol-04",
+      "title": "Cargos no reconocidos y contracargos",
+      "file": "04-cargos-no-reconocidos.md",
+      "keywords": [
+        "no reconozco",
+        "me cobraron",
+        "cargo que no hice",
+        "cobro desconocido",
+        "contracargo",
+        "no sé de dónde salió",
+        "compra que no hice",
+        "cargo desconocido",
+        "compra ajena",
+        "no fui yo",
+        "reponer el dinero"
+      ],
+      "sha256": "33b384622ab8033fbb4c4a637c8660bc555ea8c51043fadcee39ad37ef2dc26c"
+    },
+    {
+      "doc_id": "pol-05",
+      "title": "Rechazos de tarjeta",
+      "file": "05-rechazos-tarjeta.md",
+      "keywords": [
+        "me rechazaron la tarjeta",
+        "compra rechazada",
+        "no pasó mi tarjeta",
+        "fondos insuficientes",
+        "tarjeta vencida",
+        "tarjeta caducada",
+        "plástico vencido",
+        "pago declinado"
+      ],
+      "sha256": "7385432490fea9d83e3666b09556590c4f1a57fa57e0a7312ebb1f47f7c2c6fe"
+    },
+    {
+      "doc_id": "pol-06",
+      "title": "Fraude y bloqueo",
+      "file": "06-fraude-bloqueo.md",
+      "keywords": [
+        "fraude",
+        "tarjeta bloqueada",
+        "me bloquearon la tarjeta",
+        "cargos raros",
+        "robo",
+        "compras pequeñas",
+        "misma tienda",
+        "tarjeta suspendida",
+        "me hackearon"
+      ],
+      "sha256": "5f57b79df56605c289444adf8ee960a7680ce33c14f740ad6a07cb58e960cdcd"
+    },
+    {
+      "doc_id": "pol-07",
+      "title": "Límites por nivel de cuenta",
+      "file": "07-limites-nivel-cuenta.md",
+      "keywords": [
+        "límite",
+        "nivel de cuenta",
+        "no me dejan recibir",
+        "depósito rechazado",
+        "subir de nivel",
+        "monto máximo",
+        "no entró el depósito"
+      ],
+      "sha256": "fd2a19e2a1ecd72a77cc0f9d79494c1ead2e686cc8e1679d3f4a739c9ec00199"
+    },
+    {
+      "doc_id": "pol-08",
+      "title": "Seguridad y privacidad",
+      "file": "08-seguridad-privacidad.md",
+      "keywords": [
+        "NIP",
+        "contraseña",
+        "código de verificación",
+        "datos de otra persona",
+        "cuenta de otra persona",
+        "un familiar"
+      ],
+      "sha256": "4e7485fb2ed35c4487da6cad4d9e74ea0b7036d04b5989b623adf83b9de4e50f"
+    },
+    {
+      "doc_id": "pol-09",
+      "title": "Aclaraciones (anexo)",
+      "file": "09-aclaraciones-anexo.md",
+      "keywords": [
+        "SPEI enviado",
+        "no recibió"
+      ],
+      "sha256": "87b0cf2f7c3e2bef314ba5bb559ba544799385a7860a7333e7ff85143a47bdd7"
+    },
+    {
+      "doc_id": "pol-09b",
+      "title": "Rechazos (anexo)",
+      "file": "09b-rechazos-anexo.md",
+      "keywords": [
+        "tienda de conveniencia",
+        "rechazo en tienda"
+      ],
+      "sha256": "0df4be853dfbe3d1ada1f8f355e99fe0f9647fe7cc34c233d47d9a0ad11b90c6"
+    }
+  ]
+}
