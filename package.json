@@ -16,7 +16,8 @@
     "test": "vitest run && pnpm test:hooks",
     "canary:inject": "pnpm --filter @fintech-agent/api canary:inject",
     "demo:post": "pnpm --filter @fintech-agent/api demo:post",
-    "e2e": "pnpm --filter @fintech-agent/e2e e2e"
+    "e2e": "pnpm --filter @fintech-agent/e2e e2e",
+    "eval:agreement": "pnpm --filter @fintech-agent/evals eval:agreement"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

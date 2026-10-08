@@ -3,11 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "eval:agreement": "tsx calibration/agreement.cli.ts"
   },
   "dependencies": {
     "@fintech-agent/contracts": "workspace:*",
     "@fintech-agent/data": "workspace:*",
-    "promptfoo": "0.124.0"
+    "promptfoo": "0.124.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
   }
 }
