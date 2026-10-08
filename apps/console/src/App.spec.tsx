@@ -22,6 +22,16 @@ const NOT_FOUND = 404;
 // Past three 5 s polls and every retry TanStack Query would schedule.
 const SEVERAL_POLLS_MS = 16_000;
 const OPERATORS: Record<string, string> = { [ANA]: 'ana', [BETO]: 'beto' };
+const ANY_URL = '*';
+const ANA_CASE = {
+  case_id: 'case_ana',
+  folio: 'AC-ANA0-CA5E',
+  status: 'needs_review',
+  review_tier: 'standard',
+  flags: [],
+  category: null,
+  received_at: '2026-10-07T21:00:00.000Z',
+};
 
 const urlOf = (input: RequestInfo | URL): string =>
   typeof input === 'string'
@@ -30,12 +40,12 @@ const urlOf = (input: RequestInfo | URL): string =>
       ? input.href
       : input.url;
 
-// An api that knows two operator tokens, can turn one away, and can hold one
-// answer back until the test releases it.
+// An api that knows two operator tokens, can turn one away, and can hold the
+// next answer (to any url, or to one url) back until the test releases it.
 function fakeApi() {
   const refusing = new Set<string>();
   const held: (() => void)[] = [];
-  let holdNext = false;
+  let holding: string | null = null;
   const calls: string[] = [];
   const answer = (input: RequestInfo | URL, init?: RequestInit) => {
     const bearer = new Headers(init?.headers).get('authorization') ?? '';
@@ -47,11 +57,17 @@ function fakeApi() {
     }
     if (urlOf(input) === '/api/me') return Response.json({ id: operator });
     if (urlOf(input) === '/api/status') return Response.json({ agent: 'on' });
+    if (urlOf(input) === '/api/cases') {
+      return operator === 'ana' ? Response.json([ANA_CASE]) : Response.json([]);
+    }
     return new Response(null, { status: NOT_FOUND });
   };
   const fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-    if (!holdNext) return Promise.resolve(answer(input, init));
-    holdNext = false;
+    const url = urlOf(input);
+    if (holding === null || (holding !== ANY_URL && holding !== url)) {
+      return Promise.resolve(answer(input, init));
+    }
+    holding = null;
     return new Promise<Response>((resolve) => {
       held.push(() => resolve(answer(input, init)));
     });
@@ -60,8 +76,8 @@ function fakeApi() {
     fetch,
     calls,
     refuse: (token: string) => refusing.add(token),
-    holdNextAnswer: () => {
-      holdNext = true;
+    holdNextAnswer: (url = ANY_URL) => {
+      holding = url;
     },
     releaseHeld: () => held.splice(0).forEach((release) => release()),
   };
@@ -212,6 +228,18 @@ describe('console session (02 G3: the operator is authenticated, never declared)
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("drops the previous operator's cases on sign-out, before the next operator's arrive", async () => {
+    const api = fakeApi();
+    saveToken(ANA);
+    render(<App fetch={api.fetch} />);
+    expect(await screen.findByText('AC-ANA0-CA5E')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+    api.holdNextAnswer('/api/cases');
+    signIn(BETO);
+    await screen.findByText('beto');
+    expect(screen.queryByText('AC-ANA0-CA5E')).toBeNull();
   });
 
   it('signs out and forgets the token', async () => {

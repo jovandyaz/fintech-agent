@@ -54,6 +54,14 @@ describe('createApiClient', () => {
     expect(seen[0]?.init?.body).toBe('{"customer_id":"cus_01"}');
   });
 
+  it('posts a command that takes no body without one', async () => {
+    const { api, seen } = clientAnswering(() => Response.json({ id: 'ana' }));
+    await api.post('/cases/case_abc/rerun', undefined, OperatorViewSchema);
+    expect(seen[0]?.init?.method).toBe('POST');
+    expect(seen[0]?.init?.body).toBeUndefined();
+    expect(new Headers(seen[0]?.init?.headers).has('content-type')).toBe(false);
+  });
+
   it('asks to sign in again on a 401, and fails the call', async () => {
     const client = clientAnswering(() => new Response(null, { status: 401 }));
     await expect(client.api.get('/me', OperatorViewSchema)).rejects.toThrow(
@@ -70,6 +78,31 @@ describe('createApiClient', () => {
     await expect(api.get('/me', OperatorViewSchema)).rejects.toMatchObject({
       status: 400,
       reason: 'flags_not_acknowledged',
+    });
+  });
+
+  it('carries the reply checks a refused reply failed, and only strings', async () => {
+    const { api } = clientAnswering(() =>
+      Response.json(
+        {
+          message: 'invalid_reply',
+          codes: ['LINK_IN_REPLY', 7, 'PII_IN_REPLY'],
+        },
+        { status: 400 },
+      ),
+    );
+    await expect(api.get('/me', OperatorViewSchema)).rejects.toMatchObject({
+      reason: 'invalid_reply',
+      codes: ['LINK_IN_REPLY', 'PII_IN_REPLY'],
+    });
+  });
+
+  it('carries no codes when the refusal names none', async () => {
+    const { api } = clientAnswering(() =>
+      Response.json({ message: 'conflict' }, { status: 409 }),
+    );
+    await expect(api.get('/me', OperatorViewSchema)).rejects.toMatchObject({
+      codes: [],
     });
   });
 

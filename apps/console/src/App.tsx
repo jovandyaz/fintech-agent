@@ -11,8 +11,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { UnauthorizedError, createApiClient } from './api/client.js';
 import { ApiContext, useApi } from './api/context.js';
+import { API_PATH } from './api/paths.js';
 import { SignIn } from './session/SignIn.js';
 import { clearToken, readToken, saveToken } from './session/token.js';
+import { Workspace } from './workspace/Workspace.js';
 
 // The console polls rather than streams (01 §Components); a case moves on the
 // worker's clock, so a few seconds of staleness is the trade.
@@ -27,7 +29,7 @@ function Shell(props: { onSignOut: () => void; children: ReactNode }) {
   const api = useApi();
   const me = useQuery({
     queryKey: ME,
-    queryFn: () => api.get('/me', OperatorViewSchema),
+    queryFn: () => api.get(API_PATH.me, OperatorViewSchema),
     refetchInterval: false,
   });
   return (
@@ -48,15 +50,6 @@ function Shell(props: { onSignOut: () => void; children: ReactNode }) {
       </header>
       <main className="shell-main">{props.children}</main>
     </div>
-  );
-}
-
-function Workspace() {
-  return (
-    <section className="workspace-empty">
-      <h1>Bandeja</h1>
-      <p>Elige un caso para revisarlo.</p>
-    </section>
   );
 }
 

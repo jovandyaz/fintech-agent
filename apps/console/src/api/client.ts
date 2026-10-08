@@ -15,11 +15,12 @@ export class UnauthorizedError extends Error {
   }
 }
 
-/** A refusal or failure the api answered, by its status and named reason. */
+/** A refusal or failure the api answered, by its status, named reason and any check codes. */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly reason: string,
+    readonly codes: readonly string[] = [],
   ) {
     super(reason);
     this.name = 'ApiError';
@@ -29,20 +30,29 @@ export class ApiError extends Error {
 /** The console's only way to the api. */
 export interface ApiClient {
   get: <T>(path: string, schema: Parser<T>) => Promise<T>;
+  /** `body` undefined sends none, for a command named by its path alone. */
   post: <T>(path: string, body: unknown, schema: Parser<T>) => Promise<T>;
 }
 
-async function reasonOf(response: Response): Promise<string> {
+async function refusalOf(response: Response): Promise<ApiError> {
   let body: unknown;
   try {
     body = await response.json();
   } catch {
-    return NO_REASON;
+    return new ApiError(response.status, NO_REASON);
   }
-  if (typeof body === 'object' && body !== null && 'message' in body) {
-    return typeof body.message === 'string' ? body.message : NO_REASON;
+  if (typeof body !== 'object' || body === null) {
+    return new ApiError(response.status, NO_REASON);
   }
-  return NO_REASON;
+  const reason =
+    'message' in body && typeof body.message === 'string'
+      ? body.message
+      : NO_REASON;
+  const codes =
+    'codes' in body && Array.isArray(body.codes)
+      ? body.codes.filter((code): code is string => typeof code === 'string')
+      : [];
+  return new ApiError(response.status, reason, codes);
 }
 
 /**
@@ -73,7 +83,7 @@ export function createApiClient(deps: {
       throw new UnauthorizedError();
     }
     if (!response.ok) {
-      throw new ApiError(response.status, await reasonOf(response));
+      throw await refusalOf(response);
     }
     let body: unknown;
     try {
@@ -87,10 +97,16 @@ export function createApiClient(deps: {
   return {
     get: (path, schema) => call(path, schema),
     post: (path, body, schema) =>
-      call(path, schema, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      }),
+      call(
+        path,
+        schema,
+        body === undefined
+          ? { method: 'POST' }
+          : {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+            },
+      ),
   };
 }
