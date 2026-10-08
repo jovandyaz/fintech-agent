@@ -11,7 +11,13 @@ import { and, eq } from 'drizzle-orm';
 
 import type { ApiConfig } from '../../config.js';
 import type { Database } from '../../database/index.js';
-import { agentRuns, cases, securityEvents } from '../../database/schema.js';
+import type { CanaryDefect } from '../../canaries/templates.js';
+import {
+  agentRuns,
+  canaryCases,
+  cases,
+  securityEvents,
+} from '../../database/schema.js';
 import { runAgent, type AgentBudget, type StepRecord } from './agent.js';
 import { mintCaseToken } from './case-token.js';
 import { corpusStateRules } from './corpus.js';
@@ -79,12 +85,17 @@ export interface RunCaseConfig {
   caseTokenKey: string;
 }
 
+type Model = Exclude<LanguageModel, string>;
+type Models = (modelId: string) => Model;
+
 /** Everything `runCase` reaches outside itself; the worker and evals supply it. */
 export interface RunCaseDeps {
   db: Database;
   config: RunCaseConfig;
   /** The model for a provider id; null when no API key is configured. */
-  models: ((modelId: string) => Exclude<LanguageModel, string>) | null;
+  models: Models | null;
+  /** A canary case's scripted models, which stand in for the provider's (02 G3). */
+  canaryModels: (defect: CanaryDefect) => { redactor: Model; agent: Model };
   retrieval: Retrieval;
   /** The heuristic intake scan (02 G7): a signal for ops, never a block. */
   scanInjection: (text: string) => boolean;
@@ -183,7 +194,12 @@ export async function runCase(
   const runId = newRegistryId('run');
   const trace: StepRecord[] = [];
 
-  let held: { customerId: string; textMasked: string; receivedAt: Date };
+  let held: {
+    customerId: string;
+    textMasked: string;
+    receivedAt: Date;
+    defect: CanaryDefect | null;
+  };
   try {
     held = await withClaim(db, claim, async (tx) => {
       const [row] = await tx
@@ -191,8 +207,10 @@ export async function runCase(
           customerId: cases.customerId,
           textMasked: cases.textMasked,
           receivedAt: cases.receivedAt,
+          defect: canaryCases.defect,
         })
         .from(cases)
+        .leftJoin(canaryCases, eq(canaryCases.caseId, cases.id))
         .where(eq(cases.id, claim.caseId));
       if (!row) throw new StaleClaimError(claim.caseId);
       await tx.insert(agentRuns).values({
@@ -232,6 +250,7 @@ export async function runCase(
       claim,
       runId,
       trace,
+      canary: held.defect !== null,
       now: now(),
       log: deps.log,
     });
@@ -273,11 +292,14 @@ export async function runCase(
       await storeCaseText(held.textMasked);
       return await fail(PROVIDER_ERROR.noApiKey);
     }
+    // Past the same gates as any case, a canary's fabricated text goes only
+    // to its script, never to the provider (02 G3).
+    const script = held.defect === null ? null : deps.canaryModels(held.defect);
     // A corpus that does not parse is a bug: fail before paying the redactor.
     const stateRules = await corpusStateRules(db);
 
     const redaction = await redactCase(held.textMasked, {
-      model: models(config.redactorModelId),
+      model: script ? script.redactor : models(config.redactorModelId),
       timeoutMs: Math.min(
         REDACTOR_TIMEOUT_MS,
         (deadlineMs - deps.clock()) * REDACTOR_SHARE_OF_ATTEMPT,
@@ -312,7 +334,7 @@ export async function runCase(
       return await fail(MCP_UNAVAILABLE);
     }
 
-    agentModel = watchProvider(models(config.modelId));
+    agentModel = watchProvider(script ? script.agent : models(config.modelId));
     const outcome = await runAgent({
       model: agentModel.model,
       modelId: config.modelId,

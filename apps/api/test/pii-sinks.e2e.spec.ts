@@ -254,6 +254,9 @@ async function runPlantedCase(): Promise<Sinks> {
     },
     models: (modelId): MockLanguageModelV4 =>
       modelId === HAIKU_MODEL ? redactor : agent,
+    canaryModels: () => {
+      throw new Error('not a canary case');
+    },
     retrieval: {
       catalog: [{ doc_id: 'pol-04', title: 'Cargos no reconocidos' }],
       search: () => Promise.resolve([policyChunk()]),

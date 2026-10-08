@@ -127,6 +127,7 @@ const inputOf = (
   outcome: VALID,
   trace: TRACE,
   stateRules: [],
+  canary: false,
   now: NOW,
   log: () => undefined,
   ...overrides,

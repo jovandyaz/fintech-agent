@@ -19,6 +19,7 @@ const OK = 'ok';
 const PERMISSION_DENIED = '42501';
 const TRANSITION_REFUSED = 'P0001';
 const FOREIGN_KEY_VIOLATION = '23503';
+const CHECK_VIOLATION = '23514';
 
 type Query = (sql: postgres.Sql) => Promise<unknown>;
 
@@ -577,6 +578,58 @@ describe('transition matrix (02 G1, G3)', () => {
             where id = 'act_mx'`;
       expect((await outcome(update)) === OK).toBe(
         allowed(role, from, to, canary),
+      );
+    },
+  );
+});
+
+describe('canary markers (02 G3)', () => {
+  beforeAll(async () => {
+    await insertCase(owner, 'case_marked');
+  });
+
+  it('lets copilot_api write and read a marker with its case, and nothing more', async () => {
+    const api = as('copilot_api');
+    expect(
+      await outcome(
+        api`insert into canary_cases (case_id, defect) values ('case_marked', 'cold_tone')`,
+      ),
+    ).toBe(OK);
+    expect(await outcome(api`select defect from canary_cases`)).toBe(OK);
+    expect(
+      await outcome(api`update canary_cases set defect = 'wrong_category'`),
+    ).toBe(PERMISSION_DENIED);
+    expect(await outcome(api`delete from canary_cases`)).toBe(
+      PERMISSION_DENIED,
+    );
+  });
+
+  it('refuses a marker naming a defect with no template', async () => {
+    await insertCase(owner, 'case_badmark');
+    expect(
+      await outcome(
+        as(
+          'copilot_api',
+        )`insert into canary_cases (case_id, defect) values ('case_badmark', 'made_up')`,
+      ),
+    ).toBe(CHECK_VIOLATION);
+  });
+
+  it('refuses a marker for a case that does not exist', async () => {
+    expect(
+      await outcome(
+        as(
+          'copilot_api',
+        )`insert into canary_cases (case_id, defect) values ('case_nosuch', 'cold_tone')`,
+      ),
+    ).toBe(FOREIGN_KEY_VIOLATION);
+  });
+
+  it.each(['copilot_executor', 'copilot_mcp'] as const)(
+    'keeps the markers from %s',
+    async (role) => {
+      expect(await outcome(as(role)`select case_id from canary_cases`)).toBe(
+        PERMISSION_DENIED,
       );
     },
   );

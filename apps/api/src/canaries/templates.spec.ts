@@ -7,7 +7,6 @@ import {
   isSpeiRecord,
   speiStatusOf,
   transactionRowOf,
-  type Resolution,
   type Transaction,
 } from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
@@ -23,7 +22,12 @@ import { factFlags } from '../agent/core/validate/flags.js';
 import { validate } from '../agent/core/validate/index.js';
 import { replyViolations } from '../replies/reply-checks.js';
 import { POLICIES_DIR, loadCorpus } from '../retrieval/ingest.js';
-import { CANARY_DEFECTS, CANARY_TEMPLATES } from './templates.js';
+import { resolutionOf } from './script.js';
+import {
+  CANARY_DEFECTS,
+  CANARY_TEMPLATES,
+  type CanarySeed,
+} from './templates.js';
 
 const DATASET = z
   .array(TransactionRecordSchema)
@@ -88,23 +92,26 @@ const STATE_RULES = CORPUS.map(({ id, quarantined, stateRules }) => ({
 }));
 
 // What a run on the canary's case would have seen: the customer's movements,
-// the status output of every transaction the action names and the policy
-// chunks it cites, as search_policies returns them.
-function runFor(
-  customerId: string,
-  transactionIds: readonly string[],
-  citedChunkIds: readonly string[],
-): ToolResult[] {
-  const rows = DATASET.filter((tx) => tx.customer_id === customerId);
-  const statuses = transactionIds.flatMap((id): ToolResult[] => {
-    const tx = byId.get(id);
-    if (!tx) return [];
-    return [
-      isSpeiRecord(tx)
-        ? { tool: 'get_spei_status', output: speiStatusOf(tx) }
-        : { tool: 'get_card_authorization', output: cardAuthorizationOf(tx) },
-    ];
-  });
+// the status output of each transaction its seed looks up (none when the tool
+// does not fit the transaction, as the MCP server answers WRONG_TYPE) and the
+// policy chunks it cites, as search_policies returns them.
+function runFor(seed: CanarySeed): ToolResult[] {
+  const rows = DATASET.filter((tx) => tx.customer_id === seed.customerId);
+  const statuses = seed.lookups.flatMap(
+    ({ tool, transaction_id }): ToolResult[] => {
+      const tx = byId.get(transaction_id);
+      if (!tx) return [];
+      if (isSpeiRecord(tx)) {
+        return tool === 'get_spei_status'
+          ? [{ tool, output: speiStatusOf(tx) }]
+          : [];
+      }
+      return tool === 'get_card_authorization'
+        ? [{ tool, output: cardAuthorizationOf(tx) }]
+        : [];
+    },
+  );
+  const cited = seed.citations.map(({ chunk_id }) => chunk_id);
   return [
     {
       tool: 'list_transactions',
@@ -120,7 +127,7 @@ function runFor(
       tool: 'search_policies',
       output: {
         chunks: CORPUS.filter(
-          ({ id, quarantined }) => !quarantined && citedChunkIds.includes(id),
+          ({ id, quarantined }) => !quarantined && cited.includes(id),
         ).map((chunk) => ({
           chunk_id: chunk.id,
           doc_id: chunk.docId,
@@ -138,24 +145,9 @@ describe('canary templates through the validator (02 G3, G5)', () => {
   it.each(CANARY_TEMPLATES)(
     '$defect passes every check, citing real policy, with the flags Persist computes',
     ({ seed }) => {
-      const resolution: Resolution = {
-        category: seed.category,
-        draft_reply: seed.draftReply,
-        citations: seed.citations,
-        abstained: false,
-        evidence: seed.action.transaction_ids.map((id) => ({
-          kind: 'transaction' as const,
-          id,
-        })),
-        proposed_action: seed.action,
-        reasoning_summary: seed.reasoningSummary,
-      };
+      const resolution = resolutionOf(seed);
       const evidence = buildEvidence({
-        toolResults: runFor(
-          seed.customerId,
-          seed.action.transaction_ids,
-          seed.citations.map(({ chunk_id }) => chunk_id),
-        ),
+        toolResults: runFor(seed),
         receivedAt: at,
         now: at,
         injectionSignal: false,

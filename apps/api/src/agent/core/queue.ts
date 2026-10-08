@@ -4,7 +4,12 @@ import type { CaseStatus, RunStatus } from '@fintech-agent/contracts';
 import { and, asc, eq, lt, lte, or, sql } from 'drizzle-orm';
 
 import type { Database, DbTransaction } from '../../database/index.js';
-import { agentRuns, cases, proposedActions } from '../../database/schema.js';
+import {
+  agentRuns,
+  canaryCases,
+  cases,
+  proposedActions,
+} from '../../database/schema.js';
 
 /** A case is tried this many times before it ends `failed` (01 §Webhook and queue). */
 export const MAX_ATTEMPTS = 3;
@@ -43,7 +48,9 @@ export function backoffMs(attempt: number, random: () => number): number {
   return Math.round(base * (1 + BACKOFF_JITTER * (2 * random() - 1)));
 }
 
-const holdsNoCanary = sql`not exists (select 1 from ${proposedActions} where ${proposedActions.caseId} = ${cases.id} and ${proposedActions.isCanary})`;
+// A canary case runs only scripted, which its marker selects; one holding a
+// canary without it could reach the provider with fabricated text (02 G3).
+const notAnUnscriptedCanary = sql`(not exists (select 1 from ${proposedActions} where ${proposedActions.caseId} = ${cases.id} and ${proposedActions.isCanary}) or exists (select 1 from ${canaryCases} where ${canaryCases.caseId} = ${cases.id}))`;
 
 const abandonRuns = (tx: DbTransaction, caseId: string, now: Date) =>
   tx
@@ -83,7 +90,7 @@ export async function claimNextCase(
               and(eq(cases.status, INVESTIGATING), lt(cases.lockedUntil, now)),
             ),
             lte(cases.nextAttemptAt, now),
-            holdsNoCanary,
+            notAnUnscriptedCanary,
           ),
         )
         .orderBy(asc(cases.nextAttemptAt))

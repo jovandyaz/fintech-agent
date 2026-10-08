@@ -265,6 +265,8 @@ export interface PersistInput {
   /** Every step of the attempt, intake guards first, in the order they ran. */
   trace: readonly StepRecord[];
   stateRules: readonly ChunkStateRules[];
+  /** The case holds a canary marker, so its proposal is `is_canary` (02 G3). */
+  canary: boolean;
   now: Date;
   log: (event: Record<string, unknown>) => void;
 }
@@ -424,6 +426,7 @@ export async function persistRun(
       params,
       justification: maskPii(action.justification),
       proposedAt: now,
+      isCanary: input.canary,
     });
     await tx.insert(auditLog).values(
       proposalAudit({

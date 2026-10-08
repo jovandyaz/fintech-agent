@@ -139,7 +139,26 @@ describe('claimNextCase', () => {
     expect(claims.map((claim) => claim?.caseId).sort()).toEqual(ids.sort());
   });
 
-  it('never claims a case holding a canary', async () => {
+  it('claims a canary case by its marker, as any case (02 G3)', async () => {
+    const id = await queued();
+    await owner`insert into canary_cases (case_id, defect) values (${id}, 'cold_tone')`;
+    expect(await claimAt(T0)).toMatchObject({ caseId: id });
+  });
+
+  it('claims a re-run canary case again, its old canary superseded', async () => {
+    const { caseId } = await seedProposal(owner, `qc${++sequence}`, {
+      canary: true,
+      caseStatus: 'queued',
+    });
+    await owner`alter table proposed_actions disable trigger enforce_transition_role`;
+    await owner`update proposed_actions set status = 'superseded' where case_id = ${caseId}`;
+    await owner`alter table proposed_actions enable trigger enforce_transition_role`;
+    await owner`insert into canary_cases (case_id, defect) values (${caseId}, 'cold_tone')`;
+    await owner`update cases set next_attempt_at = ${T0} where id = ${caseId}`;
+    expect(await claimAt(T0)).toMatchObject({ caseId });
+  });
+
+  it('never claims a case holding a canary without its marker', async () => {
     const { caseId } = await seedProposal(owner, `qc${++sequence}`, {
       canary: true,
       caseStatus: 'queued',

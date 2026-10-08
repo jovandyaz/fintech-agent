@@ -1,5 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 
+import { canaryModelsOf } from '../../canaries/script.js';
+import { canaryTemplateOf } from '../../canaries/templates.js';
 import type { ApiConfig } from '../../config.js';
 import type { Database } from '../../database/index.js';
 import { injectionSignal } from '../../guard/prompt-guard.js';
@@ -87,10 +89,16 @@ export function runCaseDepsOf(input: {
   catalog: readonly PolicyCatalogEntry[];
   log: RunCaseDeps['log'];
 }): RunCaseDeps {
+  const config = runCaseConfigOf(input.config);
   return {
     db: input.db,
-    config: runCaseConfigOf(input.config),
+    config,
     models: modelsOf(input.config.ANTHROPIC_API_KEY),
+    canaryModels: (defect) =>
+      canaryModelsOf(canaryTemplateOf(defect), {
+        redactorModelId: config.redactorModelId,
+        agentModelId: config.modelId,
+      }),
     retrieval: createRetrieval(input.db, input.catalog),
     scanInjection: injectionSignal,
     connectTools: connectCaseTools,
