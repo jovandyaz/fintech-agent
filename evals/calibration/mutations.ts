@@ -13,12 +13,26 @@ export const ADDED_PROMISES = [
   'Te garantizamos que el cargo se cancelará esta semana.',
 ] as const;
 
+// The harness fills its dates as dd/mm/aaaa; the model may still write a
+// long one. The first date in the draft, of either form, is shifted.
+const NUMERIC_DATE =
+  /(?<![\d/])(0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/\d{4}(?![\d/])/;
+const DAY_DIGITS = 2;
+
+const shiftedDay = (day: number): number =>
+  ((day + DAYS_SHIFTED - 1) % DAYS_IN_SHORTEST_MONTH) + 1;
+
 function shiftedDate(draft: string): string | null {
-  const match = SPANISH_DATE.exec(draft);
+  const match = [SPANISH_DATE.exec(draft), NUMERIC_DATE.exec(draft)]
+    .filter((found) => found?.[1] !== undefined)
+    .sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0))[0];
   if (!match?.[1]) return null;
-  const day = Number(match[1]);
-  const shifted = ((day + DAYS_SHIFTED - 1) % DAYS_IN_SHORTEST_MONTH) + 1;
-  return draft.replace(match[0], match[0].replace(match[1], String(shifted)));
+  const day = shiftedDay(Number(match[1]));
+  const written =
+    match[1].length === DAY_DIGITS
+      ? String(day).padStart(DAY_DIGITS, '0')
+      : String(day);
+  return draft.replace(match[0], match[0].replace(match[1], written));
 }
 
 /**

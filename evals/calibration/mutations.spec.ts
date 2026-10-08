@@ -26,6 +26,30 @@ describe('mutation negatives (03 §Judge validation step 3)', () => {
     expect(mutated?.judge_input.cited_chunks).toEqual(CLEAN_DRAFT.cited_chunks);
   });
 
+  it('changes a date the harness filled as dd/mm/aaaa, keeping its form', () => {
+    const filled =
+      'Hola Ana, registramos tu aclaración. Te responderemos a más tardar el 22/11/2026 y el 07/10/2026.';
+    expect(
+      mutate(row('CARD-UNREC-01', filled), 'changed_date')?.judge_input
+        .draft_reply,
+    ).toBe(filled.replace('22/11/2026', '25/11/2026'));
+  });
+
+  it('changes the first date of either form, and only that one', () => {
+    const mixed =
+      'Recibimos tu reporte el 5 de octubre; te responderemos a más tardar el 21/11/2026.';
+    expect(
+      mutate(row('CARD-UNREC-01', mixed), 'changed_date')?.judge_input
+        .draft_reply,
+    ).toBe(mixed.replace('5 de octubre', '8 de octubre'));
+    const numericFirst =
+      'Tu folio AC-12/34/5678-X; registrado el 07/10/2026, respuesta el 9 de noviembre.';
+    expect(
+      mutate(row('CARD-UNREC-01', numericFirst), 'changed_date')?.judge_input
+        .draft_reply,
+    ).toBe(numericFirst.replace('07/10/2026', '10/10/2026'));
+  });
+
   it('cannot change the date of a draft with none', () => {
     expect(
       mutate(row('GEN-01', 'Hola, no hay fecha.'), 'changed_date'),
