@@ -10,6 +10,7 @@ COPY apps/api/tsconfig.json apps/api/
 COPY apps/api/src apps/api/src
 COPY apps/api/drizzle apps/api/drizzle
 COPY data/bank-holidays.json data/
+COPY data/policies data/policies
 USER node
 WORKDIR /repo/apps/api
 EXPOSE 3000

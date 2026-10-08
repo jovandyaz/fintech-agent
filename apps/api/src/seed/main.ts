@@ -5,6 +5,7 @@ import { reasonOf } from '../common/errors/reason-of.js';
 import { JsonConsoleLogger } from '../common/logging/json-console-logger.js';
 import { migrateDatabase } from '../database/migrate.js';
 import { setRolePasswords } from '../database/roles.js';
+import { POLICIES_DIR, seedPolicies } from '../retrieval/corpus-write.js';
 
 const SeedConfigSchema = z.object({
   DATABASE_URL: z.url(),
@@ -23,6 +24,8 @@ try {
     copilot_executor: config.EXECUTOR_DB_PASSWORD,
     copilot_mcp: config.MCP_DB_PASSWORD,
   });
+  const corpus = await seedPolicies(config.DATABASE_URL, POLICIES_DIR);
+  logger.log({ event: 'policies_ingested', ...corpus });
   logger.log({ event: 'seed_done' });
 } catch (error) {
   logger.fatal({ event: 'boot_failed', reason: reasonOf(error) });
