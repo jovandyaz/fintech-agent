@@ -21,6 +21,8 @@ import {
 import { runLoop } from './loop.js';
 
 const DEFAULT_POLL_MS = 1_000;
+// Node clamps a timer past 2^31-1 ms to 1 ms; a minute is already idle enough.
+const MAX_POLL_MS = 60_000;
 // The compose healthcheck reads this file's age; a stuck loop stops touching it.
 const HEARTBEAT_FILE = '/tmp/executor-alive';
 const POOL_SIZE = 2;
@@ -29,7 +31,12 @@ const ExecutorConfigSchema = z.object({
   EXECUTOR_DATABASE_URL: z.url(),
   CORE_MOCK_URL: z.url(),
   CORE_EXECUTOR_KEY: z.string().min(1),
-  EXECUTOR_POLL_MS: z.coerce.number().int().positive().default(DEFAULT_POLL_MS),
+  EXECUTOR_POLL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_POLL_MS)
+    .default(DEFAULT_POLL_MS),
 });
 
 Logger.overrideLogger(new JsonConsoleLogger());

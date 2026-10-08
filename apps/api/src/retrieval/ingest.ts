@@ -1,12 +1,18 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { StateRuleSchema, type StateRule } from '@fintech-agent/contracts';
 import { parse } from 'yaml';
 import { z } from 'zod';
 
 import { detectPromptInjection } from '../guard/prompt-guard.js';
+
+/** `data/policies`, resolved from the source tree as the image lays it out. */
+export const POLICIES_DIR = resolve(
+  import.meta.dirname,
+  '../../../../data/policies',
+);
 
 const MANIFEST_FILE = 'manifest.json';
 const POLICY_EXTENSION = '.md';
@@ -283,12 +289,16 @@ export function loadManifest(dir: string): PolicyManifest {
   );
 }
 
-/** Reads every policy file in `dir` and ingests it against the manifest. */
-export function loadCorpus(dir: string): IngestedChunk[] {
-  const files = new Map(
+/** Every policy file in `dir`, by name. */
+export function readPolicyFiles(dir: string): Map<string, string> {
+  return new Map(
     readdirSync(dir)
       .filter((file) => file.endsWith(POLICY_EXTENSION))
       .map((file) => [file, readFileSync(join(dir, file), 'utf8')]),
   );
-  return ingestPolicies(loadManifest(dir), files);
+}
+
+/** Reads every policy file in `dir` and ingests it against the manifest. */
+export function loadCorpus(dir: string): IngestedChunk[] {
+  return ingestPolicies(loadManifest(dir), readPolicyFiles(dir));
 }

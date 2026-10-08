@@ -1,18 +1,17 @@
 import { createHash } from 'node:crypto';
-import { resolve } from 'node:path';
 
 import { SPEI_DISPUTE_AFTER_HOURS } from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
   CorpusRefusedError,
+  POLICIES_DIR,
   ingestPolicies,
   loadCorpus,
   type IngestedChunk,
   type PolicyManifest,
 } from './ingest.js';
 
-const POLICIES_DIR = resolve(import.meta.dirname, '../../../../data/policies');
 // Spanish runs about 3.5 characters a token.
 const MAX_CHUNK_CHARS_AT_350_TOKENS = 1_225;
 const EIGHT_DIGITS = /\d{8,}/;
