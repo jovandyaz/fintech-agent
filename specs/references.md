@@ -12,7 +12,7 @@ Industry and regulatory research that shaped 00–04, done on 2026-10-05. Each r
 | [Banxico Circular 12/2018](https://www.banxico.org.mx/marco-normativo/normativa-emitida-por-el-banco-de-mexico/circular-12-2018/%7BA6023AE0-8135-44ED-04DA-2068117ED5FD%7D.pdf), rule 18.a | DOF 2018-09-10 | Unrecognized charge credit by 2nd business day, no extra steps (00 assumption 4, 03 CARD-UNREC-03, policy 04) |
 | [Banxico Circular 14/2017 (SPEI)](https://www.banxico.org.mx/marco-normativo/normativa-emitida-por-el-banco-de-mexico/circular-14-2017/%7BA06FBFEE-06BB-F249-32FC-25B334B2A744%7D.pdf), rules 17a, 19a, 23a–25a, 84a–86a | Compiled through Circ. 9/2026, DOF 2026-06-17 | SPEI timings, returns, CEP (03 SPEI-OUT-01, policies 01–02) |
 | [CNBV–Banxico rules for IFPEs](https://www.cnbv.gob.mx/Normatividad/Disposiciones%20aplicables%20a%20las%20instituciones%20de%20fondos%20de%20pago%20electr%C3%B3nico%20a%20que%20se%20refieren%20los%20art%C3%ADculos%2048,%20segundo%20p%C3%A1rrafo;%2054,%20primer%20p%C3%A1rrafo%20y%2056,%20primer.pdf), arts. 1, 18 fr. III, 44–45 | DOF 2021-01-28 | Never request auth factors (`AUTH_FACTOR_REQUEST`); first name only to the model |
-| [LFPDPPP](https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPDPPP.pdf), arts. 2, 10–13, 18, 20, 24, 26 | DOF 2025-03-20, last reform 2025-11-14 | Provider as processor, minimization, retention, human intervention (DESIGN.md) |
+| [LFPDPPP](https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPDPPP.pdf), arts. 2, 10–13, 18, 20, 24, 26 | DOF 2025-03-20, last reform 2025-11-14 | Provider as processor, minimization, retention, human intervention (docs/compliance.md) |
 
 Not confirmed: amendments to Circ. 12/2018 after 2018; CONDUSEF amount ceilings on art. 23; CONDUSEF transparency rules for ITFs; whether a new LFPDPPP regulation covers cloud processors; whether albo is a direct SPEI participant. No binding CNBV or Banxico rule specific to AI was found.
 
@@ -22,8 +22,8 @@ Not confirmed: amendments to Circ. 12/2018 after 2018; CONDUSEF amount ceilings 
 | --- | --- | --- |
 | [PCI SSC, Summary of Changes v3.2.1 → v4.0](https://listings.pcisecuritystandards.org/documents/PCI-DSS-v3-2-1-to-v4-0-Summary-of-Changes-r1.pdf), req. 3.4.1, 3.5.1 | May 2022 (v4.0.1 text is behind the license wall) | Card display and storage rules (02 G6) |
 | [CFPB, Chatbots in consumer finance](https://www.consumerfinance.gov/data-research/research-reports/chatbots-in-consumer-finance/chatbots-in-consumer-finance/) | 2023-06-06 | Colloquial dispute case (03 CARD-UNREC-01) |
-| [12 CFR 1005.11 (Reg E)](https://www.consumerfinance.gov/rules-policy/regulations/1005/11/) | Current | Benchmark in DESIGN.md |
-| [EU AI Act art. 50](https://artificialintelligenceact.eu/article/50/), [Annex III](https://artificialintelligenceact.eu/annex/3/) | Art. 50 applies from 2026-08-02 | Not high-risk; benchmark in DESIGN.md |
+| [12 CFR 1005.11 (Reg E)](https://www.consumerfinance.gov/rules-policy/regulations/1005/11/) | Current | Benchmark in docs/compliance.md |
+| [EU AI Act art. 50](https://artificialintelligenceact.eu/article/50/), [Annex III](https://artificialintelligenceact.eu/annex/3/) | Art. 50 applies from 2026-08-02 | Not high-risk; benchmark in docs/compliance.md |
 | *Moffatt v. Air Canada*, 2024 BCCRT 149 ([summary](https://en.wikipedia.org/wiki/Moffatt_v._Air_Canada); tribunal text not opened) | 2024-02-14 | A reply is a binding statement (`COMMITMENT_IN_REPLY` blocks, 02 G5) |
 
 ## Agent security
@@ -33,7 +33,7 @@ Not confirmed: amendments to Circ. 12/2018 after 2018; CONDUSEF amount ceilings 
 | [OWASP LLM05:2025 Improper Output Handling](https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/) | 2025 | `LINK_IN_REPLY`, plain-text console, CSP |
 | [OWASP LLM06:2025 Excessive Agency](https://genai.owasp.org/llmrisk/llm062025-excessive-agency/) | 2025 | G1–G3 framing |
 | [OWASP LLM08:2025 Vector and Embedding Weaknesses](https://genai.owasp.org/llmrisk/llm082025-vector-and-embedding-weaknesses/) | 2025 | Chunk normalization (G8) |
-| [OWASP Top 10 for Agentic Applications](https://genai.owasp.org/2025/12/09/owasp-top-10-for-agentic-applications-the-benchmark-for-agentic-security-in-the-age-of-autonomous-ai/) | 2025-12-09 | Flag acknowledgment before approve (G3); DESIGN.md mapping |
+| [OWASP Top 10 for Agentic Applications](https://genai.owasp.org/2025/12/09/owasp-top-10-for-agentic-applications-the-benchmark-for-agentic-security-in-the-age-of-autonomous-ai/) | 2025-12-09 | Flag acknowledgment before approve (G3); mapping in docs/compliance.md |
 | [MCP specification 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/changelog), [tools](https://modelcontextprotocol.io/specification/2026-07-28/server/tools) | 2026-07-28 | Stateless protocol, SDK v2 (01); RFC 9728 / 8707 when auth is used, no token passthrough, servers MUST rate limit tool calls, annotations untrusted, `isError` (G4) |
 | [MCP Security Best Practices](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) | Draft | Confused deputy, token passthrough (G4) |
 | [Meta, Agents Rule of Two](https://ai.meta.com/blog/practical-ai-agent-security/) | 2025-10-31 | Pattern name in 02 and DESIGN.md |

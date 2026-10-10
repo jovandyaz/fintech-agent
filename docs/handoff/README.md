@@ -4,7 +4,9 @@ Snapshot of where the build stands against `specs/04-build-plan.md`, for resumin
 
 ## Where things are
 
-All work is on `main`. Steps 0–8 and Task 9c are done.
+All work is on `main`. Steps 0–9 and Task 9c are done.
+
+Step 9 delivered (plan: `build-log/step-9-plan.md`, briefs: `build-log/step-9/`): `README.md` completed, `DESIGN.md`, `docs/compliance.md`, `PLAYBOOK.md` (Spanish), `AI_NOTES.md` in the brief's shape (the dated log moved to `build-log/ai-notes-log.md`), AGENTS.md mapping the new docs, and the seed's role passwords kept out of every Postgres statement log path (`role-passwords-log.int.spec.ts`). The docs passed a fact-check of about 125 claims against the code, specs and EVALS.md; a fresh verifier followed the README literally on a clean stack without a key.
 
 Step 8 delivered (plan: `build-log/step-8-plan.md`, briefs: `build-log/step-8/`):
 
@@ -22,28 +24,28 @@ Every commit passed `pnpm verify` on Node 24 and 22 and the integration suite wh
 
 ## Remaining work
 
-### Next (9 → 10)
+### Next (10)
 
-| Step         | Plan estimate | Outcome                                                                                                                                  |
-| ------------ | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 9 Docs       | 70 min        | README (started), DESIGN (incl. the residual canary tells and the Knowtis ports list), compliance appendix, PLAYBOOK (Spanish), AI_NOTES |
-| 10 Rehearsal | 15 min        | Outside the budget                                                                                                                       |
+| Step         | Plan estimate | Outcome            |
+| ------------ | ------------- | ------------------ |
+| 10 Rehearsal | 15 min        | Outside the budget |
 
 Any paid run needs the user's direct confirmation.
 
-### Waiting on the user
+### Calibration (done 2026-10-10)
 
-- Label `evals/calibration/to-label.jsonl` (README in that folder), then `pnpm eval:agreement` and `pnpm eval:report`: groundedness counts toward the decision only if the judge meets TPR ≥ 0.8 and TNR ≥ 0.9.
+62 rows labeled (`evals/calibration/labels.jsonl`, assisted as EVALS.md states): TPR 1.00, TNR 0.58, so the judge stays informational. Most false fails are values the harness fills before judging; fixing that changes the rubric and needs a new paid judging pass (below).
 
 ### Paid follow-up bolt (needs a budget)
 
+- Judge the draft before placeholders are filled (or name the code-filled values in the rubric), then re-judge and re-run `pnpm eval:agreement`; a rubric change makes the old run's judge informational.
 - `UNGROUNDED_NUMBER` exhausts the single repair in most model fallbacks: a second repair turn for it only, or a prompt line to copy figures as the tools print them; measure with `pnpm eval --only high-stakes`.
 - Haiku's first structured answer fails `SCHEMA` on 4 cases.
 - An ADV case for category steering on a 1-factor charge (Step 4d owner); the lexical families the validator does not read and the `COMMITMENT_IN_REPLY` imperative false positives, as eval cases.
 
 ### Carried owners
 
-- **Step 9:** the seed role password could appear in a Postgres `STATEMENT` log line if the `ALTER ROLE` ever errored — ticket it or silence that session's statement logging; the full README per 04 §Step 9; DESIGN.md's residual-risk table names the canary tells left (no fallbacks, always 3 tool calls, drafts repeat across batches) and the scan limits in `ops/README.md`.
+- **When a tracing provider exists (user, 2026-10-10):** wire the OTel seam to its exporter — `RunCaseDeps.telemetry` behind `maskingSpanProcessor`, `recordInputs`/`recordOutputs` false; a `docs(specs)` commit naming the provider; the OTel packages move to `dependencies`.
 - **Known residual, decided by the user:** filled replies with three dates plus a model-written date-time cross the masker's 32-digit date cap and fall back (02 G5; pinned by `placeholders.spec.ts`).
 
 ## Working rules that are easy to lose
