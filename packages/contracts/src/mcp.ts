@@ -74,6 +74,12 @@ export const MCP_TOOL_ERRORS = [
 ] as const;
 export type McpToolError = (typeof MCP_TOOL_ERRORS)[number];
 
+/** MCP log events security is alerted on (01 §Observability): the server writes them, `ops:scan-logs` reads them. */
+export const MCP_SECURITY_LOG_EVENTS = {
+  authRejected: 'auth_rejected',
+  securityEventUnrecorded: 'security_event_unrecorded',
+} as const;
+
 const MAX_QUERY_CHARS = 64;
 const DIGITS_ONLY = /^\d+$/;
 

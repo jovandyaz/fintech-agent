@@ -8,6 +8,7 @@ import {
   CoreUnavailableError,
   GetCustomerInputSchema,
   ListTransactionsInputSchema,
+  MCP_SECURITY_LOG_EVENTS,
   MCP_TOOL_DESCRIPTIONS,
   maskJson,
   maskPii,
@@ -179,7 +180,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       } as const;
       await ctx.securityEvents.record(event).catch((error: unknown) => {
         ctx.log({
-          event: 'security_event_unrecorded',
+          event: MCP_SECURITY_LOG_EVENTS.securityEventUnrecorded,
           ...event,
           error: maskPii(String(error)),
         });

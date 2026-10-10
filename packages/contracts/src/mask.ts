@@ -474,6 +474,12 @@ const MARKER = {
   unreadable: '[unreadable]',
 } as const;
 
+/** Every value `maskJson` writes in place of a whole value: an auth factor, or data it could not read. */
+export const MASK_MARKERS: readonly string[] = [
+  FACTOR,
+  ...Object.values(MARKER),
+];
+
 function toAsciiDigit(digit: string): string {
   const codePoint = digit.codePointAt(0) ?? ASCII_ZERO;
   if (codePoint >= ASCII_ZERO && codePoint <= ASCII_NINE) return digit;

@@ -1,4 +1,5 @@
-const REDACTED = '[redacted]';
+/** What `redactCredentials` and the api logger write in place of a credential. */
+export const CREDENTIAL_REDACTED = '[redacted]';
 const MIN_SCHEME_CREDENTIAL_CHARS = 8;
 const MIN_TOKEN_CREDENTIAL_CHARS = 12;
 
@@ -22,6 +23,6 @@ const CREDENTIAL_ASSIGNMENT =
  */
 export const redactCredentials = (text: string): string =>
   text
-    .replace(SCHEME_CREDENTIAL, `$1 ${REDACTED}`)
-    .replace(TOKEN_SCHEME_CREDENTIAL, `$1 ${REDACTED}`)
-    .replace(CREDENTIAL_ASSIGNMENT, `$1$2${REDACTED}`);
+    .replace(SCHEME_CREDENTIAL, `$1 ${CREDENTIAL_REDACTED}`)
+    .replace(TOKEN_SCHEME_CREDENTIAL, `$1 ${CREDENTIAL_REDACTED}`)
+    .replace(CREDENTIAL_ASSIGNMENT, `$1$2${CREDENTIAL_REDACTED}`);

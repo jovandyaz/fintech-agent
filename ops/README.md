@@ -41,3 +41,27 @@ The scheduler runs each alert every 5 minutes, and hourly the ones over a day or
 | `redactor_degraded`                  | > 5% of intakes over 1 h with a `degraded` redaction step                                                                                                                      | 20 intakes                  | 5 min | Ticket: AI lead                        |
 
 Every block that joins `cases` leaves eval cases (`source = 'eval'`) out, except `execution_without_decision`, where any execution of one is the breach; `canary_catch_rate` needs no such join, as an eval case is never a canary. Canaries count only in `canary_catch_rate` and where a row is the breach or the queue's health: `execution_without_decision`, `oldest_queued`, `cross_customer_lookup`.
+
+## Scanners
+
+The log-line alerts and the PII sink scan judge a value by the masker itself, so the exempt runs of 02 G6 (dates, amounts, folios, last-4…) never fire: a text is clean when `hasPii` finds nothing (`maskPii`'s own test, so folding an ellipsis or a no-break space is not a hit), and a JSON value when every text, key and number in it is, except what `maskJson` keeps verbatim (a UUID under an id key, an epoch under a time key). A slot `maskJson` replaces whole, an auth factor such as `otp`, `pin` or a `{name: 'cvv', value}` pair, is a hit unless it already holds a marker (`[factor]`, or the logger's `[redacted]`). A value the masker cannot read, such as JSON nested too deep, counts as a hit for its line or row, and the scan goes on. Each prints one JSON line per alert on stdout (the shapes are `LogAlertSchema` and `TraceAlertSchema` in `packages/contracts`) and never the content it flagged.
+
+What the scans cannot see: a number split across several keys or values with fewer than 8 digits each; the earlier of two duplicate JSON keys, as parsing keeps the last; and a float with 8 or more digits in all (`1234.5678`, `0.1234567`) counts as a hit even when it is a measurement, failing closed; the api's writers round floats to 6 significant digits, so only a line that skipped `maskJson` holds one.
+
+```sh
+docker compose --env-file /dev/null logs --no-log-prefix --no-color --since 10m api mcp executor \
+  | pnpm ops:scan-logs
+pnpm ops:scan-traces                                   # the last 24 h
+pnpm ops:scan-traces --since 2026-10-10T00:00:00-06:00
+```
+
+`ops:scan-logs` reads the whole of stdin before it answers, which is fine for minutes of logs, not for days. A line that is not JSON (Postgres, nginx, a line cut mid-write) is scanned as text. `ops:scan-traces` reads `API_DATABASE_URL`, with the dev default from `.env.example` on the host, as `canary:inject` does.
+
+| Alert                       | Fires on                                                                                                                                                                           | Every | Owner            |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------- |
+| `pii_in_logs`               | Any log line holding a value the masker would still mask; gives `line` and, for a JSON line, its `at`                                                                              | 5 min | Page: security   |
+| `security_event_unrecorded` | Any MCP line with that event: a `cross_customer_lookup` the sink failed to write, so a fraud signal is lost                                                                        | 5 min | Page: security   |
+| `auth_rejected_burst`       | > 10 `auth_rejected` lines whose `timestamp` falls in any 5 minutes; one alert per burst with its first `line`, `at` and `count`; a line without a readable `timestamp` joins none | 5 min | Ticket: security |
+| Trace hit                   | Any stored value the masker would still mask, given as `{table, column, key}`, over the columns of 01 written since `--since`; eval cases and canaries included, a leak is a leak  | 1 h   | Page: security   |
+
+The log scan reads 10 minutes every 5, so a burst that straddles two runs is still seen whole; the scheduler deduplicates on the alert and its `at` (log) or its `key` (traces). A `pii_in_logs` on a line that is not JSON has no `at`, so it may page twice across overlapping reads; that is accepted for a security page. Exit codes: `0` no alert, `1` alerts printed, `2` the scan could not run: a bad argument (`ops:scan-logs` takes none, `ops:scan-traces` only `--since` with an ISO instant carrying `Z` or an offset) or an unreachable database, told in one short masked `scan_failed` line on stderr. The root `pnpm ops:*` scripts run through `pnpm --filter`, which reports a `2` as `1`; a scheduler that needs the difference runs the script from `apps/api` (`pnpm --dir apps/api ops:scan-traces`) or `node --import tsx` directly.

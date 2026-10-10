@@ -1,4 +1,9 @@
-import { maskJson, maskPii, redactCredentials } from '@fintech-agent/contracts';
+import {
+  CREDENTIAL_REDACTED,
+  maskJson,
+  maskPii,
+  redactCredentials,
+} from '@fintech-agent/contracts';
 import { ConsoleLogger, type LogLevel } from '@nestjs/common';
 
 import { isDatabaseError } from '../errors/database-diagnostics.js';
@@ -27,7 +32,7 @@ const DEFAULT_LOG_LEVEL: LogLevel = 'log';
 const MESSAGE_FIELDS = ['message', 'event', 'operation'] as const;
 const MAX_DEPTH = 64;
 const MARKER = {
-  redacted: '[redacted]',
+  redacted: CREDENTIAL_REDACTED,
   circular: '[circular]',
   tooDeep: '[too deep]',
   unreadable: '[unreadable]',

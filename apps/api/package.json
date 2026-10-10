@@ -10,7 +10,9 @@
     "typecheck": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "canary:inject": "node --import tsx src/canaries/main.ts",
-    "demo:post": "node --import tsx src/demo/main.ts"
+    "demo:post": "node --import tsx src/demo/main.ts",
+    "ops:scan-logs": "node --import tsx src/ops/scan-logs.main.ts",
+    "ops:scan-traces": "node --import tsx src/ops/scan-traces.main.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.72",

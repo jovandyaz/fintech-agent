@@ -7,6 +7,7 @@ import {
   redactCredentials,
   type FetchLike,
   CASE_TOKEN_MIN_KEY_BYTES,
+  MCP_SECURITY_LOG_EVENTS,
 } from '@fintech-agent/contracts';
 import {
   createMcpHandler,
@@ -62,6 +63,11 @@ export interface McpApp {
 const json = (status: number, body: unknown, headers = {}): Response =>
   Response.json(body, { status, headers });
 
+/** Prints one JSON log line stamped with its ISO time, as the api's lines are (01 §Observability). */
+export const printLogLine = (line: Record<string, unknown>): void => {
+  console.log(JSON.stringify({ ...line, timestamp: new Date().toISOString() }));
+};
+
 const unauthorized = (challenge: string): Response =>
   json(
     STATUS.unauthorized,
@@ -82,7 +88,7 @@ export function createMcpApp(options: McpAppOptions): McpApp {
       `CASE_TOKEN_KEY must be at least ${CASE_TOKEN_MIN_KEY_BYTES} bytes`,
     );
   }
-  const log = options.log ?? ((line) => console.log(JSON.stringify(line)));
+  const log = options.log ?? printLogLine;
   const core = createCoreClient({
     baseUrl: options.coreUrl,
     readKey: options.coreReadKey,
@@ -120,7 +126,7 @@ export function createMcpApp(options: McpAppOptions): McpApp {
 
   // The reason only: header values and tokens are caller-chosen (G6).
   const refuse = (reason: Refusal, response: Response): Response => {
-    log({ event: 'auth_rejected', reason });
+    log({ event: MCP_SECURITY_LOG_EVENTS.authRejected, reason });
     return response;
   };
 

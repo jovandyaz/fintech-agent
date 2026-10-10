@@ -26,7 +26,7 @@ import {
 } from '@modelcontextprotocol/client';
 import { McpServer } from '@modelcontextprotocol/server';
 import { UnsecuredJWT } from 'jose';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AUDIENCE,
@@ -324,6 +324,41 @@ describe('MCP logs (02 G6)', () => {
     const logged = JSON.stringify(logs);
     expect(logged).not.toContain(forged);
     expect(logged).not.toContain('evil');
+  });
+
+  it('prints each line with its ISO time when no logger is given, as the api does (01 §Observability)', async () => {
+    const printed = vi
+      .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
+    try {
+      await close(app.server);
+      app = createMcpApp({
+        coreUrl,
+        coreReadKey: READ_KEY,
+        caseTokenKey: CASE_TOKEN_KEY,
+        audience: AUDIENCE,
+        securityEvents: { record: () => Promise.resolve() },
+      });
+      mcpUrl = `${await listen(app.server)}/mcp`;
+      await rawRequest({
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+      });
+      const lines = printed.mock.calls.map(
+        ([line]) => JSON.parse(String(line)) as Record<string, unknown>,
+      );
+      expect(lines).toEqual([
+        {
+          event: 'auth_rejected',
+          reason: 'missing_token',
+          timestamp: expect.any(String) as unknown,
+        },
+      ]);
+      const [{ timestamp }] = lines as [{ timestamp: string }];
+      expect(new Date(timestamp).toISOString()).toBe(timestamp);
+    } finally {
+      printed.mockRestore();
+    }
   });
 });
 

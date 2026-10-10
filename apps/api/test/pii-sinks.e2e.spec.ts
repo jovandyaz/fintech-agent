@@ -15,6 +15,8 @@ import * as schema from '../src/database/schema.js';
 import { HAIKU_MODEL, SONNET_MODEL } from '../src/agent/core/prices.js';
 import { runCase, type RunCaseDeps } from '../src/agent/core/run-case.js';
 import { connectCaseTools } from '../src/agent/core/tools.js';
+import { scanLogLines } from '../src/ops/scan-logs.js';
+import { scanStoredText } from '../src/ops/scan-traces.js';
 import {
   CONTAINER_START_MS,
   insertCase,
@@ -368,5 +370,12 @@ describe('masking at sinks (02 G6), a case run end to end through the real MCP s
       expect(texts.filter((text) => pattern.test(text))).toEqual([]);
     }
     expect(unmaskedRuns(value)).toEqual([]);
+  });
+
+  it('raises no PII sink alert over the rows and log lines the run wrote (01 §Observability)', async () => {
+    expect(await scanStoredText(db, RECEIVED_AT)).toEqual([]);
+    expect(
+      scanLogLines(sinks.logs.map((line) => JSON.stringify(line))),
+    ).toEqual([]);
   });
 });
