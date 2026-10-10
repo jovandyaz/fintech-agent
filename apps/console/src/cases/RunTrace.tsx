@@ -16,6 +16,18 @@ const durationOf = (ms: number | null): string | null => {
     : `${(ms / MS_PER_SECOND).toFixed(1)} s`;
 };
 
+const TOKEN_FORMAT = new Intl.NumberFormat('es-MX');
+
+function tokensOf(step: StepView): string | null {
+  const { input_tokens: input, output_tokens: output } = step;
+  if (input === null || output === null) return null;
+  const cached = step.cached_input_tokens ?? 0;
+  const text = `${TOKEN_FORMAT.format(input)} entrada · ${TOKEN_FORMAT.format(output)} salida`;
+  return cached > 0
+    ? `${text} · ${TOKEN_FORMAT.format(cached)} en caché`
+    : text;
+}
+
 const asText = (value: unknown): string =>
   JSON.stringify(value, null, JSON_INDENT);
 
@@ -33,12 +45,14 @@ function Step(props: { step: StepView }) {
   const { step } = props;
   const codes = validatorCodesOf(step);
   const latency = durationOf(step.latency_ms);
+  const tokens = tokensOf(step);
   return (
     <li className="trace-step" data-testid="trace-step" data-kind={step.kind}>
       <p className="trace-step-head">
         <span className="trace-kind">{STEP_KIND_LABEL[step.kind]}</span>
         <span className="mono">{step.name}</span>
         {latency && <span className="muted">{latency}</span>}
+        {tokens && <span className="muted">{tokens}</span>}
         {step.cost_usd && (
           <span className="muted">{`US$${step.cost_usd}`}</span>
         )}
@@ -54,6 +68,7 @@ function Step(props: { step: StepView }) {
       )}
       <details>
         <summary>Entrada y salida</summary>
+        {step.finish_reason && <p>{`Fin: ${step.finish_reason}`}</p>}
         {step.input !== null && (
           <pre data-testid="step-input">{asText(step.input)}</pre>
         )}
@@ -94,7 +109,7 @@ export function RunTrace(props: { runs: readonly RunView[] }) {
                 <dt>Modelo</dt>
                 <dd className="mono">{run.model}</dd>
                 <dt>Tokens</dt>
-                <dd>{`${run.input_tokens} tokens de entrada · ${run.output_tokens} de salida`}</dd>
+                <dd>{`${TOKEN_FORMAT.format(run.input_tokens)} tokens de entrada · ${TOKEN_FORMAT.format(run.output_tokens)} de salida`}</dd>
                 <dt>Costo</dt>
                 <dd className="mono">{`US$${run.cost_usd}`}</dd>
                 {latency && (

@@ -135,7 +135,7 @@ Done when: `docker compose up` → sign in → submit a case in the form → it 
 ## Step 8 — Traces, alerts, variant decision (45 min)
 
 - `ops/alerts.sql`: the remaining alerts in the 01 table, each with its threshold, minimum sample and owner.
-- `ops/scan-logs.mjs`: the log-line alerts of the 01 table, with a test that a planted 8-digit run, a `security_event_unrecorded` line and 11 `auth_rejected` lines in 5 minutes each raise their alert and a clean log raises none.
+- `apps/api/src/ops/scan-logs.ts` (`pnpm ops:scan-logs`) and `scan-traces.ts` (`pnpm ops:scan-traces`): the log-line alerts and the trace half of the PII sink scan of the 01 table, with `maskPii` as the oracle, with a test that a planted 8-digit run, a `security_event_unrecorded` line and 11 `auth_rejected` lines in 5 minutes each raise their alert and a clean log raises none.
 - Apply the 03 decision rule to the step 6 results; re-run the comparison only if prompts or tools changed since. Set the default variant.
 - AI SDK telemetry with content recording off by default; per-step provider request id and finish reason.
 - Optional: Langfuse bootstrap (`feat(port): bring langfuse bootstrap from knowtis`), mask function wired, off without keys. Postgres traces already meet the requirement; this is the first cut.

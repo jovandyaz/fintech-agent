@@ -7,14 +7,16 @@ import { NewCase } from './NewCase.js';
 const ACCEPTED = 202;
 const BAD_REQUEST = 400;
 const UNAVAILABLE = 503;
-const CUSTOMERS = Response.json([
-  { id: 'cus_01', first_name: 'Ana' },
-  { id: 'cus_02', first_name: 'Luis' },
-]);
-const OPENED = Response.json(
-  { case_id: 'case_new', folio: 'AC-N3W0-CA5E' },
-  { status: ACCEPTED },
-);
+const customers = () =>
+  Response.json([
+    { id: 'cus_01', first_name: 'Ana' },
+    { id: 'cus_02', first_name: 'Luis' },
+  ]);
+const opened = () =>
+  Response.json(
+    { case_id: 'case_new', folio: 'AC-N3W0-CA5E' },
+    { status: ACCEPTED },
+  );
 const unavailable = () =>
   Response.json({ message: 'core_unavailable' }, { status: UNAVAILABLE });
 const TEXT = 'No reconozco un cargo de PAYPAL por 899.';
@@ -33,7 +35,7 @@ afterEach(cleanup);
 describe('new case form (04 Step 7: it takes the real webhook path)', () => {
   it('offers each customer by first name and id', async () => {
     renderWithApi(<NewCase onOpened={vi.fn()} onCancel={vi.fn()} />, {
-      'GET /customers': CUSTOMERS,
+      'GET /customers': customers,
     });
     expect(
       await screen.findByRole('option', { name: 'Ana · cus_01' }),
@@ -46,8 +48,8 @@ describe('new case form (04 Step 7: it takes the real webhook path)', () => {
     const { seen } = renderWithApi(
       <NewCase onOpened={onOpened} onCancel={vi.fn()} />,
       {
-        'GET /customers': CUSTOMERS,
-        'POST /cases': OPENED,
+        'GET /customers': customers,
+        'POST /cases': opened,
       },
     );
     await screen.findByRole('option', { name: 'Ana · cus_01' });
@@ -62,10 +64,10 @@ describe('new case form (04 Step 7: it takes the real webhook path)', () => {
 
   it('opens one case however many times the operator clicks while it is sent', async () => {
     const onOpened = vi.fn();
-    const held = heldAnswer(OPENED);
+    const held = heldAnswer(opened());
     const { seen } = renderWithApi(
       <NewCase onOpened={onOpened} onCancel={vi.fn()} />,
-      { 'GET /customers': CUSTOMERS, 'POST /cases': held.answer },
+      { 'GET /customers': customers, 'POST /cases': held.answer },
     );
     await screen.findByRole('option', { name: 'Ana · cus_01' });
     fill('cus_01', TEXT);
@@ -79,7 +81,7 @@ describe('new case form (04 Step 7: it takes the real webhook path)', () => {
 
   it('moves focus to the form heading when it opens', async () => {
     renderWithApi(<NewCase onOpened={vi.fn()} onCancel={vi.fn()} />, {
-      'GET /customers': CUSTOMERS,
+      'GET /customers': customers,
     });
     expect(document.activeElement).toBe(
       screen.getByRole('heading', { name: 'Nuevo caso' }),
@@ -91,7 +93,7 @@ describe('new case form (04 Step 7: it takes the real webhook path)', () => {
     const onCancel = vi.fn();
     const { seen } = renderWithApi(
       <NewCase onOpened={vi.fn()} onCancel={onCancel} />,
-      { 'GET /customers': CUSTOMERS },
+      { 'GET /customers': customers },
     );
     await screen.findByRole('option', { name: 'Ana · cus_01' });
     fill('cus_01', TEXT);
@@ -102,7 +104,7 @@ describe('new case form (04 Step 7: it takes the real webhook path)', () => {
 
   it('cannot be sent without a customer and a message', async () => {
     renderWithApi(<NewCase onOpened={vi.fn()} onCancel={vi.fn()} />, {
-      'GET /customers': CUSTOMERS,
+      'GET /customers': customers,
     });
     await screen.findByRole('option', { name: 'Ana · cus_01' });
     const create = screen.getByRole<HTMLButtonElement>('button', {
@@ -117,7 +119,7 @@ describe('new case form (04 Step 7: it takes the real webhook path)', () => {
 
   it('says when the case could not be created, and keeps the message', async () => {
     renderWithApi(<NewCase onOpened={vi.fn()} onCancel={vi.fn()} />, {
-      'GET /customers': CUSTOMERS,
+      'GET /customers': customers,
       'POST /cases': Response.json(
         { message: 'invalid_body' },
         { status: BAD_REQUEST },
@@ -135,7 +137,7 @@ describe('new case form (04 Step 7: it takes the real webhook path)', () => {
   });
 
   it('says when the customers cannot be loaded, and loads them again on request', async () => {
-    const answers = [unavailable(), CUSTOMERS];
+    const answers = [unavailable(), customers()];
     renderWithApi(<NewCase onOpened={vi.fn()} onCancel={vi.fn()} />, {
       'GET /customers': () => answers.shift() ?? unavailable(),
     });

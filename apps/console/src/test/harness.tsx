@@ -43,12 +43,22 @@ export function renderWithApi(
     const body: unknown =
       typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
     seen.push({ method, url, body });
-    const route = routes[`${method} ${url}`];
+    const key = `${method} ${url}`;
+    const route = routes[key];
     if (route === undefined) {
       return Promise.resolve(new Response(null, { status: NOT_FOUND }));
     }
     const answer = typeof route === 'function' ? route(body) : route;
-    return Promise.resolve(answer).then((response) => response.clone());
+    return Promise.resolve(answer).then((response) => {
+      // A Response shared across tests gets consumed when undici garbage
+      // collects an unread clone; fail here, naming the route, not in the UI.
+      if (response.bodyUsed) {
+        const message = `Route "${key}" answered with a Response that was already used; build it per test with a factory`;
+        console.error(message);
+        throw new Error(message);
+      }
+      return response.clone();
+    });
   };
   const api = createApiClient({
     fetch,

@@ -4,6 +4,12 @@ import { defineConfig } from 'vitest/config';
 // Testcontainers (Docker, no API key), and so do the in-process end-to-end
 // specs; `console` runs the React app's specs in jsdom. `pnpm verify` runs unit
 // and console.
+
+// Testcontainers waits a fixed 10 s for a started container's port to bind;
+// many suites starting Postgres at once exceed it. The cap needs its own
+// group, so `pnpm test` runs integration after unit and console.
+const INTEGRATION_MAX_WORKERS = 4;
+
 export default defineConfig({
   test: {
     passWithNoTests: true,
@@ -29,6 +35,8 @@ export default defineConfig({
             '{apps,packages,data,evals}/**/*.e2e.spec.ts',
           ],
           exclude: ['**/node_modules/**'],
+          maxWorkers: INTEGRATION_MAX_WORKERS,
+          sequence: { groupOrder: 1 },
         },
       },
     ],

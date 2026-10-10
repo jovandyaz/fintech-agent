@@ -55,6 +55,10 @@ export const RUN: RunView = {
       output: { outcome: 'passed' },
       latency_ms: 900,
       cost_usd: '0.0010',
+      input_tokens: null,
+      output_tokens: null,
+      cached_input_tokens: null,
+      finish_reason: null,
     },
     {
       idx: 1,
@@ -64,6 +68,10 @@ export const RUN: RunView = {
       output: { items: [{ id: CARD_CHARGE.id, amount: 899 }], total: 1 },
       latency_ms: 120,
       cost_usd: null,
+      input_tokens: null,
+      output_tokens: null,
+      cached_input_tokens: null,
+      finish_reason: null,
     },
     {
       idx: 2,
@@ -73,6 +81,10 @@ export const RUN: RunView = {
       output: { chunks: [{ chunk_id: 'pol-03#2' }] },
       latency_ms: 80,
       cost_usd: null,
+      input_tokens: null,
+      output_tokens: null,
+      cached_input_tokens: null,
+      finish_reason: null,
     },
     {
       idx: 3,
@@ -82,6 +94,10 @@ export const RUN: RunView = {
       output: { outcome: 'repair', codes: ['UNGROUNDED_NUMBER'] },
       latency_ms: null,
       cost_usd: null,
+      input_tokens: null,
+      output_tokens: null,
+      cached_input_tokens: null,
+      finish_reason: null,
     },
   ],
 };

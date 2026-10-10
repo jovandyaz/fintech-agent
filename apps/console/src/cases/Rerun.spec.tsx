@@ -25,11 +25,12 @@ const openCase = (data: CaseDetail, routes: Routes = {}) =>
     ...routes,
   });
 
-const queued = Response.json({
-  case_id: 'case_abc',
-  status: 'queued',
-  manual_reruns: 1,
-});
+const queued = () =>
+  Response.json({
+    case_id: 'case_abc',
+    status: 'queued',
+    manual_reruns: 1,
+  });
 
 afterEach(cleanup);
 
@@ -137,7 +138,7 @@ describe('run again (02 G3 re-runs, at most 3)', () => {
   });
 
   it('runs once however many times the operator clicks while it is sent', async () => {
-    const held = heldAnswer(queued);
+    const held = heldAnswer(queued());
     const { seen } = openCase(withCase({}), { [RERUN]: held.answer });
     const again = await screen.findByRole('button', { name: AGAIN });
     fireEvent.click(again);

@@ -138,6 +138,10 @@ export async function caseDetailOf(
           output: maskJson(step.outputMasked),
           latency_ms: step.latencyMs,
           cost_usd: step.costUsd,
+          input_tokens: step.inputTokens,
+          output_tokens: step.outputTokens,
+          cached_input_tokens: step.cachedInputTokens,
+          finish_reason: step.finishReason,
         })),
     })),
     resolution: resolution

@@ -1,6 +1,8 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { RunView, StepView } from '@fintech-agent/contracts/console';
+
 import { RUN } from '../test/case-detail.js';
 import { RunTrace } from './RunTrace.js';
 
@@ -14,7 +16,7 @@ describe('run trace (04 Step 7)', () => {
     expect(run.getByText('Completa · terminó')).toBeTruthy();
     expect(run.getByText('claude-sonnet-5-5')).toBeTruthy();
     expect(
-      run.getByText('5200 tokens de entrada · 640 de salida'),
+      run.getByText('5,200 tokens de entrada · 640 de salida'),
     ).toBeTruthy();
     expect(run.getByText('US$0.0231')).toBeTruthy();
     expect(run.getByText('8.4 s')).toBeTruthy();
@@ -44,6 +46,73 @@ describe('run trace (04 Step 7)', () => {
     expect(within(tool).getByTestId('step-output').textContent).toBe(
       JSON.stringify(RUN.steps[1]!.output, null, 2),
     );
+  });
+
+  describe('tokens and finish reason per step', () => {
+    const llmStep = (over: Partial<StepView> = {}): RunView => ({
+      ...RUN,
+      steps: [
+        {
+          idx: 0,
+          kind: 'llm',
+          name: 'investigate',
+          input: null,
+          output: { text: 'ok' },
+          latency_ms: 900,
+          cost_usd: '0.0012',
+          input_tokens: 1234,
+          output_tokens: 56,
+          cached_input_tokens: 0,
+          finish_reason: 'stop',
+          ...over,
+        },
+      ],
+    });
+
+    it('shows the tokens an llm step used', () => {
+      render(<RunTrace runs={[llmStep()]} />);
+      const step = screen.getByTestId('trace-step');
+      expect(within(step).getByText('1,234 entrada · 56 salida')).toBeTruthy();
+    });
+
+    it('adds the cached tokens only when there are some', () => {
+      render(<RunTrace runs={[llmStep({ cached_input_tokens: 800 })]} />);
+      expect(
+        screen.getByText('1,234 entrada · 56 salida · 800 en caché'),
+      ).toBeTruthy();
+      cleanup();
+      render(<RunTrace runs={[llmStep({ cached_input_tokens: 0 })]} />);
+      expect(screen.queryByText(/en caché/)).toBeNull();
+    });
+
+    it('shows no token text when one of the counts is missing', () => {
+      render(
+        <RunTrace
+          runs={[llmStep({ input_tokens: 10, output_tokens: null })]}
+        />,
+      );
+      expect(
+        within(screen.getByTestId('trace-step')).queryByText(/entrada ·/),
+      ).toBeNull();
+    });
+
+    it('shows no token text on a step without tokens', () => {
+      render(<RunTrace runs={[RUN]} />);
+      for (const step of screen.getAllByTestId('trace-step')) {
+        expect(within(step).queryByText(/entrada ·/)).toBeNull();
+      }
+    });
+
+    it('names the finish reason inside the details', () => {
+      render(<RunTrace runs={[llmStep()]} />);
+      const details = screen.getByTestId('trace-step').querySelector('details');
+      expect(within(details!).getByText('Fin: stop')).toBeTruthy();
+    });
+
+    it('shows no finish reason line when there is none', () => {
+      render(<RunTrace runs={[llmStep({ finish_reason: null })]} />);
+      expect(screen.queryByText(/^Fin:/)).toBeNull();
+    });
   });
 
   it('names the error a failed run ended with', () => {

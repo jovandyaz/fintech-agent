@@ -66,6 +66,10 @@ export const StepViewSchema = z.strictObject({
   output: z.unknown(),
   latency_ms: z.number().int().nullable(),
   cost_usd: z.string().nullable(),
+  input_tokens: z.number().int().nullable(),
+  output_tokens: z.number().int().nullable(),
+  cached_input_tokens: z.number().int().nullable(),
+  finish_reason: z.string().nullable(),
 });
 export type StepView = z.infer<typeof StepViewSchema>;
 

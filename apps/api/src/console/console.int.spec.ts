@@ -226,6 +226,11 @@ describe('console read API (04 Step 7, 02 G3)', () => {
       values ('run_detail', 0, 'tool', 'list_transactions', ${owner.json({ limit: 10 })},
         ${owner.json({ items: [{ id: 'tx_c1' }] })}, 120, null),
         ('run_detail', 1, 'llm', 'investigate', null, null, 900, '0.001200')`;
+    await owner`
+      update run_steps set input_tokens = 1234, output_tokens = 56,
+        cached_input_tokens = 800, finish_reason = 'stop',
+        provider_request_id = 'req_secret'
+      where run_id = 'run_detail' and idx = 1`;
 
     const detail = await detailOf(caseId);
     expect(detail.case).toMatchObject({
@@ -240,6 +245,19 @@ describe('console read API (04 Step 7, 02 G3)', () => {
       [0, 'list_transactions'],
       [1, 'investigate'],
     ]);
+    expect(detail.runs[0]?.steps[1]).toMatchObject({
+      input_tokens: 1234,
+      output_tokens: 56,
+      cached_input_tokens: 800,
+      finish_reason: 'stop',
+    });
+    expect(detail.runs[0]?.steps[0]).toMatchObject({
+      input_tokens: null,
+      output_tokens: null,
+      cached_input_tokens: null,
+      finish_reason: null,
+    });
+    expect(JSON.stringify(detail)).not.toContain('req_secret');
     expect(detail.resolution?.draft_reply).toContain('{{folio}}');
     expect(detail.proposal).toMatchObject({
       action_id: actionId,
@@ -392,11 +410,16 @@ describe('console read API (04 Step 7, 02 G3)', () => {
           latency_ms = 18000, finished_at = now()
         where id = ${`run_${key}`}`;
       await owner`update resolutions set citations = ${citations} where run_id = ${`run_${key}`}`;
+      await owner`
+        insert into run_steps (run_id, idx, kind, name, input_tokens, output_tokens,
+          cached_input_tokens, finish_reason, latency_ms, cost_usd)
+        values (${`run_${key}`}, 0, 'llm', 'investigate', 1200, 80, 0, 'stop', 900, '0.001000')`;
       return (await get(`/cases/${seeded.caseId}`)).text();
     };
     const realDetail = await seen('mirror', false);
     const canaryDetail = await seen('mirrortwin', true);
     expect(canaryDetail).not.toMatch(/canary/i);
+    expect(realDetail).toContain('"finish_reason":"stop"');
     expect(new Set(keyPathsOf(JSON.parse(canaryDetail)))).toEqual(
       new Set(keyPathsOf(JSON.parse(realDetail))),
     );
