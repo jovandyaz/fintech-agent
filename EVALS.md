@@ -20,6 +20,7 @@ docker compose up -d            # the stack; the runner calls the models itself,
 pnpm eval                       # 104 agent runs + judge + redactor recall; writes evals/results/
 pnpm eval:report                # re-grades the newest complete full run into the block below
 pnpm eval --only high-stakes    # the pre-merge regression check (42 runs per variant)
+pnpm eval --only SPEI-OUT-03 --variant A   # one case by scenario id (a high-stakes case runs 3 times)
 pnpm eval:judgments             # judge controls + calibration rows (evals/calibration/README.md)
 pnpm eval:agreement             # once labels.jsonl exists: TPR/TNR of the judge
 ```

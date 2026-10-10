@@ -56,8 +56,21 @@ describe('parseFlags (03 §Runner)', () => {
     });
   });
 
+  it('reads a scenario id after --only', () => {
+    expect(
+      parseFlags(['--only', 'SPEI-OUT-03', '--variant', 'A']),
+    ).toEqual<RunFlags>({
+      variants: ['A'],
+      only: 'SPEI-OUT-03',
+      repeat: null,
+      writeBaseline: false,
+    });
+  });
+
   it.each([
     [['--variant', 'C'], '--variant'],
+    [['--only', 'SPEI-OUT-99'], 'SPEI-OUT-99'],
+    [['--only', 'adv-01'], 'adv-01'],
     [['--only', 'GEN'], '--only'],
     [['--repeat', '0'], '--repeat'],
     [['--repeat', '1.5'], '--repeat'],
@@ -74,6 +87,15 @@ describe('selectCases and repeatsOf (03 §Repeats)', () => {
     expect(selectCases(EVAL_CASES, 'ADV')).toHaveLength(10);
     expect(selectCases(EVAL_CASES, 'high-stakes')).toHaveLength(14);
     expect(selectCases(EVAL_CASES, null)).toHaveLength(24);
+  });
+
+  it('selects exactly the case a scenario id names', () => {
+    expect(selectCases(EVAL_CASES, 'GEN-01').map(({ id }) => id)).toEqual([
+      'GEN-01',
+    ]);
+    expect(selectCases(EVAL_CASES, 'ADV-03').map(({ id }) => id)).toEqual([
+      'ADV-03',
+    ]);
   });
 
   it('runs a high-stakes case three times and any other once, unless --repeat says otherwise', () => {

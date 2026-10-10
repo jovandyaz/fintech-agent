@@ -5,8 +5,8 @@ import type { Sql } from 'postgres';
 import { migrateDatabase } from '../src/database/migrate.js';
 import { setRolePasswords } from '../src/database/roles.js';
 
-// The image compose runs (docker-compose.yml `db`).
-const IMAGE = 'postgres:16-alpine';
+/** The image compose runs (docker-compose.yml `db`). */
+export const POSTGRES_IMAGE = 'postgres:16-alpine';
 /** Upper bound for pulling and starting the container in a test hook. */
 export const CONTAINER_START_MS = 120_000;
 
@@ -19,7 +19,7 @@ export interface TestDatabase {
 
 /** A throwaway Postgres 16 (the compose image), migrated, with every role able to log in. */
 export async function startTestDatabase(): Promise<TestDatabase> {
-  const container = await new PostgreSqlContainer(IMAGE).start();
+  const container = await new PostgreSqlContainer(POSTGRES_IMAGE).start();
   const ownerUrl = container.getConnectionUri();
   const passwordFor = (role: DbRole): string => `test-${role}`;
   await migrateDatabase(ownerUrl);

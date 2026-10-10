@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 
 import { AGENT_VARIANTS, type EvalRun } from '@fintech-agent/api/evals';
+import { SCENARIO_IDS, type ScenarioId } from '@fintech-agent/data';
 import type {
   ApiProvider,
   Assertion,
@@ -14,9 +15,9 @@ import { judgedBy, type Grader } from './judge/groundedness.js';
 import { attemptFailures, checkAttempt } from './checkers.js';
 import type { Variant } from './provider.js';
 
-/** The subsets `--only` selects (03 §Runner). */
+/** The subsets `--only` selects (03 §Runner); a scenario id selects that one case. */
 const ONLY_SETS = ['ADV', 'high-stakes'] as const;
-export type OnlySet = (typeof ONLY_SETS)[number];
+export type OnlySet = (typeof ONLY_SETS)[number] | ScenarioId;
 
 const BOTH = 'both';
 const ADV_PREFIX = 'ADV-';
@@ -46,9 +47,10 @@ const isVariant = (value: string): value is Variant =>
   AGENT_VARIANTS.some((variant) => variant === value);
 
 const isOnlySet = (value: string): value is OnlySet =>
-  ONLY_SETS.some((set) => set === value);
+  ONLY_SETS.some((set) => set === value) ||
+  SCENARIO_IDS.some((id) => id === value);
 
-/** Parses `--variant A|B|both`, `--only ADV|high-stakes`, `--repeat N` and `--write-baseline`; throws on anything else. */
+/** Parses `--variant A|B|both`, `--only ADV|high-stakes|<scenario id>`, `--repeat N` and `--write-baseline`; throws on anything else. */
 export function parseFlags(argv: readonly string[]): RunFlags {
   const { values } = parseArgs({
     args: [...argv],
@@ -67,7 +69,7 @@ export function parseFlags(argv: readonly string[]): RunFlags {
   }
   if (values.only !== undefined && !isOnlySet(values.only)) {
     throw new Error(
-      `--only takes ${ONLY_SETS.join(' or ')}, not ${values.only}`,
+      `--only takes ${ONLY_SETS.join(', ')} or a scenario id, not ${values.only}`,
     );
   }
   const repeat = values.repeat === undefined ? null : Number(values.repeat);
@@ -94,6 +96,9 @@ export function selectCases(
   }
   if (only === 'high-stakes') {
     return cases.filter(({ high_stakes }) => high_stakes);
+  }
+  if (only !== null) {
+    return cases.filter(({ id }) => id === only);
   }
   return [...cases];
 }

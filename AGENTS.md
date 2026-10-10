@@ -4,32 +4,39 @@ An agent that investigates a customer case with read-only tools and policies, pr
 
 ## Map
 
-| Path                      | What lives there                                                               | Spec      |
-| ------------------------- | ------------------------------------------------------------------------------ | --------- |
-| `specs/`                  | Scope, architecture, security, evals, build plan, references                   | —         |
-| `apps/api`                | NestJS 11: webhook, queue worker, harness, retrieval, decisions, executor      | 01        |
-| `apps/api/src/agent/core` | Harness core, plain TypeScript, no Nest DI (the eval runner calls it directly) | 01        |
-| `apps/mcp`                | MCP server, four read-only tools bound to a case token                         | 01, 02 G4 |
-| `apps/core-mock`          | Synthetic core banking API; the only write endpoints, for the executor         | 01        |
-| `apps/console`            | React ops console                                                              | 04 step 7 |
-| `packages/contracts`      | Zod schemas and `maskPii`                                                      | 01, 02 G6 |
-| `data/`                   | Seeded dataset, scenarios, policy docs, webhook fixtures                       | 03, 04    |
-| `evals/`                  | promptfoo runner, labeled cases, judge calibration                             | 03        |
-| `e2e/`                    | Playwright end-to-end tests of the console against the compose stack           | 04 step 7 |
-| `docs/agent-setup/`       | Snapshot of the global agent setup used to build this                          | —         |
+| Path                              | What lives there                                                                                      | Spec          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------- |
+| `specs/`                          | Scope, architecture, security, evals, build plan, references                                          | —             |
+| `apps/api`                        | NestJS 11: webhook, queue worker, harness, retrieval, decisions, executor                             | 01            |
+| `apps/api/src/agent/core`         | Harness core, plain TypeScript, no Nest DI (the eval runner calls it directly)                        | 01            |
+| `apps/mcp`                        | MCP server, four read-only tools bound to a case token                                                | 01, 02 G4     |
+| `apps/core-mock`                  | Synthetic core banking API; the only write endpoints, for the executor                                | 01            |
+| `apps/console`                    | React ops console                                                                                     | 04 step 7     |
+| `packages/contracts`              | Zod schemas and `maskPii`                                                                             | 01, 02 G6     |
+| `data/`                           | Seeded dataset, scenarios, policy docs, webhook fixtures                                              | 03, 04        |
+| `evals/`                          | promptfoo runner, labeled cases, judge calibration                                                    | 03            |
+| `e2e/`                            | Playwright end-to-end tests of the console against the compose stack                                  | 04 step 7     |
+| `docs/agent-setup/`               | Snapshot of the global agent setup used to build this                                                 | —             |
+| `.claude/skills/`                 | `add-eval-case` and `add-policy-doc`: the two project skills for small changes                        | 04 step 0     |
+| `ops/`                            | Alert and metric SQL, on-call README                                                                  | 01            |
+| `docs/handoff/`                   | Handoff and build log                                                                                 | —             |
+| root `*.md`, `docs/compliance.md` | Docs: README, DESIGN, EVALS (results), PLAYBOOK (Spanish, for ops), AI_NOTES; the compliance appendix | 03, 04 step 9 |
 
 Folders appear as the build plan (`specs/04-build-plan.md`) reaches them.
 
 ## Commands
 
-| Command                 | Runs                                                      | Needs                              |
-| ----------------------- | --------------------------------------------------------- | ---------------------------------- |
-| `pnpm verify`           | typecheck, lint, unit tests, hook tests                   | nothing                            |
-| `pnpm test`             | unit + integration (Testcontainers Postgres) + hook tests | Docker                             |
-| `docker compose up`     | the whole stack                                           | `ANTHROPIC_API_KEY` for agent runs |
-| `pnpm eval`             | eval runner against the running stack                     | stack + key                        |
-| `pnpm demo:post <ids…>` | signs and posts `data/webhook-fixtures` to the stack      | stack                              |
-| `pnpm e2e`              | Playwright through the console: decide, demo, canary      | fresh stack with `AGENT_MODE=off`  |
+| Command                                       | Runs                                                                              | Needs                              |
+| --------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------- |
+| `pnpm verify`                                 | typecheck, lint, unit and console tests, hook tests                               | nothing                            |
+| `pnpm test`                                   | unit, console and integration (Testcontainers Postgres) tests, hook tests         | Docker                             |
+| `docker compose up`                           | the whole stack                                                                   | `ANTHROPIC_API_KEY` for agent runs |
+| `pnpm eval`                                   | eval runner against the running stack                                             | stack + key                        |
+| `pnpm demo:post <ids…>`                       | signs and posts `data/webhook-fixtures` to the stack                              | stack                              |
+| `pnpm e2e`                                    | Playwright through the console: decide, demo, canary                              | fresh stack with `AGENT_MODE=off`  |
+| `pnpm canary:inject`                          | adds one practice canary case per template to the inbox                           | stack                              |
+| `pnpm ops:scan-logs` / `pnpm ops:scan-traces` | PII and security scans of log lines on stdin / of stored traces (`ops/README.md`) | logs piped in / stack              |
+| `pnpm eval:report`                            | re-grades the newest complete full run into EVALS.md, no model calls              | a run in `evals/results/`          |
 
 ## Invariants (specs/02-security.md)
 
