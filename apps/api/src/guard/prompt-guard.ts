@@ -10,6 +10,10 @@ const MAX_PATTERN_GAP_CHARS = 200;
 const MAX_PATTERN_WORD_CHARS = 32;
 const MAX_PATTERN_WORDS = 4;
 const BRIDGE = `{1,${MAX_PATTERN_BRIDGE_CHARS}}`;
+// Horizontal blanks only, since `\s*` would rescan a newline run from each newline.
+const CLAUSE_START = String.raw`(?:^|[.,;:!?¡¿\r\n"“'«(])[^\S\r\n]*(?:[-*•][^\S\r\n]+)?`;
+// A letter, not `\b`, ends the markup word, so "HTML5" still counts.
+const MARKUP_END = String.raw`(?![A-Za-zÀ-ÿ])`;
 
 const INJECTION_PATTERNS: readonly {
   pattern: RegExp;
@@ -149,6 +153,24 @@ const INJECTION_PATTERNS: readonly {
     pattern: /\bnota\s+para\s+(?:el|la)\s+(?:agente|asistente|modelo|ia)\s*:/i,
     weight: 0.7,
     reason: 'Directive addressed to the agent (es)',
+  },
+  {
+    // "responde" is also the third person, so only a clause-start verb counts.
+    pattern: new RegExp(
+      String.raw`${CLAUSE_START}(?:por\s+favor\s+)?(?:resp[oó]nd[eéa]|cont[eé]st[aáe]|escr[ií]b[ea]|red[aá]ct[aáe])(?:me|nos)?\s+(?:(?:tu|la|su)\s+respuesta\s+)?(?:en|como|usando)\s+(?:(?:formato|lenguaje|c[óo]digo|etiquetas)\s+(?:de\s+)?)?(?:html|markdown|script|etiquetas)${MARKUP_END}`,
+      'i',
+    ),
+    weight: 0.7,
+    reason: 'Reply markup directive (es)',
+  },
+  {
+    // "reply" is also a noun and "write" a plural, so only a clause-start verb counts.
+    pattern: new RegExp(
+      String.raw`${CLAUSE_START}(?:please\s+)?(?:reply|respond|answer|write|format)\s+(?:(?:your|the)\s+(?:answer|reply|response)\s+)?(?:in|as|using)\s+(?:html|markdown|script|tags)${MARKUP_END}`,
+      'i',
+    ),
+    weight: 0.7,
+    reason: 'Reply markup directive',
   },
 
   // Weak signals — a lone match stays under the threshold; they only

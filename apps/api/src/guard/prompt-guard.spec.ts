@@ -92,6 +92,9 @@ describe('detectPromptInjection', () => {
     ['a role takeover opener before spaces', `ahora eres${' '.repeat(32_000)}`],
     ['an addressee before spaces and a colon', `agente${' '.repeat(32_000)}:`],
     ['an override verb before spaces', `ignora${' '.repeat(32_000)}`],
+    ['a reply verb before spaces', `responde${' '.repeat(32_000)}en`],
+    ['a courtesy opener before spaces', `por favor${' '.repeat(32_000)}`],
+    ['an English reply verb before spaces', `reply${' '.repeat(32_000)}in`],
   ])('scans 32 KB of %s in linear time', (_, text) => {
     // The fastest of a few runs: parallel verify runs stall single samples,
     // but a superlinear regression is slow on every run.
