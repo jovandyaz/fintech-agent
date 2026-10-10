@@ -94,8 +94,8 @@ export function runCaseDepsOf(input: {
     db: input.db,
     config,
     models: modelsOf(input.config.ANTHROPIC_API_KEY),
-    canaryModels: (defect) =>
-      canaryModelsOf(canaryTemplateOf(defect), {
+    canaryModels: (canary) =>
+      canaryModelsOf(canaryTemplateOf(canary), {
         redactorModelId: config.redactorModelId,
         agentModelId: config.modelId,
       }),

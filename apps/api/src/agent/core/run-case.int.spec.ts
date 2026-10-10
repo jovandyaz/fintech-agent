@@ -36,6 +36,8 @@ import {
   speiRow,
   speiStatus,
 } from '../../../test/validator-fixtures.js';
+import { canaryModelsOf } from '../../canaries/script.js';
+import { canaryTemplateOf, type CanaryCase } from '../../canaries/templates.js';
 import type { Database } from '../../database/index.js';
 import * as schema from '../../database/schema.js';
 import { HAIKU_MODEL, SONNET_MODEL } from './prices.js';
@@ -54,6 +56,8 @@ const ONE_CALL_AND_TWO_SDK_RETRIES = 3;
 const SECOND_MS = 1000;
 const TOKEN_MARGIN_MS = 60_000;
 const EIGHT_DIGITS = /\d{8,}/;
+// canary_cases never reaches a log or a DTO (02 G3), not even through an error.
+const CANARY_WORDING = /canar|defect/i;
 const PHONE_ERROR = () => new Error('tel 5512345678');
 // Just above MIN_MODEL_CALL_MS, so one model call is made and the attempt
 // ends while the SDK waits to retry.
@@ -222,15 +226,15 @@ const providerNeverCalled = (calls: string[]) => (modelId: string) => {
 };
 
 describe('runCase on a canary case (02 G3)', () => {
-  it('runs on the defect script, never on the provider, and marks the proposal', async () => {
+  it('runs on the script of its defect, customer and stored text, never on the provider, and marks the proposal', async () => {
     const claim = await markedCanary();
     const provider: string[] = [];
-    const scripted: string[] = [];
+    const scripted: CanaryCase[] = [];
     const agent = resolved();
     const h = harness(agent, {
       models: providerNeverCalled(provider),
-      canaryModels: (defect) => {
-        scripted.push(defect);
+      canaryModels: (canary) => {
+        scripted.push(canary);
         return { redactor: redactor([]), agent };
       },
     });
@@ -239,7 +243,13 @@ describe('runCase on a canary case (02 G3)', () => {
       runStatus: 'succeeded',
     });
     expect(provider).toEqual([]);
-    expect(scripted).toEqual(['cold_tone']);
+    expect(scripted).toEqual([
+      {
+        defect: 'cold_tone',
+        customerId: customerOf(claim),
+        textMasked: CASE_TEXT,
+      },
+    ]);
     expect(await proposalsOf(claim.caseId)).toEqual([
       { agent_type: 'open_dispute', is_canary: true },
     ]);
@@ -282,7 +292,7 @@ describe('runCase on a canary case (02 G3)', () => {
     const scripted: string[] = [];
     const h = harness(resolved(), {
       config: { ...CONFIG, mode: 'off' },
-      canaryModels: (defect) => {
+      canaryModels: ({ defect }) => {
         scripted.push(defect);
         throw new Error('the script was reached');
       },
@@ -299,7 +309,7 @@ describe('runCase on a canary case (02 G3)', () => {
     const scripted: string[] = [];
     const h = harness(resolved(), {
       models: null,
-      canaryModels: (defect) => {
+      canaryModels: ({ defect }) => {
         scripted.push(defect);
         throw new Error('the script was reached');
       },
@@ -309,6 +319,36 @@ describe('runCase on a canary case (02 G3)', () => {
       errorCode: 'no_api_key',
     });
     expect(scripted).toEqual([]);
+  });
+
+  it('fails a canary with no replay script as an internal error, never on a model, and says nothing of it', async () => {
+    const claim = await markedCanary();
+    const provider: string[] = [];
+    const h = harness(resolved(), {
+      models: providerNeverCalled(provider),
+      canaryModels: (canary) =>
+        canaryModelsOf(canaryTemplateOf(canary), {
+          redactorModelId: HAIKU_MODEL,
+          agentModelId: SONNET_MODEL,
+        }),
+    });
+    expect(await runCase(h.deps, claim)).toMatchObject({
+      kind: 'failed',
+      errorCode: 'internal_error',
+    });
+    expect(provider).toEqual([]);
+    expect(h.logs).not.toEqual([]);
+    expect(JSON.stringify(h.logs)).not.toMatch(CANARY_WORDING);
+    // The console's read model is built from these rows alone (G4 keeps it out of agent/).
+    const stored = await owner`
+      select row_to_json(c) as kase,
+        (select json_agg(r) from agent_runs r where r.case_id = c.id) as runs,
+        (select json_agg(st) from run_steps st join agent_runs r on r.id = st.run_id
+          where r.case_id = c.id) as steps,
+        (select json_agg(a) from audit_log a where a.ref = c.id) as audit
+      from cases c where c.id = ${claim.caseId}`;
+    expect(stored[0]?.['runs']).toHaveLength(1);
+    expect(JSON.stringify(stored)).not.toMatch(CANARY_WORDING);
   });
 });
 

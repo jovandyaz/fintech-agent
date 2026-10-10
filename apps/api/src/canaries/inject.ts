@@ -9,6 +9,7 @@ import type { Database } from '../database/index.js';
 import { canaryCases } from '../database/schema.js';
 import { WEBHOOK_SENDER } from '../webhooks/delivery.js';
 import { payloadHashOf, recordIntake } from '../webhooks/intake.js';
+import { drawOne } from './draw.js';
 import { CANARY_TEMPLATES, type CanaryTemplate } from './templates.js';
 
 /** When canaries arrive: the clock, the draws and the window they spread over. */
@@ -31,13 +32,14 @@ function shuffled<T>(items: readonly T[], random: () => number): T[] {
 async function injectOne(
   db: Database,
   { defect, seed }: CanaryTemplate,
-  now: Date,
+  input: { text: string; now: Date },
 ): Promise<string> {
+  const { text, now } = input;
   const event: WebhookEvent = {
     event_id: `${EVENT_ID_PREFIX}${newIdPayload()}`,
     ticket_id: `${TICKET_ID_PREFIX}${newIdPayload()}`,
     customer_id: seed.customerId,
-    text: seed.text,
+    text,
     created_at: now.toISOString(),
   };
   return db.transaction(async (tx) => {
@@ -54,11 +56,12 @@ async function injectOne(
 }
 
 /**
- * Posts one canary case per template (02 G3), in shuffled order and spread
- * over `spreadMs`, through the webhook's own intake: the same folio,
- * acknowledgment and queue as a sender's case, with its `canary_cases` marker
- * in the same transaction, so the worker runs it on its script and never on
- * the provider. Returns the case ids.
+ * Posts one canary case per template (02 G3), each worded in one of its
+ * phrasings, in shuffled order and spread over `spreadMs`, through the
+ * webhook's own intake: the same folio, acknowledgment and queue as a
+ * sender's case, with its `canary_cases` marker in the same transaction, so
+ * the worker runs it on its script and never on the provider. Returns the
+ * case ids.
  */
 export async function injectCanaries(
   db: Database,
@@ -75,7 +78,12 @@ export async function injectCanaries(
     const arrival = arrivals[index]!;
     await pacing.sleep(arrival - waited);
     waited = arrival;
-    caseIds.push(await injectOne(db, template, pacing.now()));
+    caseIds.push(
+      await injectOne(db, template, {
+        text: drawOne(template.seed.texts, pacing.random),
+        now: pacing.now(),
+      }),
+    );
   }
   return caseIds;
 }

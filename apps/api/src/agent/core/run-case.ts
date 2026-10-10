@@ -11,7 +11,7 @@ import { and, eq } from 'drizzle-orm';
 
 import type { ApiConfig } from '../../config.js';
 import type { Database } from '../../database/index.js';
-import type { CanaryDefect } from '../../canaries/templates.js';
+import type { CanaryCase, CanaryDefect } from '../../canaries/templates.js';
 import {
   agentRuns,
   canaryCases,
@@ -98,7 +98,7 @@ export interface RunCaseDeps {
   /** The model for a provider id; null when no API key is configured. */
   models: Models | null;
   /** A canary case's scripted models, which stand in for the provider's (02 G3). */
-  canaryModels: (defect: CanaryDefect) => { redactor: Model; agent: Model };
+  canaryModels: (canary: CanaryCase) => { redactor: Model; agent: Model };
   retrieval: Retrieval;
   /** The heuristic intake scan (02 G7): a signal for ops, never a block. */
   scanInjection: (text: string) => boolean;
@@ -297,7 +297,14 @@ export async function runCase(
     }
     // Past the same gates as any case, a canary's fabricated text goes only
     // to its script, never to the provider (02 G3).
-    const script = held.defect === null ? null : deps.canaryModels(held.defect);
+    const script =
+      held.defect === null
+        ? null
+        : deps.canaryModels({
+            defect: held.defect,
+            customerId: held.customerId,
+            textMasked: held.textMasked,
+          });
     // A corpus that does not parse is a bug: fail before paying the redactor.
     const stateRules = await corpusStateRules(db);
 

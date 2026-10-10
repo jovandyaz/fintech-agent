@@ -9,9 +9,11 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { maskPii } from '@fintech-agent/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { testApiConfig } from '../../../test/api-config.js';
+import { CANARY_TEMPLATES, type CanaryCase } from '../../canaries/templates.js';
 import type { Database } from '../../database/index.js';
 import { injectionSignal } from '../../guard/prompt-guard.js';
 import { CorpusRefusedError, POLICIES_DIR } from '../../retrieval/ingest.js';
@@ -24,6 +26,15 @@ import {
 } from './deps.js';
 import { HAIKU_MODEL, SONNET_MODEL } from './prices.js';
 import { connectCaseTools } from './tools.js';
+
+const COLD_TONE = CANARY_TEMPLATES.find(
+  ({ defect }) => defect === 'cold_tone',
+)!;
+const COLD_TONE_CASE: CanaryCase = {
+  defect: COLD_TONE.defect,
+  customerId: COLD_TONE.seed.customerId,
+  textMasked: maskPii(COLD_TONE.seed.texts[0]!),
+};
 
 describe('agentConfigOf (02 G4)', () => {
   it('copies only the agent variables, never another service key', () => {
@@ -149,10 +160,13 @@ describe('runCaseDepsOf', () => {
         catalog: loadCatalog(POLICIES_DIR),
         log: () => undefined,
       });
-      const first = deps.canaryModels('cold_tone');
+      const first = deps.canaryModels(COLD_TONE_CASE);
       expect(first.redactor.modelId).toBe(HAIKU_MODEL);
       expect(first.agent.modelId).toBe(agentModel);
-      expect(first.agent).not.toBe(deps.canaryModels('cold_tone').agent);
+      expect(first.agent).not.toBe(deps.canaryModels(COLD_TONE_CASE).agent);
+      expect(() =>
+        deps.canaryModels({ ...COLD_TONE_CASE, textMasked: 'otro texto' }),
+      ).toThrow();
     },
   );
 });

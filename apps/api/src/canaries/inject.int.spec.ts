@@ -14,11 +14,15 @@ import { injectCanaries, type InjectPacing } from './inject.js';
 import {
   CANARY_DEFECTS,
   CANARY_TEMPLATES,
+  canaryTemplateOf,
   type CanaryDefect,
 } from './templates.js';
 
 const SPREAD_MS = 60_000;
 const RUN_TIMEOUT_MS = 180_000;
+const FIRST_DRAW = 0;
+const LAST_DRAW = 0.999;
+const TEMPLATE_DEFECTS = CANARY_TEMPLATES.map(({ defect }) => defect);
 
 let db: TestDatabase;
 let owner: postgres.Sql;
@@ -56,33 +60,42 @@ function pacing(spreadMs = 0): InjectPacing & { slept: number[] } {
 const inject = (paced = pacing()) =>
   injectCanaries(drizzle({ client: api, schema }), paced);
 
+const templateOf = (row: {
+  customer_id: string;
+  text_masked: string;
+  defect: CanaryDefect;
+}) =>
+  canaryTemplateOf({
+    defect: row.defect,
+    customerId: row.customer_id,
+    textMasked: row.text_masked,
+  });
+
 describe('canary:inject (02 G3)', () => {
-  it('posts one queued case per defect through the webhook intake, each with its marker', async () => {
+  it('posts one queued case per template through the webhook intake, each with its marker', async () => {
     const caseIds = await inject();
-    expect(caseIds).toHaveLength(CANARY_DEFECTS.length);
+    expect(caseIds).toHaveLength(CANARY_TEMPLATES.length);
 
     const rows = await owner<
       {
         id: string;
+        customer_id: string;
         status: string;
         source: string;
         folio: string;
         text_masked: string;
-        defect: string;
+        defect: CanaryDefect;
         events: number;
         acknowledged: string | null;
         proposals: number;
       }[]
     >`
-      select c.id, c.status, c.source, c.folio, c.text_masked, m.defect,
+      select c.id, c.customer_id, c.status, c.source, c.folio, c.text_masked, m.defect,
         (select count(*)::int from webhook_events e where e.case_id = c.id) as events,
         (select actor from audit_log a where a.ref = c.id and a.event = 'case.acknowledged') as acknowledged,
         (select count(*)::int from proposed_actions p where p.case_id = c.id) as proposals
       from cases c join canary_cases m on m.case_id = c.id
       where c.id in ${owner(caseIds)}`;
-    expect(rows.map(({ defect }) => defect).sort()).toEqual(
-      [...CANARY_DEFECTS].sort(),
-    );
     for (const row of rows) {
       expect(row).toMatchObject({
         status: 'queued',
@@ -92,17 +105,39 @@ describe('canary:inject (02 G3)', () => {
         proposals: 0,
       });
       expect(isFolio(row.folio)).toBe(true);
-      const { seed } = CANARY_TEMPLATES.find(
-        ({ defect }) => defect === row.defect,
-      )!;
-      expect(row.text_masked).toBe(maskPii(seed.text));
     }
+    expect(new Set(rows.map(templateOf))).toEqual(new Set(CANARY_TEMPLATES));
+    expect(new Set(rows.map(({ defect }) => defect))).toEqual(
+      new Set(CANARY_DEFECTS),
+    );
   });
+
+  it.each([
+    ['first', FIRST_DRAW, 0],
+    ['last', LAST_DRAW, -1],
+  ] as const)(
+    "words each case with its template's %s phrasing when the draw says so",
+    async (_, draw, index) => {
+      const caseIds = await inject({ ...pacing(), random: () => draw });
+      const rows = await owner<
+        { customer_id: string; text_masked: string; defect: CanaryDefect }[]
+      >`
+        select c.customer_id, c.text_masked, m.defect
+        from cases c join canary_cases m on m.case_id = c.id
+        where c.id in ${owner(caseIds)}`;
+      expect(rows).toHaveLength(CANARY_TEMPLATES.length);
+      for (const row of rows) {
+        expect(row.text_masked).toBe(
+          maskPii(templateOf(row).seed.texts.at(index)!),
+        );
+      }
+    },
+  );
 
   it('spreads the cases over the window, in shuffled order', async () => {
     const paced = pacing(SPREAD_MS);
     const caseIds = await inject(paced);
-    expect(paced.slept).toHaveLength(CANARY_DEFECTS.length);
+    expect(paced.slept).toHaveLength(CANARY_TEMPLATES.length);
     expect(paced.slept.every((ms) => ms >= 0)).toBe(true);
     const waited = paced.slept.reduce((total, ms) => total + ms, 0);
     expect(waited).toBeGreaterThan(0);
@@ -110,7 +145,7 @@ describe('canary:inject (02 G3)', () => {
     const defects = await owner<{ defect: string }[]>`
       select m.defect from canary_cases m join cases c on c.id = m.case_id
       where c.id in ${owner(caseIds)} order by c.received_at, c.id`;
-    expect(defects.map(({ defect }) => defect)).not.toEqual(CANARY_DEFECTS);
+    expect(defects.map(({ defect }) => defect)).not.toEqual(TEMPLATE_DEFECTS);
   });
 
   it('keeps no case when its marker cannot be written, so none runs unscripted', async () => {
