@@ -3,6 +3,7 @@ import {
   amountAtom,
   atom,
   dateForms,
+  instantForms,
   pad,
   yearOf,
 } from './atoms.js';
@@ -109,6 +110,7 @@ const COUNT_NOUNS = [
   'retiros',
   'comercios',
   'solicitudes',
+  'factores',
 ] as const;
 
 const INTEGER = String.raw`(?:${GROUPED}|\d+)`;
@@ -158,13 +160,29 @@ const YEAR_AFTER = String.raw`(?:,?\s(?:del?\s)?${YEAR}(?!${KIND_AFTER}))?`;
 const YEAR_CUE = String.raw`\b(?:ano|anos|este|durante)\s`;
 
 const DAY_PART = String.raw`de\sla\s(?<dayPart>${DAY_PARTS.join('|')})\b`;
+const OPTIONAL_SECONDS = String.raw`(?::(?<second>${MINUTE}))?`;
+
+// Two-digit hours and a zone, so an instant with no offset (whose clock
+// depends on the reader's zone) or with fractions is read as other figures.
+const ISO_HOUR = String.raw`(?:[01]\d|2[0-3])`;
+const ISO_INSTANT_IN_TEXT = String.raw`\b(?<instant>(?<isoYear>\d{4})-(?<month>\d{2})-(?<day>\d{2})t${ISO_HOUR}:${MINUTE}${OPTIONAL_SECONDS}(?:z|[+-]${ISO_HOUR}:${MINUTE}))(?![\w:]|${FIGURE_TAIL}|${MARK_AFTER})`;
+const ISO_INSTANT_SHAPE = String.raw`\b\d{4}-\d{2}-\d{2}t\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:z|[+-]\d{2}:?\d{2})?`;
+// A clock or an instant starts before the figure a half follows, so without
+// its own half reading "11:20:04 y media" would read as a time. Its own
+// pattern, not an alternative of the figure's half: one regex never matches
+// twice over a span, so a reading that takes the hour ("$11:20 y media")
+// would drop the clock's half and leave the minutes' half unmatched.
+const CLOCK_SPAN = String.raw`(?:${ISO_INSTANT_SHAPE}|\d{1,2}:\d{2}(?::\d{2})?)`;
+// "3D Secure" and "3DS" are names; a figure after one is still read.
+const PROTOCOL_NAME = String.raw`3(?:-?d\s?secure|ds)\b`;
 
 // A mask is four marks, so Markdown bold or a bullet before an amount does
 // not turn it into card digits.
 const LAST_DIGITS_CUE = String.raw`(?:\b(?:terminacion(?:\sen)?|termina\sen|terminada\sen|con\sfinal|digitos)\s?|[*•x]{4}\s?)`;
 
+// Dotted words too, or "3 p.m. y media" and "$500 m.n. y medio" hide a half.
 const wordsBeforeHalf = (atLeast: number): string =>
-  String.raw`(?:\s?[a-z]+){${atLeast},${MAX_WORDS_BEFORE_HALF}}`;
+  String.raw`(?:\s?[a-z][a-z.]*){${atLeast},${MAX_WORDS_BEFORE_HALF}}`;
 
 const valueOf = (groups: Groups, name: string): number => {
   const fraction = groups[fractionOf(name)];
@@ -204,8 +222,42 @@ const rangeForms = (groups: Groups): string[] => {
     : [];
 };
 
-const timeAtom = (hour: number, minutes: string): string =>
-  atom(ATOM_KIND.time, `${pad(hour)}:${minutes}`);
+const atStatedPrecision = (
+  second: string | undefined,
+  toMinute: string,
+  toSecond: (second: string) => string,
+): string[] =>
+  second === undefined ? [toMinute] : [toSecond(second), toMinute];
+
+const timeForms = (
+  hour: number,
+  minutes: string,
+  second: string | undefined,
+): string[] => {
+  const toMinute = `${pad(hour)}:${minutes}`;
+  return atStatedPrecision(
+    second,
+    toMinute,
+    (stated) => `${toMinute}:${stated}`,
+  ).map((time) => atom(ATOM_KIND.time, time));
+};
+
+// Date.parse rolls "2026-02-31" over to March, so the written day must exist.
+const isCalendarDay = (groups: Groups): boolean => {
+  const [year, month, day] = [groups.isoYear, groups.month, groups.day].map(
+    Number,
+  ) as [number, number, number];
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  return utc.getUTCMonth() === month - 1 && utc.getUTCDate() === day;
+};
+
+const instantReading = (groups: Groups): string[] => {
+  if (!isCalendarDay(groups)) return [];
+  const [toSecond, toMinute] = instantForms(
+    new Date(groups.instant!.toUpperCase()),
+  );
+  return atStatedPrecision(groups.second, toMinute, () => toSecond);
+};
 
 const to24h = (hour: number, meridiem: string): number =>
   (hour % HOURS_PER_HALF_DAY) +
@@ -241,13 +293,18 @@ const pattern = (
 /**
  * Every reading of the number reader, in order. Two rules make the order
  * load-bearing: the leftmost match wins and drops what overlaps it, and at
- * the same start the earlier entry wins. So the half reading comes first, a
+ * the same start the earlier entry wins. So the half readings come first, a
  * kind with an explicit mark comes before a date or a time that could start
  * at the same figure, and the fail-closed amount readings come last.
  */
 export const PATTERNS: readonly Pattern[] = [
   pattern(
     String.raw`(?:${CURRENCY_MARK}\s?${FIGURE_SPAN}${wordsBeforeHalf(0)}|(?<!${CLOCK_CUE})(?<!\d)${FIGURE_SPAN}${wordsBeforeHalf(0)}|(?<=${CLOCK_CUE})(?:${FIGURE_SPAN}${wordsBeforeHalf(1)}|${NON_HOUR_SPAN}))\sy\smedi[oa]\b`,
+    () => [UNREAD],
+    CHUNK_READING.mask,
+  ),
+  pattern(
+    String.raw`${CLOCK_SPAN}${wordsBeforeHalf(0)}\sy\smedi[oa]\b`,
     () => [UNREAD],
     CHUNK_READING.mask,
   ),
@@ -299,6 +356,10 @@ export const PATTERNS: readonly Pattern[] = [
     String.raw`\b${MONTH}\s(?<day>\d{1,2})\b${DATE_END}${YEAR_AFTER}`,
     namedDateForms,
   ),
+  pattern(ISO_INSTANT_IN_TEXT, instantReading, CHUNK_READING.mask),
+  // The reading above backs off when a figure follows, so a chunk would
+  // read the instant's minutes and seconds as a time it grounds.
+  pattern(ISO_INSTANT_SHAPE, () => [], CHUNK_READING.mask),
   pattern(
     String.raw`\b(?<isoYear>\d{4})-(?<month>\d{2})-(?<day>\d{2})\b${DATE_END}`,
     (groups) =>
@@ -314,26 +375,26 @@ export const PATTERNS: readonly Pattern[] = [
       ),
   ),
   pattern(
-    String.raw`\b(?<hour>${HOUR_12})(?::(?<minute>${MINUTE}))?\s?(?<meridiem>[ap])\.?\s?m\b\.?`,
-    (groups) => [
-      timeAtom(
+    String.raw`\b(?<hour>${HOUR_12})(?::(?<minute>${MINUTE})${OPTIONAL_SECONDS})?\s?(?<meridiem>[ap])\.?\s?m\b\.?`,
+    (groups) =>
+      timeForms(
         to24h(Number(groups.hour), groups.meridiem!),
         groups.minute ?? ON_THE_HOUR,
+        groups.second,
       ),
-    ],
   ),
   pattern(
-    String.raw`(?<=${CLOCK_CUE})(?<hour>${HOUR_24})(?:[.:](?<minute>${MINUTE})|\sy\s(?<spoken>${alternation(SPOKEN_MINUTES)}|${SPOKEN_MINUTE}(?=${MINUTES_END})))?(?![\d:])(?!${FIGURE_TAIL}|${MARK_AFTER}|${COUNT_FOLLOWS})(?:\s${DAY_PART})?`,
-    (groups) => [
-      timeAtom(
+    String.raw`(?<=${CLOCK_CUE})(?<hour>${HOUR_24})(?:[.:](?<minute>${MINUTE})${OPTIONAL_SECONDS}|\sy\s(?<spoken>${alternation(SPOKEN_MINUTES)}|${SPOKEN_MINUTE}(?=${MINUTES_END})))?(?![\d:])(?!${FIGURE_TAIL}|${MARK_AFTER}|${COUNT_FOLLOWS})(?:\s${DAY_PART})?`,
+    (groups) =>
+      timeForms(
         dayPartHour(Number(groups.hour), groups.dayPart),
         clockMinutes(groups),
+        groups.second,
       ),
-    ],
   ),
   pattern(
-    String.raw`\b(?<hour>${HOUR_24}):(?<minute>${MINUTE})\b(?!${MARK_AFTER})`,
-    (groups) => [timeAtom(Number(groups.hour), groups.minute!)],
+    String.raw`\b(?<hour>${HOUR_24}):(?<minute>${MINUTE})${OPTIONAL_SECONDS}\b(?!${FIGURE_TAIL}|${MARK_AFTER})`,
+    (groups) => timeForms(Number(groups.hour), groups.minute!, groups.second),
   ),
   pattern(
     String.raw`(?<=${LAST_DIGITS_CUE})(?<digits>[a-z\d]*\d[a-z\d]*)`,
@@ -353,7 +414,7 @@ export const PATTERNS: readonly Pattern[] = [
     CHUNK_READING.mask,
   ),
   pattern(
-    String.raw`(?<!\d)${figure(FIGURE, String.raw`\d+`)}(?!${COUNT_FOLLOWS})(?!${COUNT_ORDINAL})`,
+    String.raw`(?<!\d)(?!${PROTOCOL_NAME})${figure(FIGURE, String.raw`\d+`)}(?!${COUNT_FOLLOWS})(?!${COUNT_ORDINAL})`,
     (groups) =>
       groups[FIGURE] === ARTICLE && groups[fractionOf(FIGURE)] === undefined
         ? []

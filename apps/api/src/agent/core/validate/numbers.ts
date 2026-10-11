@@ -1,7 +1,14 @@
 import { REGISTRY_ID_IN_TEXT, visibleTailOf } from '@fintech-agent/contracts';
 
-import { localDateOf, localTimeOf } from '../calendar.js';
-import { ATOM_KIND, amountAtom, atom, dateForms } from './atoms.js';
+import { localDateOf } from '../calendar.js';
+import {
+  ATOM_KIND,
+  amountAtom,
+  atom,
+  localClockOf,
+  dateForms,
+  instantForms,
+} from './atoms.js';
 import { CHUNK_READING, PATTERNS } from './number-patterns.js';
 import { foldForMatching } from './spanish.js';
 
@@ -63,23 +70,25 @@ function matchesOf(text: string, reader: Reader): string[][] {
 }
 
 /**
- * The amounts, percentages, durations, dates, years, times and last digits
- * a text states (02 G5 `UNGROUNDED_NUMBER`), in order, as comparable atoms,
- * whether written in digits or spelled out in Spanish. Any figure no other
- * reading claims is an amount; placeholders carry no digits, and a system
- * id, a count of a listed noun, an ordinal and the article 1 are not read.
+ * The amounts, percentages, durations, dates, years, times, instants and
+ * last digits a text states (02 G5 `UNGROUNDED_NUMBER`), in order, as
+ * comparable atoms, whether written in digits or spelled out in Spanish. Any
+ * figure no other reading claims is an amount; placeholders carry no digits,
+ * and a system id, a count of a listed noun, "los tres se…", an ordinal, the
+ * article 1 and the 3 of "3D Secure" or "3DS" are not read.
  */
 export function numberAtoms(text: string): string[] {
   return matchesOf(text, READER.draft).map(([exact]) => exact!);
 }
 
-function instantForms(value: string): string[] {
+function instantFieldForms(value: string): string[] {
   if (!ISO_INSTANT.test(value) || Number.isNaN(Date.parse(value))) return [];
   const instant = new Date(value);
   const [year, month, day] = localDateOf(instant).split('-').map(Number);
   return [
     ...dateForms(String(year), month!, day!),
-    atom(ATOM_KIND.time, localTimeOf(instant)),
+    ...localClockOf(instant).map((time) => atom(ATOM_KIND.time, time)),
+    ...instantForms(instant),
   ];
 }
 
@@ -90,7 +99,7 @@ function groundedForms(value: unknown, key = ''): string[] {
     return [amountAtom(Math.abs(value))];
   }
   if (key.endsWith(INSTANT_KEY_SUFFIX) && typeof value === 'string') {
-    return instantForms(value);
+    return instantFieldForms(value);
   }
   if (key.endsWith(LAST_DIGITS_KEY_SUFFIX) && typeof value === 'string') {
     return [atom(ATOM_KIND.last4, value.toLowerCase())];
@@ -112,9 +121,10 @@ function groundedForms(value: unknown, key = ''): string[] {
 
 /**
  * Every atom the run can ground a reply number on: the `amount`, the `*_at`
- * instants (as Mexico City dates, years and `hh:mm`), the `*last4` fields
- * and masked `*clabe` tails of the tool outputs it received, and what the
- * chunks it cited state with an explicit kind. Customer text is never
+ * instants (as Mexico City dates, years, `hh:mm`, `hh:mm:ss` and whole
+ * instants), the `*last4` fields and masked `*clabe` tails of the tool
+ * outputs it received, and what the chunks it cited state with an explicit
+ * kind (never an instant, nor its date or time). Customer text is never
  * passed in.
  */
 export function groundingAtoms(sources: {

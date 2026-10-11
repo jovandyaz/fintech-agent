@@ -100,6 +100,22 @@ const THOUSAND_WORD = /\bmil\b/;
 // joins as usual ("a las mil y quinientos"). Sticky, so the cue is checked
 // right before a run instead of searched for in all the text before it.
 const AFTER_CLOCK_CUE = new RegExp(`(?<=${CLOCK_CUE})`, 'y');
+// "Los tres se hicieron": a count of what came before, kept a word so it is
+// not read. Only a small figure before a listed verb, so "los quinientos se
+// abonan" and "los tres pesos" are still read.
+const AFTER_LOS = /(?<=\blos\s)/y;
+const PRONOUN_COUNTS: ReadonlySet<string> = new Set([
+  'dos',
+  'tres',
+  'cuatro',
+  'cinco',
+  'seis',
+  'siete',
+  'ocho',
+  'nueve',
+  'diez',
+]);
+const PRONOUN_COUNT_NEXT = /^\s(?:se|fueron|son|estan|tienen|aparecen)\b/;
 const DECIMAL_BASE = 10;
 const WHITESPACE = /\s+/;
 // Grouped like a written figure, so "cinco mil" reads as the amount "5,000".
@@ -163,23 +179,24 @@ const isAfter = (cue: RegExp, text: string, offset: number): boolean => {
   return cue.test(text);
 };
 
-const keepsWord = (run: string, rest: string): boolean =>
+const keepsWord = (run: string, rest: string, afterLos: boolean): boolean =>
   (run === LONE_THOUSAND && COURTESY_NEXT.test(rest)) ||
-  (ARTICLES.has(run) && DIGIT_NEXT.test(rest));
+  (ARTICLES.has(run) && DIGIT_NEXT.test(rest)) ||
+  (afterLos && PRONOUN_COUNTS.has(run) && PRONOUN_COUNT_NEXT.test(rest));
 
 /**
- * Rewrites Spanish number words as digits ("cuarenta y cinco días" → "45
- * días", "cinco mil" → "5,000") so a figure spelled out is read like one
- * written in digits. Takes text already lowercased and stripped of accents.
- * "y" joins by place value, never two parts that each carry "mil", and
- * after "a la(s)" never an hour and its minutes. An article ("un", "una", "uno")
- * becomes 1 unless a written figure follows it ("un 100%"); a lone "mil"
- * before a courtesy noun ("mil gracias") stays a word.
+ * Rewrites Spanish number words in lowercased, accent-free text as digits
+ * ("cinco mil" → "5,000"), joining "y" by place value but never an hour and
+ * its minutes after "a la(s)", so a figure spelled out reads like one in
+ * digits. A word right after a figure comes back set apart ("3 · 500") so
+ * the two never group. A word that is no figure in its context stays a
+ * word: an article before digits ("un 100%"), a courtesy "mil" ("mil
+ * gracias"), a count after "los" ("los tres se hicieron").
  */
 export function foldNumberWords(text: string): string {
   return text.replace(RUN, (run: string, offset: number) => {
     const rest = text.slice(offset + run.length);
-    if (keepsWord(run, rest)) return run;
+    if (keepsWord(run, rest, isAfter(AFTER_LOS, text, offset))) return run;
     const figures = figuresOf(run, isAfter(AFTER_CLOCK_CUE, text, offset))
       .map((figure) => String(figure).replace(THOUSANDS_GROUP, ','))
       .join(' y ');

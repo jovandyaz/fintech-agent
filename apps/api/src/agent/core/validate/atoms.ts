@@ -1,3 +1,5 @@
+import { localDateOf, localTimeOf } from '../calendar.js';
+
 const CENTS_PER_PESO = 100;
 const MONTHS_IN_YEAR = 12;
 const MAX_DAY_OF_MONTH = 31;
@@ -16,6 +18,7 @@ export const ATOM_KIND = {
   date: 'date',
   year: 'year',
   time: 'time',
+  instant: 'instant',
   last4: 'last4',
   unread: 'unread',
 } as const;
@@ -62,5 +65,33 @@ export function dateForms(
     atom(ATOM_KIND.date, `${year}-${pad(month)}-${pad(day)}`),
     yearless,
     atom(ATOM_KIND.year, year),
+  ];
+}
+
+/**
+ * An instant's Mexico City wall-clock time, to the second (`HH:MM:SS`) and
+ * to the minute (`HH:MM`): plain times, not atoms.
+ */
+export function localClockOf(
+  instant: Date,
+): [toSecond: string, toMinute: string] {
+  const toMinute = localTimeOf(instant);
+  // Mexico City's offsets are whole hours since 1922: its seconds are UTC's.
+  return [`${toMinute}:${pad(instant.getUTCSeconds())}`, toMinute];
+}
+
+/**
+ * The atoms of a whole instant as its Mexico City date and time: to the
+ * second, then to the minute. Comparing one atom, not a date and a time
+ * apart, keeps two different instants from grounding it together.
+ */
+export function instantForms(
+  instant: Date,
+): [toSecond: string, toMinute: string] {
+  const date = localDateOf(instant);
+  const [toSecond, toMinute] = localClockOf(instant);
+  return [
+    atom(ATOM_KIND.instant, date, toSecond),
+    atom(ATOM_KIND.instant, date, toMinute),
   ];
 }

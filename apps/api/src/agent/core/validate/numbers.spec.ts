@@ -201,6 +201,45 @@ describe('numberAtoms, what is not a figure', () => {
     ).toEqual([]);
   });
 
+  it('leaves a figure before "factores" alone', () => {
+    expect(
+      numberAtoms('sin dos factores de autenticación; con 2 factores'),
+    ).toEqual([]);
+  });
+
+  it('leaves "los" and a number word from dos to diez alone before a listed verb', () => {
+    expect(
+      numberAtoms(
+        'Los tres se hicieron sin tarjeta presente. Los dos fueron rechazados, los cuatro son tuyos, los diez están, los seis tienen y los cinco aparecen',
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    ['digits after "los"', 'los 3 se hicieron', 'amount:300'],
+    ['a currency after the word', 'los tres pesos', 'amount:300'],
+    ['a figure past diez', 'los quinientos se abonan', 'amount:50000'],
+    ['once, just past diez', 'los once se ven', 'amount:1100'],
+    ['a verb off the list', 'los tres llegaron', 'amount:300'],
+    ['no "los" before the word', 'y tres se fueron', 'amount:300'],
+  ])('still reads a pronoun-like count with %s', (_, text, read) => {
+    expect(numberAtoms(text)).toEqual([read]);
+  });
+
+  it('leaves the 3 of "3D Secure" and "3DS" alone, never a figure after them', () => {
+    expect(
+      numberAtoms('sin 3D Secure, sin 3-D Secure ni 3DS; con 3DS 500 pesos'),
+    ).toEqual(['amount:50000']);
+  });
+
+  it('reads the 3 of a name that only starts like 3D Secure or 3DS', () => {
+    expect(numberAtoms('con 3DS2 y 3Dx')).toEqual([
+      'amount:300',
+      'amount:200',
+      'amount:300',
+    ]);
+  });
+
   it('reads more count nouns and never a count as a time', () => {
     expect(
       numberAtoms(
@@ -354,6 +393,12 @@ describe('numberAtoms, figures spelled out', () => {
     ['octubre 5 quinientos pesos', ['date:--10-05', 'amount:50000']],
     ['el folio 15 quinientos pesos', ['amount:1500', 'amount:50000']],
     ['15 doscientos cincuenta pesos', ['amount:1500', 'amount:25000']],
+    ['a las 11:20:04 quinientos pesos', ['time:11:20:04', 'amount:50000']],
+    [
+      '2026-10-02T11:20:04-06:00 quinientos pesos',
+      ['instant:2026-10-02:11:20:04', 'amount:50000'],
+    ],
+    ['los cinco fueron por quinientos pesos', ['amount:50000']],
   ])(
     'reads a number word right after a figure as a figure of its own: %s',
     (text, atoms) => {
@@ -489,6 +534,29 @@ describe('numberAtoms, halves', () => {
   it('reads the last hour "y media" after "a las" as a time', () => {
     expect(numberAtoms('a las 23 y media')).toEqual(['time:23:30']);
   });
+
+  it.each([
+    '11:20:04 y media',
+    'a las 11:20:04 y medio',
+    '11:20:04 horas y media',
+    'a las 11:20 y media',
+    '2026-10-02T11:20:04-06:00 y media',
+    '11:20:04 p.m. y media',
+    '$500 m.n. y medio',
+  ])('reads "y media" after a clock or an instant as unread: %s', (text) => {
+    expect(numberAtoms(text)).toEqual(['unread']);
+  });
+
+  it.each([
+    ['123:45 y media', ['amount:12300', 'unread']],
+    ['$11:20 y media', ['amount:1100', 'unread']],
+    ['octubre 11:20 y media', ['date:--10-11', 'unread']],
+  ])(
+    'still reads the half when a reading before the clock takes its hour: %s',
+    (text, atoms) => {
+      expect(numberAtoms(text)).toEqual(atoms);
+    },
+  );
 
   it('reads "media hora" and "medio día" as unread, and decimal durations', () => {
     expect(numberAtoms('media hora, medio día o 1.5 horas')).toEqual([
@@ -837,6 +905,125 @@ describe('numberAtoms, times', () => {
   });
 });
 
+describe('numberAtoms, seconds', () => {
+  it('reads seconds as part of the time, never as an amount', () => {
+    expect(
+      numberAtoms(
+        'a las 11:20:04, a las 10:00:40 (hora del centro), 2:30:15 p.m. y registrado 09:15:03',
+      ),
+    ).toEqual([
+      'time:11:20:04',
+      'time:10:00:40',
+      'time:14:30:15',
+      'time:09:15:03',
+    ]);
+  });
+
+  it('reads seconds after a dotted hour and minutes after "a las"', () => {
+    expect(numberAtoms('a las 11.20:04')).toEqual(['time:11:20:04']);
+  });
+
+  it('reads seconds after "a las" with a part of the day', () => {
+    expect(
+      numberAtoms('a las 11:20:04 de la noche y a las 7:05:30 de la mañana'),
+    ).toEqual(['time:23:20:04', 'time:07:05:30']);
+  });
+
+  it.each([
+    ['11:20:04 pesos', ['time:11:20', 'amount:400']],
+    ['a las 10:00:40 mil pesos', ['time:10:00', 'amount:4000000']],
+    ['a las 10:00:40.5 mil pesos', ['time:10:00', 'amount:4050000']],
+    ['10:00:40.5%', ['time:10:00', 'pct:40.5']],
+    ['11:20:04.50 pesos', ['time:11:20', 'amount:450']],
+    ['a las 10:00:59.99 pesos', ['time:10:00', 'amount:5999']],
+    ['11:20:04 500 mil pesos', ['time:11:20', 'amount:450000000']],
+  ])(
+    'never lets seconds take a figure that a mark follows: %s',
+    (text, atoms) => {
+      expect(numberAtoms(text)).toEqual(atoms);
+    },
+  );
+
+  it.each([
+    ['11:20.50 pesos', ['amount:1100', 'amount:2050']],
+    ['11:20 500 pesos', ['amount:1100', 'amount:2050000']],
+  ])(
+    'never lets hh:mm take the head of a decimal or grouped figure: %s',
+    (text, atoms) => {
+      expect(numberAtoms(text)).toEqual(atoms);
+    },
+  );
+});
+
+describe('numberAtoms, instants', () => {
+  it('reads an ISO instant with an offset or Z as one Mexico City date and time', () => {
+    expect(
+      numberAtoms(
+        'liquidada en 2026-10-02T11:20:04-06:00, o 2026-10-02T17:20Z, o 2026-10-03T01:05:09+00:00, o 2026-10-02T23:50:04+05:30.',
+      ),
+    ).toEqual([
+      'instant:2026-10-02:11:20:04',
+      'instant:2026-10-02:11:20',
+      'instant:2026-10-02:19:05:09',
+      'instant:2026-10-02:12:20:04',
+    ]);
+  });
+
+  const DATE_PIECES = ['amount:202600', 'amount:1000', 'amount:200'];
+  const TIME_PIECES = ['amount:1100', 'time:20:04'];
+  it.each([
+    ['no offset', 'en 2026-10-02T11:20:04', [...DATE_PIECES, ...TIME_PIECES]],
+    [
+      'fractions of a second',
+      'en 2026-10-02T11:20:04.500Z',
+      [...DATE_PIECES, 'amount:1100', 'amount:2000', 'amount:450000'],
+    ],
+    [
+      'an impossible day',
+      'en 2026-02-31T11:20:04-06:00',
+      [
+        'amount:202600',
+        'amount:200',
+        'amount:3100',
+        ...TIME_PIECES,
+        'time:06:00',
+      ],
+    ],
+    [
+      'a scaled figure after it',
+      '2026-10-02T11:20:04-06:00 500 mil pesos',
+      [...DATE_PIECES, ...TIME_PIECES, 'amount:600', 'amount:50000000'],
+    ],
+    [
+      'a decimal comma glued after it',
+      '2026-10-02T11:20:04-06:00,5 mil pesos',
+      [...DATE_PIECES, ...TIME_PIECES, 'amount:600', 'amount:50000'],
+    ],
+    [
+      'a decimal dot glued after it',
+      '2026-10-02T11:20:04-06:00.50 pesos',
+      [...DATE_PIECES, ...TIME_PIECES, 'amount:600', 'amount:50'],
+    ],
+    [
+      'a scale word after it',
+      '2026-10-02T11:20:04-06:00 mil pesos',
+      [...DATE_PIECES, ...TIME_PIECES, 'amount:600', 'amount:0'],
+    ],
+    [
+      'a currency after it',
+      '2026-10-02T11:20:04-06:00 pesos',
+      [...DATE_PIECES, ...TIME_PIECES, 'amount:600', 'amount:0'],
+    ],
+    [
+      'a percent after it',
+      '2026-10-02T11:20:04-06:00%',
+      [...DATE_PIECES, ...TIME_PIECES, 'amount:600', 'pct:0'],
+    ],
+  ])('reads an ISO instant with %s as its pieces', (_, text, atoms) => {
+    expect(numberAtoms(text)).toEqual(atoms);
+  });
+});
+
 describe('numberAtoms, card and key digits', () => {
   it('reads last digits as their own kind and leaves counts alone', () => {
     expect(numberAtoms('tus 3 cargos, la tarjeta que termina en 4321')).toEqual(
@@ -1086,5 +1273,119 @@ describe('groundingAtoms, cited chunks', () => {
         grounding,
       ),
     ).toEqual(['dur:500:dia:habil', 'dur:500:dia:natural', 'amount:50000000']);
+  });
+});
+
+describe('groundingAtoms, seconds and instants', () => {
+  const grounding = groundingAtoms({
+    outputs: [{ settled_at: '2026-10-02T17:20:04Z' }],
+    citedTexts: ['El corte diario es a las 17:30:00.'],
+  });
+
+  it('grounds a time to the second and a whole instant on an *_at instant in Mexico City', () => {
+    expect(
+      ungroundedAtoms(
+        'Liquidada el 2026-10-02T11:20:04-06:00, a las 11:20:04, o sea 2026-10-02T17:20Z, el 2 de octubre a las 11:20',
+        grounding,
+      ),
+    ).toEqual([]);
+  });
+
+  it('never grounds an instant or a time a minute or a second off', () => {
+    expect(
+      ungroundedAtoms(
+        '2026-10-02T11:21:04-06:00, 2026-10-02T11:20:05-06:00 y a las 11:20:05',
+        grounding,
+      ),
+    ).toEqual([
+      'instant:2026-10-02:11:21:04',
+      'instant:2026-10-02:11:20:05',
+      'time:11:20:05',
+    ]);
+  });
+
+  it('never grounds an instant on a date and a time of different instants', () => {
+    const apart = groundingAtoms({
+      outputs: [
+        { created_at: '2026-10-02T08:00:00Z' },
+        { settled_at: '2026-10-05T17:20:04Z' },
+      ],
+      citedTexts: [],
+    });
+    expect(ungroundedAtoms('2026-10-02T11:20:04-06:00', apart)).toEqual([
+      'instant:2026-10-02:11:20:04',
+    ]);
+  });
+
+  it('grounds on an *_at instant with milliseconds, in 24 or 12 hours', () => {
+    const precise = groundingAtoms({
+      outputs: [{ settled_at: '2026-10-02T23:20:04.123Z' }],
+      citedTexts: [],
+    });
+    expect(
+      ungroundedAtoms(
+        '2026-10-02T17:20:04-06:00 y a las 5:20:04 p.m.',
+        precise,
+      ),
+    ).toEqual([]);
+  });
+
+  it('grounds a time on a cited time to the second, with or without its seconds', () => {
+    expect(
+      ungroundedAtoms('a las 17:30:00, es decir a las 17:30', grounding),
+    ).toEqual([]);
+  });
+
+  it('never grounds a time to the second on a cited time to the minute', () => {
+    const toMinute = groundingAtoms({
+      outputs: [],
+      citedTexts: ['El corte diario es a las 17:30.'],
+    });
+    expect(ungroundedAtoms('a las 17:30:00', toMinute)).toEqual([
+      'time:17:30:00',
+    ]);
+  });
+});
+
+describe('groundingAtoms, instants in cited chunks', () => {
+  const grounding = groundingAtoms({
+    outputs: [],
+    citedTexts: ['Corte registrado el 2026-10-04T10:00:00-06:00.'],
+  });
+
+  it('never grounds an instant or its parts on a cited chunk', () => {
+    expect(
+      ungroundedAtoms(
+        'el 2026-10-04T10:00:00-06:00, a las 10:00, el 4 de octubre',
+        grounding,
+      ),
+    ).toEqual(['instant:2026-10-04:10:00:00', 'time:10:00', 'date:--10-04']);
+  });
+});
+
+describe('groundingAtoms, instants a figure follows in cited chunks', () => {
+  it.each([
+    [
+      'a grouped figure follows',
+      'Corte el 2026-10-04T10:20:30-06:00 500 pesos.',
+    ],
+    ['a decimal follows', 'Corte el 2026-10-04T10:20:30-06:00.50 pesos.'],
+    ['with no offset', 'Corte el 2026-10-04T10:20:30.'],
+    ['with a colonless offset', 'Corte el 2026-10-04T10:20:30-0600.'],
+    ['with fractions of a second', 'Corte el 2026-10-04T10:20:30.250Z.'],
+  ])('never grounds the pieces of an instant %s', (_, chunk) => {
+    const grounding = groundingAtoms({ outputs: [], citedTexts: [chunk] });
+    expect(ungroundedAtoms('a las 20:30 o a las 10:20', grounding)).toEqual([
+      'time:20:30',
+      'time:10:20',
+    ]);
+  });
+
+  it('still grounds a kind a chunk states after an instant', () => {
+    const grounding = groundingAtoms({
+      outputs: [],
+      citedTexts: ['Corte el 2026-10-04T10:00:00-06:00, 5% de comisión.'],
+    });
+    expect(ungroundedAtoms('una comisión de 5%', grounding)).toEqual([]);
   });
 });
