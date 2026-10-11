@@ -1,16 +1,24 @@
 import {
   ListTransactionsInputSchema,
   ResolutionSchema,
+  maskPii,
 } from '@fintech-agent/contracts';
 import type { LanguageModel } from 'ai';
 import { describe, expect, it } from 'vitest';
 
 import { seededRandom, seededRandomAfter } from '../../test/seeded-random.js';
 import { HAIKU_MODEL, SONNET_MODEL, pricingOf } from '../agent/core/prices.js';
+import { asCustomerData, caseMessage } from '../agent/core/prompt.js';
 import { POLICY_SEARCH_TOOL } from '../agent/core/validate/evidence.js';
 import { AGENT_VARIANTS, type AgentVariant } from '../config.js';
-import { REAL_RUNS, type Spread } from './real-runs.js';
 import {
+  REAL_RUNS,
+  UNGROUNDED_REPAIR_TOKENS,
+  type Spread,
+  type TokenLine,
+} from './real-runs.js';
+import {
+  assertCanaryCalibration,
   canaryModelsOf,
   investigationOf,
   misreadResolutionOf,
@@ -22,6 +30,7 @@ import { CANARY_TEMPLATES, type CanaryTemplate } from './templates.js';
 type ModelV4 = Extract<LanguageModel, { specificationVersion: 'v4' }>;
 type CallOptions = Parameters<ModelV4['doGenerate']>[0];
 type Generated = Awaited<ReturnType<ModelV4['doGenerate']>>;
+type Message = CallOptions['prompt'][number];
 
 const CALL: CallOptions = { prompt: [] };
 const [TEMPLATE] = CANARY_TEMPLATES;
@@ -39,6 +48,22 @@ const GUARD_STEPS = ['redaction', 'injection_scan'].length;
 const MODEL_CALL_CAP = 8;
 const LEAD_IN_MAX_CHARS = 160;
 const NO_REPAIR_DRAW = 0.99;
+// About what the dataset's tools return, in characters the model reads.
+const READ_CHARS: Readonly<Record<string, number>> = {
+  get_customer: 300,
+  list_transactions: 900,
+  get_card_authorization: 450,
+  get_spei_status: 450,
+  [POLICY_SEARCH_TOOL]: 1_200,
+};
+// A drawn residual is rounded into whole tokens.
+const ROUNDING = 0.5;
+const CONVERSATIONS = 20;
+const OPENINGS = 400;
+// A quarter of real calls sit below the residual's q1 and a quarter above its
+// q3; a canary that never lands there would stand out across a batch.
+const TAIL_SHARE = 0.25;
+const TAIL_TOLERANCE = 0.08;
 const REPAIR_DRAW = 0;
 const REQUEST_ID = /^req_011C[0-9A-Za-z]{20}$/;
 const TOOL_CALL_ID = /^toolu_01[0-9A-Za-z]{22}$/;
@@ -64,6 +89,19 @@ function pacing(random: () => number): ScriptPacing & { slept: number[] } {
     },
   };
 }
+
+const SYSTEM: Message = { role: 'system', content: 'Instructions.' };
+const userSays = (text: string): Message => ({
+  role: 'user',
+  content: [{ type: 'text', text }],
+});
+const REPAIR = userSays(
+  'Your resolution failed validation with: UNGROUNDED_NUMBER. Correct it and answer again with the complete resolution.',
+);
+const caseTextOf = ({ seed }: CanaryTemplate): string =>
+  maskPii(seed.texts.at(-1)!);
+// How the harness opens a model's conversation: its instructions and the case.
+const opening = (text: string): Message[] => [SYSTEM, userSays(text)];
 
 const drawingFirst = (first: number, seed = 1) =>
   seededRandomAfter(first, seed);
@@ -96,6 +134,33 @@ const toolCallsOf = (content: Generated['content']) =>
 const textOf = (content: Generated['content']) =>
   content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('');
 
+const answered = ({ content }: Generated): Message => ({
+  role: 'assistant',
+  content: [{ type: 'text', text: textOf(content) }],
+});
+
+const resultsOf = (
+  { content }: Generated,
+  charsOf: (tool: string) => number = (tool) => READ_CHARS[tool]!,
+): Message => ({
+  role: 'tool',
+  content: toolCallsOf(content).map(({ id, tool }) => ({
+    type: 'tool-result',
+    toolCallId: id,
+    toolName: tool,
+    output: { type: 'text', value: 'x'.repeat(charsOf(tool)) },
+  })),
+});
+
+const inputOf = ({ usage }: Generated): number => usage.inputTokens.total!;
+const outputOf = ({ usage }: Generated): number => usage.outputTokens.total!;
+
+function expectOnLine(line: TokenLine, chars: number, tokens: number): void {
+  const residual = tokens - (line.base + line.perChar * chars);
+  expect(residual).toBeGreaterThanOrEqual(line.residual.min - ROUNDING);
+  expect(residual).toBeLessThanOrEqual(line.residual.max + ROUNDING);
+}
+
 const median = (values: readonly number[]): number => {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.floor(sorted.length / 2)]!;
@@ -123,13 +188,17 @@ async function scriptedRun(
   const paced = pacing(random);
   const { redactor, agent } = modelsFor(template, paced, variant);
   const clean = JSON.stringify(resolutionOf(template.seed));
-  const redacted = await redactor.doGenerate(CALL);
+  const text = caseTextOf(template);
+  const redacted = await redactor.doGenerate({
+    prompt: opening(asCustomerData(text)),
+  });
   const agentCalls: Generated[] = [];
+  let prompt = opening(caseMessage(text));
   let validations = 0;
   let toolResults = 0;
   let toolCalls = 0;
   while (agentCalls.length < MODEL_CALL_CAP) {
-    const call = await agent.doGenerate(CALL);
+    const call = await agent.doGenerate({ prompt });
     agentCalls.push(call);
     const calls = toolCallsOf(call.content);
     if (calls.length > 0) {
@@ -137,10 +206,12 @@ async function scriptedRun(
       toolCalls += calls.filter(
         ({ tool }) => tool !== POLICY_SEARCH_TOOL,
       ).length;
+      prompt = [...prompt, answered(call), resultsOf(call)];
       continue;
     }
     validations += 1;
     if (textOf(call.content) === clean) break;
+    prompt = [...prompt, answered(call), REPAIR];
   }
   const sum = (
     calls: readonly Generated[],
@@ -362,7 +433,80 @@ describe('canaryModelsOf (02 G3)', () => {
         );
       },
     );
+
+    it("reports each call's input tokens from what it reads anew, as the variant's real calls did", async () => {
+      const lines = real.promptTokens;
+      for (let seed = 1; seed <= CONVERSATIONS; seed++) {
+        const text = caseTextOf(TEMPLATE!);
+        const charsPerResult = seed * READ_CHARS.get_customer!;
+        const { redactor, agent } = modelsFor(
+          TEMPLATE,
+          pacing(drawingFirst(REPAIR_DRAW, seed)),
+          variant,
+        );
+        const redaction = await redactor.doGenerate({
+          prompt: opening(asCustomerData(text)),
+        });
+        expectOnLine(
+          lines.redactor,
+          asCustomerData(text).length,
+          inputOf(redaction),
+        );
+
+        let prompt = opening(caseMessage(text));
+        let previous = await agent.doGenerate({ prompt });
+        expectOnLine(
+          lines.caseMessage,
+          caseMessage(text).length,
+          inputOf(previous),
+        );
+        for (let step = 0; step < 2; step++) {
+          const results = resultsOf(previous, () => charsPerResult);
+          prompt = [...prompt, answered(previous), results];
+          const next = await agent.doGenerate({ prompt });
+          expectOnLine(
+            lines.toolResults,
+            charsPerResult * results.content.length,
+            inputOf(next) - inputOf(previous) - outputOf(previous),
+          );
+          previous = next;
+        }
+        const repaired = await agent.doGenerate({
+          prompt: [...prompt, answered(previous), REPAIR],
+        });
+        expect(inputOf(repaired) - inputOf(previous) - outputOf(previous)).toBe(
+          UNGROUNDED_REPAIR_TOKENS,
+        );
+      }
+    });
   });
+
+  it.each(AGENT_VARIANTS)(
+    "spreads variant %s's opening residuals like the real calls', tails included",
+    async (variant) => {
+      const line = REAL_RUNS[variant].promptTokens.caseMessage;
+      const prompt = opening(caseMessage(caseTextOf(TEMPLATE!)));
+      const chars = caseMessage(caseTextOf(TEMPLATE!)).length;
+      const residuals: number[] = [];
+      for (let seed = 1; seed <= OPENINGS; seed++) {
+        const { agent } = modelsFor(
+          TEMPLATE,
+          pacing(seededRandom(seed)),
+          variant,
+        );
+        const call = await agent.doGenerate({ prompt });
+        residuals.push(inputOf(call) - (line.base + line.perChar * chars));
+      }
+      const share = (inTail: (residual: number) => boolean) =>
+        residuals.filter(inTail).length / residuals.length;
+      expect(
+        Math.abs(share((r) => r < line.residual.q1 - ROUNDING) - TAIL_SHARE),
+      ).toBeLessThanOrEqual(TAIL_TOLERANCE);
+      expect(
+        Math.abs(share((r) => r > line.residual.q3 + ROUNDING) - TAIL_SHARE),
+      ).toBeLessThanOrEqual(TAIL_TOLERANCE);
+    },
+  );
 
   it('stamps request and tool call ids in the provider shapes, fresh on every call', async () => {
     const { requestIds, toolCallIds } = await scriptedRun(
@@ -399,8 +543,11 @@ describe('canaryModelsOf (02 G3)', () => {
   it('takes time and reports tokens the way a provider call does, growing with the conversation', async () => {
     const paced = pacing(seededRandom(1));
     const { agent } = modelsFor(TEMPLATE, paced);
-    const first = await agent.doGenerate(CALL);
-    const second = await agent.doGenerate(CALL);
+    const prompt = opening(caseMessage(caseTextOf(TEMPLATE!)));
+    const first = await agent.doGenerate({ prompt });
+    const second = await agent.doGenerate({
+      prompt: [...prompt, answered(first), resultsOf(first)],
+    });
     expect(paced.slept.every((ms) => ms > 0)).toBe(true);
     expect(second.usage.inputTokens.total!).toBeGreaterThan(
       first.usage.inputTokens.total! + first.usage.outputTokens.total!,
@@ -439,5 +586,40 @@ describe('canaryModelsOf (02 G3)', () => {
     expect(performance.now() - started).toBeGreaterThanOrEqual(
       SHORTEST_REDACTOR_MS - TIMER_SLACK_MS,
     );
+  });
+});
+
+describe('assertCanaryCalibration (02 G3)', () => {
+  it.each(AGENT_VARIANTS)(
+    'lets variant %s run canaries on the models its real runs measured',
+    (variant) => {
+      expect(() =>
+        assertCanaryCalibration({
+          variant,
+          modelId: REAL_RUNS[variant].model,
+          redactorModelId: REAL_RUNS[variant].redactorModel,
+        }),
+      ).not.toThrow();
+    },
+  );
+
+  it("refuses an agent model the variant's real runs did not run on", () => {
+    expect(() =>
+      assertCanaryCalibration({
+        variant: 'A',
+        modelId: HAIKU_MODEL,
+        redactorModelId: REAL_RUNS.A.redactorModel,
+      }),
+    ).toThrow(/variant A/);
+  });
+
+  it("refuses a redactor model the variant's real runs did not run with", () => {
+    expect(() =>
+      assertCanaryCalibration({
+        variant: 'B',
+        modelId: REAL_RUNS.B.model,
+        redactorModelId: SONNET_MODEL,
+      }),
+    ).toThrow(/variant B/);
   });
 });

@@ -10,9 +10,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { maskPii } from '@fintech-agent/contracts';
+import type { LanguageModel } from 'ai';
 import { describe, expect, it } from 'vitest';
 
 import { testApiConfig } from '../../../test/api-config.js';
+import { REAL_RUNS } from '../../canaries/real-runs.js';
 import { CANARY_TEMPLATES, type CanaryCase } from '../../canaries/templates.js';
 import type { Database } from '../../database/index.js';
 import { injectionSignal } from '../../guard/prompt-guard.js';
@@ -35,6 +37,22 @@ const COLD_TONE_CASE: CanaryCase = {
   customerId: COLD_TONE.seed.customerId,
   textMasked: maskPii(COLD_TONE.seed.texts[0]!),
 };
+type ModelV4 = Extract<LanguageModel, { specificationVersion: 'v4' }>;
+
+const asV4 = (model: LanguageModel): ModelV4 => {
+  if (typeof model === 'string' || model.specificationVersion !== 'v4') {
+    throw new Error('a canary script is a v4 model');
+  }
+  return model;
+};
+
+// Long enough that the variants' tool-result lines land apart, residual
+// tails included.
+const RESULT_CHARS = 8_000;
+// A drawn residual is rounded into whole tokens.
+const ROUNDING = 0.5;
+// Two calls paced as the provider's, up to 2.9 s each.
+const PACED_CALLS_MS = 10_000;
 
 describe('agentConfigOf (02 G4)', () => {
   it('copies only the agent variables, never another service key', () => {
@@ -168,5 +186,45 @@ describe('runCaseDepsOf', () => {
         deps.canaryModels({ ...COLD_TONE_CASE, textMasked: 'otro texto' }),
       ).toThrow();
     },
+  );
+
+  it.concurrent.each(['A', 'B'] as const)(
+    "has a canary's agent read tool results on variant %s's real line",
+    async (variant) => {
+      const { agent: model } = runCaseDepsOf({
+        config: agentConfigOf(testApiConfig({ AGENT_VARIANT: variant })),
+        db: {} as Database,
+        catalog: loadCatalog(POLICIES_DIR),
+        log: () => undefined,
+      }).canaryModels(COLD_TONE_CASE);
+      const agent = asV4(model);
+      const first = await agent.doGenerate({ prompt: [] });
+      const second = await agent.doGenerate({
+        prompt: [
+          { role: 'assistant', content: [] },
+          {
+            role: 'tool',
+            content: [
+              {
+                type: 'tool-result',
+                toolCallId: 'toolu_01',
+                toolName: 'get_customer',
+                output: { type: 'text', value: 'x'.repeat(RESULT_CHARS) },
+              },
+            ],
+          },
+        ],
+      });
+      const { base, perChar, residual } =
+        REAL_RUNS[variant].promptTokens.toolResults;
+      const added =
+        second.usage.inputTokens.total! -
+        first.usage.inputTokens.total! -
+        first.usage.outputTokens.total!;
+      const drawn = added - (base + perChar * RESULT_CHARS);
+      expect(drawn).toBeGreaterThanOrEqual(residual.min - ROUNDING);
+      expect(drawn).toBeLessThanOrEqual(residual.max + ROUNDING);
+    },
+    PACED_CALLS_MS,
   );
 });

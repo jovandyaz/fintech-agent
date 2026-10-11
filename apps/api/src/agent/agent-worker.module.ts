@@ -10,6 +10,7 @@ import {
   type BeforeApplicationShutdown,
 } from '@nestjs/common';
 
+import { assertCanaryCalibration } from '../canaries/script.js';
 import { reasonOf } from '../common/errors/reason-of.js';
 import { DATABASE, type Database } from '../database/index.js';
 import { POLICIES_DIR } from '../retrieval/ingest.js';
@@ -35,13 +36,15 @@ class AgentWorker implements OnApplicationBootstrap, BeforeApplicationShutdown {
   onApplicationBootstrap(): void {
     const { db, config, logger } = this;
     const { signal } = this.stop;
-    // Read before the first claim: a refused corpus keeps api from booting.
+    // Read before the first claim: a refused corpus, or models the canaries
+    // are not calibrated for, keep api from booting.
     const deps = runCaseDepsOf({
       config,
       db,
       catalog: loadCatalog(POLICIES_DIR),
       log: (event) => logger.log(event),
     });
+    assertCanaryCalibration(deps.config);
     this.running = runWorker({
       claim: () =>
         claimNextCase(db, {

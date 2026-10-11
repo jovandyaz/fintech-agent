@@ -25,8 +25,10 @@ import {
   type TestDatabase,
 } from '../../test/database.js';
 import { keyPathsOf } from '../../test/key-paths.js';
+import { storedReadChars } from '../../test/read-chars.js';
 import { seededRandom, seededRandomAfter } from '../../test/seeded-random.js';
 import { HAIKU_MODEL, SONNET_MODEL } from '../agent/core/prices.js';
+import { asCustomerData, caseMessage } from '../agent/core/prompt.js';
 import type { Claim } from '../agent/core/queue.js';
 import {
   runCase,
@@ -43,6 +45,11 @@ import { injectionSignal } from '../guard/prompt-guard.js';
 import { seedPolicies } from '../retrieval/corpus-write.js';
 import { POLICIES_DIR, loadManifest } from '../retrieval/ingest.js';
 import { createRetrieval, policyCatalog } from '../retrieval/search.js';
+import {
+  REAL_RUNS,
+  UNGROUNDED_REPAIR_TOKENS,
+  type TokenLine,
+} from './real-runs.js';
 import {
   canaryModelsOf,
   investigationOf,
@@ -65,6 +72,8 @@ const NO_BUDGET_LIMIT = 1e9;
 const NO_REPAIR_DRAW = 0.99;
 const REPAIR_DRAW = 0;
 const SCRIPT_SEED = 11;
+// A drawn residual is rounded into whole tokens.
+const ROUNDING = 0.5;
 const MEASURES = [
   'input_tokens',
   'output_tokens',
@@ -247,6 +256,10 @@ const shapeOf = (row: StepRow) => ({
   nulls: MEASURES.filter((measure) => row[measure] === null),
 });
 
+// How far a call's input tokens sit from the real line over what it read.
+const residualOf = (line: TokenLine, chars: number, tokens: number): number =>
+  tokens - (line.base + line.perChar * chars);
+
 const validationsOf = (steps: readonly StepRow[]) =>
   steps
     .filter(({ kind }) => kind === 'validation')
@@ -367,6 +380,60 @@ describe('a canary through the real harness (02 G3, G5)', () => {
         agent_type: seed.action.type,
         agent_params: { transaction_ids: seed.action.transaction_ids },
       });
+    },
+  );
+
+  it.each(CANARY_TEMPLATES)(
+    "$defect ($seed.customerId) reports each call's input tokens on the real line over what the harness sent it",
+    async (template) => {
+      const claim = await claimedCase(template);
+      await runCase(depsFor([], pacedScript(REPAIR_DRAW)), claim);
+      const steps = await stepsOf(claim.caseId);
+      const lines = REAL_RUNS.A.promptTokens;
+      const text = maskPii(template.seed.texts.at(-1)!);
+      const residuals: number[] = [];
+      const within = (line: TokenLine, chars: number, tokens: number) => {
+        const residual = residualOf(line, chars, tokens);
+        expect(residual).toBeGreaterThanOrEqual(line.residual.min - ROUNDING);
+        expect(residual).toBeLessThanOrEqual(line.residual.max + ROUNDING);
+        residuals.push(residual);
+      };
+      const redaction = steps.find(
+        ({ kind, input_tokens }) => kind === 'guard' && input_tokens !== null,
+      )!;
+      within(
+        lines.redactor,
+        asCustomerData(text).length,
+        redaction.input_tokens!,
+      );
+      let previous: StepRow | null = null;
+      let chars = 0;
+      for (const step of steps) {
+        if (step.kind === 'tool' || step.kind === 'retrieval') {
+          chars += storedReadChars(step.output_masked);
+        }
+        if (step.kind !== 'llm') continue;
+        if (previous === null) {
+          within(
+            lines.caseMessage,
+            caseMessage(text).length,
+            step.input_tokens!,
+          );
+        } else {
+          const added =
+            step.input_tokens! -
+            previous.input_tokens! -
+            previous.output_tokens!;
+          if (chars > 0) within(lines.toolResults, chars, added);
+          else expect(added).toBe(UNGROUNDED_REPAIR_TOKENS);
+        }
+        previous = step;
+        chars = 0;
+      }
+      // The redactor, the opening, one call per tool step; the repair is exact.
+      expect(residuals).toHaveLength(
+        2 + investigationOf(template.seed, seededRandom(SCRIPT_SEED)).length,
+      );
     },
   );
 

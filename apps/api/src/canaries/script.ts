@@ -7,11 +7,20 @@ import type { RunCaseConfig } from '../agent/core/run-case.js';
 import type { AgentVariant } from '../config.js';
 import { POLICY_SEARCH_TOOL } from '../agent/core/validate/evidence.js';
 import { drawOne } from './draw.js';
-import { REAL_RUNS } from './real-runs.js';
+import {
+  REAL_RUNS,
+  UNGROUNDED_REPAIR_TOKENS,
+  type TokenLine,
+} from './real-runs.js';
 import type { CanarySeed, CanaryTemplate, LookupTool } from './templates.js';
 
 type ModelV4 = Extract<LanguageModel, { specificationVersion: 'v4' }>;
 type Generated = Awaited<ReturnType<ModelV4['doGenerate']>>;
+type Prompt = Parameters<ModelV4['doGenerate']>[0]['prompt'];
+type ToolOutput = Extract<
+  Extract<Prompt[number], { role: 'tool' }>['content'][number],
+  { type: 'tool-result' }
+>['output'];
 type Range = readonly [min: number, max: number];
 
 /** What a canary's script reads of the attempt's config: the variant whose real runs it plays, and the model ids it reports. */
@@ -65,13 +74,9 @@ const TOOL_CALL_ID: IdShape = { prefix: 'toolu_01', chars: 22 };
 const POLICY_RESULTS = 3;
 const FINISH = { toolCalls: 'tool-calls', stop: 'stop' } as const;
 
-// Calibrated against both variants' real runs (real-runs.ts); only the answer's
-// length, with the repair share, differs enough between their models to need
-// a value each. The agent sets no cacheControl, so no call reads from a
-// prompt cache.
-const FIRST_INPUT_TOKENS: Range = [4_150, 4_550];
-const TOOL_RESULTS_TOKENS: Range = [450, 950];
-const REPAIR_PROMPT_TOKENS: Range = [40, 90];
+// Calibrated against both variants' real runs (real-runs.ts); input tokens
+// follow what each call is sent, through the variant's measured lines. The
+// agent sets no cacheControl, so no call reads from a prompt cache.
 const TOOL_STEP_OUTPUT_TOKENS: Range = [100, 240];
 const ANSWER_OUTPUT_TOKENS: Readonly<Record<AgentVariant, Range>> = {
   A: [800, 1_150],
@@ -79,10 +84,8 @@ const ANSWER_OUTPUT_TOKENS: Readonly<Record<AgentVariant, Range>> = {
 };
 const TOOL_STEP_MS: Range = [1_500, 2_900];
 const ANSWER_MS: Range = [5_000, 7_500];
-const REDACTOR_INPUT_TOKENS: Range = [420, 760];
 const REDACTOR_OUTPUT_TOKENS: Range = [6, 14];
 const REDACTOR_MS: Range = [600, 1_600];
-const NO_NEXT_PROMPT: Range = [0, 0];
 
 const OPENING_LEAD_INS: readonly ((movement: string) => string)[] = [
   (movement) =>
@@ -124,12 +127,109 @@ interface Turn {
   finish: (typeof FINISH)[keyof typeof FINISH];
   ms: Range;
   outputTokens: Range;
-  // What the next call's prompt adds after this turn's output: tool results or the repair prompt.
-  nextPromptTokens: Range;
 }
+
+// How a scripted model counts the input tokens of what it is sent: the first
+// call over its user text, a later one over the tool results it reads (none
+// for the redactor, which makes one call).
+interface PromptTokens {
+  opening: TokenLine;
+  toolResults: TokenLine | null;
+}
+
+// The real residuals' quartiles cut one draw in four: a quarter below q1,
+// half between q1 and q3, a quarter above q3, so a batch of canaries reaches
+// the tails as often as real calls do.
+const LOWER_QUARTER = 0.25;
+const UPPER_QUARTER = 0.75;
 
 const between = ([min, max]: Range, random: () => number): number =>
   Math.round(min + random() * (max - min));
+
+function residualOf(
+  { min, q1, q3, max }: TokenLine['residual'],
+  random: () => number,
+): number {
+  const draw = random();
+  if (draw < LOWER_QUARTER) return min + (draw / LOWER_QUARTER) * (q1 - min);
+  if (draw < UPPER_QUARTER) {
+    return (
+      q1 +
+      ((draw - LOWER_QUARTER) / (UPPER_QUARTER - LOWER_QUARTER)) * (q3 - q1)
+    );
+  }
+  return q3 + ((draw - UPPER_QUARTER) / (1 - UPPER_QUARTER)) * (max - q3);
+}
+
+const onLine = (line: TokenLine, chars: number, random: () => number) =>
+  Math.round(
+    line.base + line.perChar * chars + residualOf(line.residual, random),
+  );
+
+function outputChars(output: ToolOutput): number {
+  switch (output.type) {
+    case 'text':
+    case 'error-text':
+      return output.value.length;
+    case 'json':
+    case 'error-json':
+      return JSON.stringify(output.value).length;
+    case 'content':
+      return output.value.reduce(
+        (chars, part) => chars + (part.type === 'text' ? part.text.length : 0),
+        0,
+      );
+    case 'execution-denied':
+      return output.reason?.length ?? 0;
+  }
+}
+
+const userChars = (messages: Prompt): number =>
+  messages.reduce(
+    (chars, message) =>
+      message.role === 'user'
+        ? message.content.reduce(
+            (sum, part) => sum + (part.type === 'text' ? part.text.length : 0),
+            chars,
+          )
+        : chars,
+    0,
+  );
+
+const toolResultChars = (messages: Prompt): number =>
+  messages.reduce(
+    (chars, message) =>
+      message.role === 'tool'
+        ? message.content.reduce(
+            (sum, part) =>
+              sum +
+              (part.type === 'tool-result' ? outputChars(part.output) : 0),
+            chars,
+          )
+        : chars,
+    0,
+  );
+
+// What a later call reads anew, after the model's last answer: tool results,
+// or the repair prompt.
+function addedTokens(
+  prompt: Prompt,
+  tokens: PromptTokens,
+  random: () => number,
+): number {
+  const anew = prompt.slice(
+    prompt.findLastIndex(({ role }) => role === 'assistant') + 1,
+  );
+  if (anew.some(({ role }) => role === 'tool')) {
+    if (tokens.toolResults === null) {
+      throw new Error('this scripted model reads no tool results');
+    }
+    return onLine(tokens.toolResults, toolResultChars(anew), random);
+  }
+  return anew.some(({ role }) => role === 'user')
+    ? UNGROUNDED_REPAIR_TOKENS
+    : 0;
+}
 
 const idOf = ({ prefix, chars }: IdShape, random: () => number): string =>
   prefix +
@@ -219,24 +319,26 @@ export function misreadResolutionOf(seed: CanarySeed): Resolution {
 function scriptedModel(
   modelId: string,
   pacing: ScriptPacing,
-  firstInput: Range,
+  tokens: PromptTokens,
   turnAt: (call: number) => Turn,
 ): ModelV4 {
   let calls = 0;
-  let nextInput = 0;
+  let readSoFar = 0;
   return {
     specificationVersion: 'v4',
     provider: PROVIDER,
     modelId,
     supportedUrls: {},
-    doGenerate: async (): Promise<Generated> => {
+    doGenerate: async ({ prompt }): Promise<Generated> => {
       const call = calls++;
       const turn = turnAt(call);
       await pacing.sleep(between(turn.ms, pacing.random));
-      const input = call === 0 ? between(firstInput, pacing.random) : nextInput;
+      const input =
+        call === 0
+          ? onLine(tokens.opening, userChars(prompt), pacing.random)
+          : readSoFar + addedTokens(prompt, tokens, pacing.random);
       const output = between(turn.outputTokens, pacing.random);
-      nextInput =
-        input + output + between(turn.nextPromptTokens, pacing.random);
+      readSoFar = input + output;
       return {
         content: turn.content,
         finishReason: { unified: turn.finish, raw: turn.finish },
@@ -262,17 +364,11 @@ function scriptedModel(
   };
 }
 
-const answerTurn = (
-  text: string,
-  ms: Range,
-  outputTokens: Range,
-  nextPromptTokens: Range,
-): Turn => ({
+const answerTurn = (text: string, ms: Range, outputTokens: Range): Turn => ({
   content: [{ type: 'text', text }],
   finish: FINISH.stop,
   ms,
   outputTokens,
-  nextPromptTokens,
 });
 
 function answerAt(answers: readonly string[], index: number): string {
@@ -294,8 +390,22 @@ const toolTurn = (step: ScriptedStep, random: () => number): Turn => ({
   finish: FINISH.toolCalls,
   ms: TOOL_STEP_MS,
   outputTokens: TOOL_STEP_OUTPUT_TOKENS,
-  nextPromptTokens: TOOL_RESULTS_TOKENS,
 });
+
+/**
+ * Throws unless the variant's agent and redactor models are the ones its real
+ * runs measured (02 G3): canaries calibrated against other models would stand
+ * out in the trace, so a new model is evaluated and re-measured first.
+ */
+export function assertCanaryCalibration(config: CanaryScriptConfig): void {
+  const { model, redactorModel } = REAL_RUNS[config.variant];
+  if (config.modelId === model && config.redactorModelId === redactorModel) {
+    return;
+  }
+  throw new Error(
+    `canaries of variant ${config.variant} are calibrated for ${model} with redactor ${redactorModel}, not ${config.modelId} with ${config.redactorModelId}; re-measure REAL_RUNS on an eval run of those models`,
+  );
+}
 
 /**
  * The models a canary's case runs with instead of the provider's (02 G3), by
@@ -310,7 +420,7 @@ export function canaryModelsOf(
   input: CanaryScriptConfig & { pacing?: ScriptPacing },
 ): ScriptedModels {
   const pacing = input.pacing ?? PROVIDER_PACING;
-  const { repairedRuns, runs } = REAL_RUNS[input.variant];
+  const { repairedRuns, runs, promptTokens } = REAL_RUNS[input.variant];
   const repairs = pacing.random() < repairedRuns / runs;
   const steps = investigationOf(template.seed, pacing.random);
   const resolution = JSON.stringify(resolutionOf(template.seed));
@@ -322,25 +432,26 @@ export function canaryModelsOf(
     redactor: scriptedModel(
       input.redactorModelId,
       pacing,
-      REDACTOR_INPUT_TOKENS,
-      () =>
-        answerTurn(
-          nothingToRedact,
-          REDACTOR_MS,
-          REDACTOR_OUTPUT_TOKENS,
-          NO_NEXT_PROMPT,
-        ),
+      { opening: promptTokens.redactor, toolResults: null },
+      () => answerTurn(nothingToRedact, REDACTOR_MS, REDACTOR_OUTPUT_TOKENS),
     ),
-    agent: scriptedModel(input.modelId, pacing, FIRST_INPUT_TOKENS, (call) => {
-      const step = steps[call];
-      if (step) return toolTurn(step, pacing.random);
-      const index = Math.min(call - steps.length, answers.length - 1);
-      return answerTurn(
-        answerAt(answers, index),
-        ANSWER_MS,
-        ANSWER_OUTPUT_TOKENS[input.variant],
-        index < answers.length - 1 ? REPAIR_PROMPT_TOKENS : NO_NEXT_PROMPT,
-      );
-    }),
+    agent: scriptedModel(
+      input.modelId,
+      pacing,
+      {
+        opening: promptTokens.caseMessage,
+        toolResults: promptTokens.toolResults,
+      },
+      (call) => {
+        const step = steps[call];
+        if (step) return toolTurn(step, pacing.random);
+        const index = Math.min(call - steps.length, answers.length - 1);
+        return answerTurn(
+          answerAt(answers, index),
+          ANSWER_MS,
+          ANSWER_OUTPUT_TOKENS[input.variant],
+        );
+      },
+    ),
   };
 }

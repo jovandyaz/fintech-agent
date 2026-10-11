@@ -19,10 +19,22 @@ export interface Lengths {
   max: number;
 }
 
+/**
+ * Input tokens a model call adds as a line over the characters it reads anew,
+ * `base + perChar × chars`, and how the real calls' residuals spread.
+ */
+export interface TokenLine {
+  base: number;
+  perChar: number;
+  residual: { min: number; q1: number; q3: number; max: number };
+}
+
 /** One variant's real runs: the envelope its canaries' scripted runs are calibrated against. */
 export interface RealRuns {
   /** The agent model they ran on; `costUsd` holds at its prices only. */
   model: string;
+  /** The redactor model they ran with, whose rates give each redaction call its cost. */
+  redactorModel: string;
   runs: number;
   /** Run totals as `agent_runs` stores them, the redactor's call included. */
   inputTokens: Spread;
@@ -43,10 +55,26 @@ export interface RealRuns {
     justification: Lengths;
     draftReply: Lengths;
   };
+  /** What each model call read anew against the input tokens it reported. */
+  promptTokens: {
+    /** The redactor's call, over the delimited case text. */
+    redactor: TokenLine;
+    /** The agent's first call, over the case message. */
+    caseMessage: TokenLine;
+    /** A call after a tool step, over the text the model reads of its results. */
+    toolResults: TokenLine;
+  };
 }
 
 /** The final full eval run, whose runs of each variant `REAL_RUNS` measures. */
 export const REAL_RUNS_FILE = 'evals/results/2026-10-11-07ac584-205556Z.json';
+
+/** The steps of each run in `REAL_RUNS_FILE`, from `evals/export-steps.sql`. */
+export const REAL_STEPS_FILE =
+  'evals/results/2026-10-11-07ac584-205556Z.steps.json';
+
+/** What the repair prompt added in every real run that repaired for `UNGROUNDED_NUMBER` alone. */
+export const UNGROUNDED_REPAIR_TOKENS = 46;
 
 /**
  * Per agent variant, what its 52 runs in `REAL_RUNS_FILE` measured, so a
@@ -56,6 +84,7 @@ export const REAL_RUNS_FILE = 'evals/results/2026-10-11-07ac584-205556Z.json';
 export const REAL_RUNS: Readonly<Record<AgentVariant, RealRuns>> = {
   A: {
     model: SONNET_MODEL,
+    redactorModel: HAIKU_MODEL,
     runs: 52,
     inputTokens: {
       min: 9_935,
@@ -88,9 +117,27 @@ export const REAL_RUNS: Readonly<Record<AgentVariant, RealRuns>> = {
       justification: { min: 133, median: 242, max: 392 },
       draftReply: { min: 317, median: 606, max: 970 },
     },
+    promptTokens: {
+      redactor: {
+        base: 437,
+        perChar: 0.4374,
+        residual: { min: -5, q1: -1, q3: 2, max: 8 },
+      },
+      caseMessage: {
+        base: 4_381,
+        perChar: 0.4374,
+        residual: { min: -5, q1: -1, q3: 2, max: 8 },
+      },
+      toolResults: {
+        base: 28,
+        perChar: 0.4654,
+        residual: { min: -71, q1: -20, q3: 21, max: 73 },
+      },
+    },
   },
   B: {
     model: HAIKU_MODEL,
+    redactorModel: HAIKU_MODEL,
     runs: 52,
     inputTokens: {
       min: 4_928,
@@ -122,6 +169,23 @@ export const REAL_RUNS: Readonly<Record<AgentVariant, RealRuns>> = {
       reasoningSummary: { min: 250, median: 393, max: 552 },
       justification: { min: 165, median: 299, max: 485 },
       draftReply: { min: 303, median: 614, max: 966 },
+    },
+    promptTokens: {
+      redactor: {
+        base: 437,
+        perChar: 0.4374,
+        residual: { min: -5, q1: -1, q3: 2, max: 8 },
+      },
+      caseMessage: {
+        base: 4_381,
+        perChar: 0.4374,
+        residual: { min: -5, q1: -1, q3: 2, max: 8 },
+      },
+      toolResults: {
+        base: 60,
+        perChar: 0.43,
+        residual: { min: -92, q1: -31, q3: 17, max: 105 },
+      },
     },
   },
 };

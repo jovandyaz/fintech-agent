@@ -13,6 +13,7 @@ import {
 import { AppModule } from '../app.module.js';
 import { AGENT_CONFIG } from './agent-worker.module.js';
 import { agentConfigOf } from './core/deps.js';
+import { HAIKU_MODEL } from './core/prices.js';
 
 const POLL_MS = '25';
 const SETTLE_MS = 15_000;
@@ -138,5 +139,28 @@ describe('the agent worker inside api (01 §Components, §Webhook and queue)', (
       expect((await caseRow(id)).status).toBe('queued');
     });
     expect(await runOf(id)).toBeUndefined();
+  });
+
+  it('refuses to start the worker on an agent model its canaries are not calibrated for (02 G3)', async () => {
+    await expect(
+      withApi(
+        { AGENT_MODE: 'off', AGENT_VARIANT: 'A', AGENT_MODEL_A: HAIKU_MODEL },
+        () => Promise.resolve(),
+      ),
+    ).rejects.toThrow(/calibrated/);
+  });
+
+  it('boots HTTP-only on that model, as no canary runs without the worker', async () => {
+    await expect(
+      withApi(
+        {
+          AGENT_WORKER: 'off',
+          AGENT_MODE: 'off',
+          AGENT_VARIANT: 'A',
+          AGENT_MODEL_A: HAIKU_MODEL,
+        },
+        () => Promise.resolve(),
+      ),
+    ).resolves.toBeUndefined();
   });
 });

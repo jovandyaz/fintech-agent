@@ -31,7 +31,7 @@ Step 8 delivered (plan: `build-log/step-8-plan.md`, briefs: `build-log/step-8/`)
 - every table alert of 01 in `ops/alerts.sql`, the reject metric in `ops/metrics.sql` (override counts as `wrong_action`, canaries and eval cases out), each pinned by Testcontainers tests; run read-only as `copilot_api` (`ops/README.md`);
 - `pnpm ops:scan-logs` and `pnpm ops:scan-traces`: the log alerts and both halves of the PII sink scan, with the masker itself as the oracle;
 - the injection scan flags requests that dictate the reply's markup;
-- canaries calibrated against the 52 recorded variant-A runs (now per variant, from run 6; parallel tool calls, ≈1/3 repairs, real-length text, 9 templates on 9 customers, 4 proposing `none`), closing Step 7's G3 Review Focus 4;
+- canaries calibrated against the 52 recorded variant-A runs (now per variant, from run 6, with each call's input tokens following what it reads and the worker refusing other models; parallel tool calls, ≈1/3 repairs, real-length text, 9 templates on 9 customers, 4 proposing `none`), closing Step 7's G3 Review Focus 4;
 - the `add-eval-case` and `add-policy-doc` skills, and `pnpm eval --only <scenario id>` for the skill's single run;
 - no OpenTelemetry exporter: own traces satisfy the brief; the masked OTel seam stays tested and unwired (01 §Observability).
 
