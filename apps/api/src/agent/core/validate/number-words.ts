@@ -76,12 +76,23 @@ const WORD_VALUES: Readonly<Record<string, number>> = {
 const WORD = Object.keys(WORD_VALUES)
   .toSorted((a, b) => b.length - a.length)
   .join('|');
-// Not after a digit ("5 mil pesos" is read as a whole by the amount
-// patterns) nor in "por ciento", where "ciento" is no figure.
+const FIGURE_WORD = Object.keys(WORD_VALUES)
+  .filter((word) => !ARTICLES.has(word))
+  .join('|');
+const ARTICLE_WORD = [...ARTICLES].join('|');
+// "mil" right after a digit is that figure's scale ("5 mil pesos" is read
+// whole by the amount patterns). "por ciento" is a percent after a figure
+// (a lone article is none: "cada uno por ciento cincuenta") or with no
+// number word after it. Any other word folds, "cien" too: the reader has no
+// "por cien" percent, so "11:20 por cien pesos" would hide 100.
 const RUN = new RegExp(
-  String.raw`(?<!\d\s?|\bpor\s)\b(?:${WORD})(?:\s+(?:y\s+)?(?:${WORD}))*\b`,
+  String.raw`\b(?!(?<=\bpor\s)ciento\b(?!\s(?:y\s)?(?:${WORD})\b))(?!(?<=(?:\d\s?|\b(?:${FIGURE_WORD})\s(?:(?:y\s)?(?:${ARTICLE_WORD})\s)?)por\s)ciento\b)(?!(?<=\d\s?)mil\b)(?:${WORD})(?:\s+(?:y\s+)?(?:${WORD}))*\b`,
   'g',
 );
+// Digits and a space before three digits group thousands, so "a las 3
+// quinientos" folded bare would read as 3,500.
+const AFTER_FIGURE = /(?<=\d\s)/y;
+const APART = '· ';
 const AND = /\s+y\s+/;
 const THOUSAND_WORD = /\bmil\b/;
 // After "a la(s)", an hour "y" minutes is never one sum, as with digits:
@@ -147,9 +158,9 @@ function figuresOf(run: string, afterClock: boolean): number[] {
   return groups.map(valueOf);
 }
 
-const isAfterClockCue = (text: string, offset: number): boolean => {
-  AFTER_CLOCK_CUE.lastIndex = offset;
-  return AFTER_CLOCK_CUE.test(text);
+const isAfter = (cue: RegExp, text: string, offset: number): boolean => {
+  cue.lastIndex = offset;
+  return cue.test(text);
 };
 
 const keepsWord = (run: string, rest: string): boolean =>
@@ -168,10 +179,10 @@ const keepsWord = (run: string, rest: string): boolean =>
 export function foldNumberWords(text: string): string {
   return text.replace(RUN, (run: string, offset: number) => {
     const rest = text.slice(offset + run.length);
-    return keepsWord(run, rest)
-      ? run
-      : figuresOf(run, isAfterClockCue(text, offset))
-          .map((figure) => String(figure).replace(THOUSANDS_GROUP, ','))
-          .join(' y ');
+    if (keepsWord(run, rest)) return run;
+    const figures = figuresOf(run, isAfter(AFTER_CLOCK_CUE, text, offset))
+      .map((figure) => String(figure).replace(THOUSANDS_GROUP, ','))
+      .join(' y ');
+    return isAfter(AFTER_FIGURE, text, offset) ? `${APART}${figures}` : figures;
   });
 }

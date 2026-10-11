@@ -348,6 +348,62 @@ describe('numberAtoms, figures spelled out', () => {
     ]);
   });
 
+  it.each([
+    ['a las 11:20 quinientos pesos', ['time:11:20', 'amount:50000']],
+    ['a las 3 quinientos pesos', ['time:03:00', 'amount:50000']],
+    ['octubre 5 quinientos pesos', ['date:--10-05', 'amount:50000']],
+    ['el folio 15 quinientos pesos', ['amount:1500', 'amount:50000']],
+    ['15 doscientos cincuenta pesos', ['amount:1500', 'amount:25000']],
+  ])(
+    'reads a number word right after a figure as a figure of its own: %s',
+    (text, atoms) => {
+      expect(numberAtoms(text)).toEqual(atoms);
+    },
+  );
+
+  it.each([
+    ['un reembolso por quinientos pesos', ['amount:50000']],
+    ['por cinco días hábiles', ['dur:5:dia:habil']],
+    ['un cargo por ciento cincuenta pesos', ['amount:15000']],
+    ['un marco de bronce por ciento cincuenta pesos', ['amount:15000']],
+    ['un 10 por ciento', ['pct:10']],
+    ['el 10 por ciento una vez al mes', ['pct:10']],
+    ['el diez por ciento un mes', ['pct:10', 'dur:1:mes']],
+    ['el 5 por ciento cinco días', ['pct:5', 'dur:5:dia']],
+    ['cada uno por ciento cincuenta pesos', ['amount:15000']],
+    ['cada una por ciento cincuenta pesos', ['amount:15000']],
+    ['el treinta y uno por ciento cinco días', ['pct:31', 'dur:5:dia']],
+    ['el cuarenta y una por ciento dos meses', ['pct:41', 'dur:2:mes']],
+    ['el ciento un por ciento un mes', ['pct:101', 'dur:1:mes']],
+    ['un cargo por ciento y cinco pesos', ['amount:10500']],
+    ['el 10 por cien cinco días', ['amount:1000', 'dur:105:dia']],
+    ['el cien por cien un mes', ['amount:10000', 'dur:101:mes']],
+    [
+      'el cargo del 2 de octubre de 2026 por cien una vez',
+      ['date:2026-10-02', 'amount:10100'],
+    ],
+    ['un reembolso por cien pesos', ['amount:10000']],
+    ['a las 11:20 por cien pesos', ['time:11:20', 'amount:10000']],
+    [
+      'el cargo del 2 de octubre de 2026 por cien pesos',
+      ['date:2026-10-02', 'amount:10000'],
+    ],
+    ['dos por cien mil pesos', ['amount:200', 'amount:10000000']],
+  ])(
+    'reads a number word after "por", but never "por ciento": %s',
+    (text, atoms) => {
+      expect(numberAtoms(text)).toEqual(atoms);
+    },
+  );
+
+  it('keeps "mil" after a figure its scale', () => {
+    expect(numberAtoms('5 mil pesos y 5 mil quinientos pesos')).toEqual([
+      'amount:500000',
+      'amount:500000',
+      'amount:50000',
+    ]);
+  });
+
   it('joins "y" when the right word is below the left one\'s lowest place', () => {
     expect(
       numberAtoms(
