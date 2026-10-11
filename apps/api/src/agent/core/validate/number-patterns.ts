@@ -159,6 +159,7 @@ const YEAR_AFTER = String.raw`(?:,?\s(?:del?\s)?${YEAR}(?!${KIND_AFTER}))?`;
 // Only words no amount follows: "de", "en" or "hasta 2026" may be pesos.
 const YEAR_CUE = String.raw`\b(?:ano|anos|este|durante)\s`;
 
+const MERIDIEM = String.raw`(?<meridiem>[ap])\.?\s?m\b\.?`;
 const DAY_PART = String.raw`de\sla\s(?<dayPart>${DAY_PARTS.join('|')})\b`;
 const OPTIONAL_SECONDS = String.raw`(?::(?<second>${MINUTE}))?`;
 
@@ -271,6 +272,12 @@ const dayPartHour = (hour: number, dayPart: string | undefined): number => {
   return to24h(hour, AFTERNOON);
 };
 
+// A 24-hour figure ("a las 15 p.m.") already says its half of the day.
+const clockCueHour = (hour: number, groups: Groups): number =>
+  groups.meridiem !== undefined && hour >= 1 && hour <= HOURS_PER_HALF_DAY
+    ? to24h(hour, groups.meridiem)
+    : dayPartHour(hour, groups.dayPart);
+
 const clockMinutes = (groups: Groups): string => {
   if (groups.minute !== undefined) return groups.minute;
   if (groups.spoken === undefined) return ON_THE_HOUR;
@@ -375,7 +382,7 @@ export const PATTERNS: readonly Pattern[] = [
       ),
   ),
   pattern(
-    String.raw`\b(?<hour>${HOUR_12})(?::(?<minute>${MINUTE})${OPTIONAL_SECONDS})?\s?(?<meridiem>[ap])\.?\s?m\b\.?`,
+    String.raw`\b(?<hour>${HOUR_12})(?:[.:](?<minute>${MINUTE})${OPTIONAL_SECONDS})?\s?${MERIDIEM}`,
     (groups) =>
       timeForms(
         to24h(Number(groups.hour), groups.meridiem!),
@@ -384,10 +391,10 @@ export const PATTERNS: readonly Pattern[] = [
       ),
   ),
   pattern(
-    String.raw`(?<=${CLOCK_CUE})(?<hour>${HOUR_24})(?:[.:](?<minute>${MINUTE})${OPTIONAL_SECONDS}|\sy\s(?<spoken>${alternation(SPOKEN_MINUTES)}|${SPOKEN_MINUTE}(?=${MINUTES_END})))?(?![\d:])(?!${FIGURE_TAIL}|${MARK_AFTER}|${COUNT_FOLLOWS})(?:\s${DAY_PART})?`,
+    String.raw`(?<=${CLOCK_CUE})(?<hour>${HOUR_24})(?:[.:](?<minute>${MINUTE})${OPTIONAL_SECONDS}|\sy\s(?<spoken>${alternation(SPOKEN_MINUTES)}|${SPOKEN_MINUTE}(?=${MINUTES_END})))?(?![\d:])(?!${FIGURE_TAIL}|${MARK_AFTER}|${COUNT_FOLLOWS})(?:\s${DAY_PART}|\s?${MERIDIEM})?`,
     (groups) =>
       timeForms(
-        dayPartHour(Number(groups.hour), groups.dayPart),
+        clockCueHour(Number(groups.hour), groups),
         clockMinutes(groups),
         groups.second,
       ),

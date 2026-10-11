@@ -785,6 +785,38 @@ describe('numberAtoms, times', () => {
     );
   });
 
+  it.each([
+    ['a las 11.30 p.m.', ['time:23:30']],
+    ['a las 11,30 pm', ['time:23:30']],
+    ['a las 3 y media p.m.', ['time:15:30']],
+    ['a las 7 y cuarto a.m.', ['time:07:15']],
+    ['a las 12 y media a.m.', ['time:00:30']],
+    ['a las 15 p.m.', ['time:15:00']],
+    ['a las 15 a.m.', ['time:15:00']],
+    ['a las 0:30 p.m.', ['time:00:30']],
+    ['a la 1 y media p.m.', ['time:13:30']],
+    ['a las 3 y 50 p.m.', ['time:03:00', 'amount:5000']],
+  ])(
+    'reads a.m. or p.m. after a time said after "a la(s)": %s',
+    (text, atoms) => {
+      expect(numberAtoms(text)).toEqual(atoms);
+    },
+  );
+
+  it.each([
+    ['el cargo fue 11.30 p.m.', ['time:23:30']],
+    ['11,30 pm', ['time:23:30']],
+    ['$11.30 pm', ['amount:1130']],
+    ['11.30 pesos', ['amount:1130']],
+    ['te devolvemos 11.30 a mas tardar', ['amount:1130']],
+    ['13.30 pm', ['amount:1330']],
+  ])(
+    'reads an hour with .mm or ,mm and a.m. or p.m. as a time, never an amount it marks: %s',
+    (text, atoms) => {
+      expect(numberAtoms(text)).toEqual(atoms);
+    },
+  );
+
   it('reads an afternoon hour and a dotted time after "a las"', () => {
     expect(
       numberAtoms('a las 3 de la tarde, a las 8 de la noche y a las 14.30'),
