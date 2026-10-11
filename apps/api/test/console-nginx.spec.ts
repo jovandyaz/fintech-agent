@@ -32,6 +32,17 @@ describe('console nginx (02 G3, G7)', () => {
     expect(NGINX).toMatch(/client_max_body_size 32k;/);
   });
 
+  it('logs each request without its query, referer or user agent, which the client writes (02 G6)', () => {
+    const format = /log_format (\w+) '([^;]*)';/.exec(NGINX);
+    expect(format).not.toBeNull();
+    const [, name, fields] = format!;
+    expect(fields).not.toMatch(
+      /\$(request\b|request_uri|request_body|args|is_args|query_string|arg_|http_|cookie_|sent_http_)/,
+    );
+    expect(NGINX).toMatch(new RegExp(`access_log \\S+ ${name};`));
+    expect(NGINX.match(/access_log /g)).toHaveLength(1);
+  });
+
   it('answers a missing asset with 404, not the app page', () => {
     expect(NGINX).toMatch(/location \/assets\/ \{[^}]*try_files \$uri =404;/);
   });

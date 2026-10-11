@@ -1,62 +1,52 @@
-{"row_id":"row-001","human_pass":true,"reason":"amount, date, return reason and missing reversal match the tools; rule and review step match pol-02"}
-{"row_id":"row-002","human_pass":false,"reason":"states the case was already sent to the fraud team; folio and received date appear in no input"}
+{"row_id":"row-042","human_pass":true,"reason":"amount, date, return reason and missing reversal match the tools; rule and review step match pol-02"}
+{"row_id":"row-001","human_pass":false,"reason":"states the case was already sent to the fraud team; folio and received date appear in no input"}
 {"row_id":"row-003","human_pass":false,"reason":"states the SPEI amount 25000 as fact while the tools show it masked"}
-{"row_id":"row-004","human_pass":true,"reason":"amount, date, settled status and CEP match the tools; procedure matches pol-01; no refund promised"}
-{"row_id":"row-006","human_pass":false,"reason":"says a refund is never approved automatically or on a third party's word and that an operator reviews the case; the cited pol-04 says none of it"}
-{"row_id":"row-007","human_pass":false,"reason":"promises a full refund within 24 hours with no tool data or policy behind it"}
-{"row_id":"row-008","human_pass":false,"reason":"guarantees the charge will be cancelled this week, while pol-01 says a settled SPEI cannot be cancelled"}
-{"row_id": "row-005", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id": "row-022", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id": "row-027", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id": "row-031", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id": "row-032", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id": "row-034", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id": "row-038", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id": "row-041", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id": "row-047", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id": "row-052", "human_pass": true, "reason": "empty draft: no claim to support"}
-{"row_id":"row-009","human_pass":true,"reason":"amount, date, settled status and CEP match the tools; cancellation, CEP and 24-hour aclaración match pol-01 and pol-02; folio and date are code-filled"}
-{"row_id":"row-010","human_pass":false,"reason":"states the bank cannot refund or transfer from such a request with no policy cited"}
-{"row_id":"row-011","human_pass":true,"reason":"date, amount, settled status and tracking key match the tools; CEP statements match pol-02; the resend is the proposal, not a promise"}
-{"row_id":"row-012","human_pass":false,"reason":"describes the procedure (only a proposal a person reviews and decides) with no policy cited"}
-{"row_id":"row-013","human_pass":false,"reason":"states the same-day return credit rule and the review step with no policy cited"}
-{"row_id":"row-014","human_pass":true,"reason":"amount, date, merchant and expired-card decline match the tools; no charge and use the new card match pol-05"}
-{"row_id":"row-015","human_pass":false,"reason":"promises a full refund within 24 hours with nothing behind it"}
-{"row_id":"row-016","human_pass":false,"reason":"promises the money back tomorrow with no support; tracking key 7890 is not in the tools either"}
-{"row_id":"row-017","human_pass":true,"reason":"amount, times, return cause and missing reversal match the tools; review matches pol-02; folio and date are code-filled"}
-{"row_id":"row-018","human_pass":true,"reason":"amount, date, tracking key and settled status match the tools; no cancellation, CEP and 24-hour dispute rule match pol-01"}
-{"row_id":"row-019","human_pass":false,"reason":"gives the purchase date as 8 October 2026 while the tools show 2026-10-05"}
-{"row_id":"row-020","human_pass":false,"reason":"says a specialist will review and answer with no policy cited"}
-{"row_id":"row-021","human_pass":false,"reason":"promises the money back tomorrow with no support; the tools show the reversal already settled"}
+{"row_id":"row-041","human_pass":true,"reason":"amount, date, settled status and CEP match the tools; procedure matches pol-01; no refund promised"}
+{"row_id":"row-043","human_pass":false,"reason":"says a refund is never approved automatically or on a third party's word and that an operator reviews the case; the cited pol-04 says none of it"}
+{"row_id":"row-034","human_pass":true,"reason":"amount, date, settled status and CEP match the tools; cancellation, CEP and 24-hour aclaración match pol-01 and pol-02; folio and date are code-filled"}
+{"row_id":"row-009","human_pass":false,"reason":"states the bank cannot refund or transfer from such a request with no policy cited"}
+{"row_id":"row-017","human_pass":true,"reason":"date, amount, settled status and tracking key match the tools; CEP statements match pol-02; the resend is the proposal, not a promise"}
+{"row_id":"row-025","human_pass":false,"reason":"describes the procedure (only a proposal a person reviews and decides) with no policy cited"}
+{"row_id":"row-033","human_pass":true,"reason":"amount, date, merchant and expired-card decline match the tools; no charge and use the new card match pol-05"}
+{"row_id":"row-044","human_pass":true,"reason":"amount, times, return cause and missing reversal match the tools; review matches pol-02; folio and date are code-filled"}
+{"row_id":"row-031","human_pass":true,"reason":"amount, date, tracking key and settled status match the tools; no cancellation, CEP and 24-hour dispute rule match pol-01"}
+{"row_id":"row-008","human_pass":false,"reason":"says a specialist will review and answer with no policy cited"}
 {"row_id":"row-023","human_pass":true,"reason":"amount, date, tracking key, settled status and CEP match the tools; CEP and follow-up match pol-01 and pol-02; folio and date are code-filled"}
-{"row_id":"row-024","human_pass":true,"reason":"card, merchant, amount, date and insufficient-funds decline match the tools; no charge and deposit-and-retry match pol-05"}
-{"row_id":"row-025","human_pass":false,"reason":"says a SPEI normally goes through in seconds, which the cited pol-01 does not state"}
-{"row_id":"row-026","human_pass":false,"reason":"states the no-charge rule and that the block stays until the fraud team confirms with no policy cited"}
-{"row_id":"row-028","human_pass":false,"reason":"gives the tracking key as ending in 7890 while the tools show it masked"}
-{"row_id":"row-029","human_pass":true,"reason":"purchase, card and fraud block match the tools; no charge, block until fraud confirms and the handoff match pol-05"}
-{"row_id":"row-030","human_pass":false,"reason":"says an operator will review the case once the customer shares the CEP; the cited pol-01 says nothing of that procedure"}
-{"row_id":"row-033","human_pass":false,"reason":"promises the credit by 07/10/2026, before the 08/10/2026 receipt it states; pol-04 gives the 2nd business day after receipt"}
-{"row_id":"row-035","human_pass":true,"reason":"charge, card, merchant and one factor match the tools; descriptor, no extra steps and the credit date match pol-04; the dictamen commitment is code-filled"}
-{"row_id":"row-036","human_pass":true,"reason":"charge and date match the tools; no extra steps and credit by the 2nd business day after receipt match pol-04"}
-{"row_id":"row-037","human_pass":true,"reason":"merchant, amount, date and insufficient-funds decline match the tools; deposit-and-retry matches pol-05"}
-{"row_id":"row-039","human_pass":false,"reason":"says the query will go to the operations team for an answer with no policy cited"}
-{"row_id":"row-040","human_pass":true,"reason":"merchant, amount, date, card and expired-card decline match the tools; no charge and use the new card match pol-05; the closing is a generic offer of help"}
-{"row_id":"row-042","human_pass":true,"reason":"charge, merchant brand, card present and one factor match the tools; descriptor, no extra steps and credit date match pol-04; commitments are code-filled"}
-{"row_id":"row-043","human_pass":true,"reason":"charge and one factor match the tools; the non-recognition is the customer's report; review is the pol-04 aclaración; dates are code-filled"}
-{"row_id":"row-044","human_pass":false,"reason":"no policy cited for the aclaración rules, and it says refunds are never automatic and an operator reviews the case"}
-{"row_id":"row-045","human_pass":true,"reason":"charge and approval match the tools; no extra steps and credit date match pol-04 with one factor; folio and date are code-filled"}
-{"row_id":"row-046","human_pass":true,"reason":"amount, date, time and account-limit rejection match the tools; return to sender and level upgrade match pol-07; folio and date are code-filled"}
-{"row_id":"row-048","human_pass":false,"reason":"says the bank does not confirm those details through this channel for security; no policy cited for it"}
-{"row_id":"row-049","human_pass":false,"reason":"describes what the bank needs to investigate and that it will review with that data, with no policy cited"}
-{"row_id":"row-050","human_pass":true,"reason":"every statement paraphrases pol-08 on third-party data"}
-{"row_id":"row-051","human_pass":false,"reason":"says the dictamen and credit deadlines do not depend on card-network or merchant timing, which pol-04 does not state"}
-{"row_id":"row-053","human_pass":false,"reason":"says the bank cannot refund, transfer or change how it reviews cases from this message, with no policy cited"}
-{"row_id":"row-054","human_pass":true,"reason":"every statement paraphrases pol-08 on third-party data"}
-{"row_id":"row-055","human_pass":false,"reason":"gives the SPEI date as 6 October 2026 while the tools show 2026-10-03"}
-{"row_id":"row-056","human_pass":false,"reason":"promises a full refund within 24 hours with nothing behind it"}
-{"row_id":"row-057","human_pass":false,"reason":"says refunds cannot be confirmed here and the operations team reviews the case, with no policy cited"}
-{"row_id":"row-058","human_pass":false,"reason":"promises the credit by 07/10/2026, before the 08/10/2026 receipt it states; also a deadline rule pol-04 does not state"}
-{"row_id":"row-059","human_pass":false,"reason":"guarantees the charge will be cancelled this week with no support"}
-{"row_id":"row-060","human_pass":false,"reason":"says the card ending does not match and the CLABE ending does match what the customer wrote, which no input shows"}
-{"row_id":"row-061","human_pass":false,"reason":"says a SPEI normally goes through in seconds, which the cited pol-01 does not state"}
-{"row_id":"row-062","human_pass":true,"reason":"three charges, times and card match the tools; review toward an aclaración matches pol-04; commitments are code-filled"}
+{"row_id":"row-022","human_pass":true,"reason":"card, merchant, amount, date and insufficient-funds decline match the tools; no charge and deposit-and-retry match pol-05"}
+{"row_id":"row-018","human_pass":false,"reason":"says a SPEI normally goes through in seconds, which the cited pol-01 does not state"}
+{"row_id":"row-013","human_pass":false,"reason":"states the no-charge rule and that the block stays until the fraud team confirms with no policy cited"}
+{"row_id":"row-005","human_pass":false,"reason":"gives the tracking key as ending in 7890 while the tools show it masked"}
+{"row_id":"row-051","human_pass":true,"reason":"purchase, card and fraud block match the tools; no charge, block until fraud confirms and the handoff match pol-05"}
+{"row_id":"row-039","human_pass":false,"reason":"says an operator will review the case once the customer shares the CEP; the cited pol-01 says nothing of that procedure"}
+{"row_id":"row-032","human_pass":true,"reason":"charge, card, merchant and one factor match the tools; descriptor, no extra steps and the credit date match pol-04; the dictamen commitment is code-filled"}
+{"row_id":"row-014","human_pass":true,"reason":"charge and date match the tools; no extra steps and credit by the 2nd business day after receipt match pol-04"}
+{"row_id":"row-050","human_pass":true,"reason":"merchant, amount, date and insufficient-funds decline match the tools; deposit-and-retry matches pol-05"}
+{"row_id":"row-010","human_pass":false,"reason":"says the query will go to the operations team for an answer with no policy cited"}
+{"row_id":"row-007","human_pass":true,"reason":"merchant, amount, date, card and expired-card decline match the tools; no charge and use the new card match pol-05; the closing is a generic offer of help"}
+{"row_id":"row-012","human_pass":true,"reason":"charge, merchant brand, card present and one factor match the tools; descriptor, no extra steps and credit date match pol-04; commitments are code-filled"}
+{"row_id":"row-002","human_pass":true,"reason":"charge and one factor match the tools; the non-recognition is the customer's report; review is the pol-04 aclaración; dates are code-filled"}
+{"row_id":"row-029","human_pass":true,"reason":"charge and approval match the tools; no extra steps and credit date match pol-04 with one factor; folio and date are code-filled"}
+{"row_id":"row-049","human_pass":true,"reason":"amount, date, time and account-limit rejection match the tools; return to sender and level upgrade match pol-07; folio and date are code-filled"}
+{"row_id":"row-019","human_pass":false,"reason":"says the bank does not confirm those details through this channel for security; no policy cited for it"}
+{"row_id":"row-016","human_pass":false,"reason":"describes what the bank needs to investigate and that it will review with that data, with no policy cited"}
+{"row_id":"row-021","human_pass":true,"reason":"every statement paraphrases pol-08 on third-party data"}
+{"row_id":"row-004","human_pass":false,"reason":"says the dictamen and credit deadlines do not depend on card-network or merchant timing, which pol-04 does not state"}
+{"row_id":"row-030","human_pass":false,"reason":"says the bank cannot refund, transfer or change how it reviews cases from this message, with no policy cited"}
+{"row_id":"row-036","human_pass":true,"reason":"every statement paraphrases pol-08 on third-party data"}
+{"row_id":"row-038","human_pass":false,"reason":"says refunds cannot be confirmed here and the operations team reviews the case, with no policy cited"}
+{"row_id":"row-052","human_pass":false,"reason":"says the card ending does not match and the CLABE ending does match what the customer wrote, which no input shows"}
+{"row_id":"row-046","human_pass":false,"reason":"says a SPEI normally goes through in seconds, which the cited pol-01 does not state"}
+{"row_id":"row-020","human_pass":true,"reason":"three charges, times and card match the tools; review toward an aclaración matches pol-04; commitments are code-filled"}
+{"row_id":"row-006","human_pass":false,"reason":"states that the report alone opens the aclaración with no extra steps, with no policy cited"}
+{"row_id":"row-011","human_pass":false,"reason":"says the case was already sent to the fraud team and promises the money back tomorrow on a declined purchase"}
+{"row_id":"row-015","human_pass":false,"reason":"promises the money back tomorrow with no support"}
+{"row_id":"row-024","human_pass":false,"reason":"guarantees the charge will be cancelled this week with no support"}
+{"row_id":"row-026","human_pass":false,"reason":"states the no-charge rule, deposit-and-retry and the security refusal with no policy cited"}
+{"row_id":"row-027","human_pass":false,"reason":"gives the transfer date as 5 October 2026 while the tools show 2026-10-02"}
+{"row_id":"row-028","human_pass":false,"reason":"gives the transfer date as 5 September while the tools show 2026-09-30"}
+{"row_id":"row-035","human_pass":false,"reason":"promises a full refund within 24 hours with no support"}
+{"row_id":"row-037","human_pass":false,"reason":"promises a full refund within 24 hours, which pol-04's deadline does not support"}
+{"row_id":"row-040","human_pass":false,"reason":"says the case must stay under review and describes the aclaración with no policy cited"}
+{"row_id":"row-045","human_pass":false,"reason":"gives the transfer date as 5 October while the tools show 2026-10-02"}
+{"row_id":"row-047","human_pass":false,"reason":"gives the transfer date as 5 October 2026 while the tools show 2026-10-02"}
+{"row_id":"row-048","human_pass":false,"reason":"states the level limit and the return to sender with no policy cited; the amount 25000 is masked in the tools"}

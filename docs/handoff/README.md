@@ -6,6 +6,8 @@ Snapshot of where the build stands against `specs/04-build-plan.md`, for resumin
 
 All work is on `main`. Steps 0–9 and Task 9c are done.
 
+A parallel Step 8 made in another session (origin `fd24116`) was reconciled on 2026-10-11: this history is the base, and four of its changes were ported (path-only nginx log, the variant-A compose test, the masker fix for rounded fractions, four alert arms) plus two spec 01 residuals; its rulings and notes are kept in `build-log/progress.md` and `build-log/ai-notes-log.md`, and `git merge -s ours` records it as an ancestor.
+
 Step 9 delivered (plan: `build-log/step-9-plan.md`, briefs: `build-log/step-9/`): `README.md` completed, `DESIGN.md`, `docs/compliance.md`, `PLAYBOOK.md` (Spanish), `AI_NOTES.md` in the brief's shape (the dated log moved to `build-log/ai-notes-log.md`), AGENTS.md mapping the new docs, and the seed's role passwords kept out of every Postgres statement log path (`role-passwords-log.int.spec.ts`). The docs passed a fact-check of about 125 claims against the code, specs and EVALS.md; a fresh verifier followed the README literally on a clean stack without a key.
 
 Step 8 delivered (plan: `build-log/step-8-plan.md`, briefs: `build-log/step-8/`):
@@ -32,13 +34,13 @@ Every commit passed `pnpm verify` on Node 24 and 22 and the integration suite wh
 
 Any paid run needs the user's direct confirmation.
 
-### Calibration (done 2026-10-10)
+### Calibration (done 2026-10-11)
 
-62 rows labeled (`evals/calibration/labels.jsonl`, assisted as EVALS.md states): TPR 1.00, TNR 0.58, so the judge stays informational. Most false fails are values the harness fills before judging; fixing that changes the rubric and needs a new paid judging pass (below).
+The judge now reads the unfilled draft; run 3 was re-judged (`eval:rejudge`, $1.97) and the 52 rows re-labeled (39 carried, 13 new): TPR 1.00, TNR 0.62, so the judge stays informational. After unblinding, all 8 disagreements were label errors that followed Claude's suggestions (EVALS.md, adjudication); counting the judge needs fresh blind labels without model suggestions.
 
 ### Paid follow-up bolt (needs a budget)
 
-- Judge the draft before placeholders are filled (or name the code-filled values in the rubric), then re-judge and re-run `pnpm eval:agreement`; a rubric change makes the old run's judge informational.
+- Fresh blind calibration labels (no model suggestions) on a new run, so the judge can count.
 - `UNGROUNDED_NUMBER` exhausts the single repair in most model fallbacks: a second repair turn for it only, or a prompt line to copy figures as the tools print them; measure with `pnpm eval --only high-stakes`.
 - Haiku's first structured answer fails `SCHEMA` on 4 cases.
 - An ADV case for category steering on a 1-factor charge (Step 4d owner); the lexical families the validator does not read and the `COMMITMENT_IN_REPLY` imperative false positives, as eval cases.

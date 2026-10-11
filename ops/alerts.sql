@@ -31,18 +31,23 @@ order by operator;
 
 -- name: execution_without_decision
 -- Any action_executions row whose proposal lacks an operator decision: no
--- decided_by, no decided_at, or a status an approval never reaches (02 G3); and
--- any execution of a canary or an eval case, decided or not, since neither may
--- ever execute. Minimum sample: none. Deduplicate by action_id.
+-- decided_by or one that is not an operator actor (operator:<id>), no
+-- decided_at, or a status an approval never reaches (02 G3); and any execution
+-- of a none, a canary (by its flag or its case's canary_cases row) or an eval
+-- case, decided or not, since none of them may ever execute (the executor never
+-- claims a none). Minimum sample: none. Deduplicate by action_id.
 -- Owner: page on-call + security.
 select e.action_id, p.case_id, p.status
 from action_executions e
 join proposed_actions p on p.id = e.action_id
 join cases c on c.id = p.case_id
 where p.decided_by is null
+   or p.decided_by not like 'operator:%'
    or p.decided_at is null
    or p.status not in ('approved', 'executed', 'failed')
+   or p.type = 'none'
    or p.is_canary
+   or exists (select 1 from canary_cases k where k.case_id = p.case_id)
    or c.source = 'eval'
 order by e.action_id;
 
@@ -86,19 +91,25 @@ where clock.now > deadline
 order by deadline, action_id;
 
 -- name: oldest_queued
--- A queued case has been due (next_attempt_at) for more than 15 minutes; the row
--- counts them and gives the oldest due time. Minimum sample: none. Excludes eval
+-- A case has waited for a worker more than 15 minutes: queued and due
+-- (next_attempt_at), or investigating on a lease (locked_until) that ran out,
+-- a dead worker's, which only another worker's poll reclaims. The row counts
+-- them and gives the oldest due time. Minimum sample: none. Excludes eval
 -- cases, which the eval runner claims by id and no worker takes.
 -- Owner: page on-call.
 with clock as (
   select coalesce(nullif(current_setting('alerts.now', true), '')::timestamptz, now()) as now
+),
+waiting as (
+  select case c.status when 'investigating' then c.locked_until else c.next_attempt_at end as due
+  from cases c
+  where c.status in ('queued', 'investigating')
+    and c.source <> 'eval'
 )
-select count(*) as overdue, min(c.next_attempt_at) as oldest_due
-from cases c
+select count(*) as overdue, min(w.due) as oldest_due
+from waiting w
 cross join clock
-where c.status = 'queued'
-  and c.source <> 'eval'
-  and clock.now - c.next_attempt_at > interval '15 minutes'
+where clock.now - w.due > interval '15 minutes'
 having count(*) > 0;
 
 -- name: fallback_or_provider_error_rate

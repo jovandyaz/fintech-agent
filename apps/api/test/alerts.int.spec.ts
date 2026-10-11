@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -62,6 +63,7 @@ const DAY_MS = 24 * HOUR_MS;
 // now() instead of its clock sees every fixture as stale and stays quiet.
 const NOW = new Date('2026-03-04T18:00:00Z');
 const before = (ms: number): Date => new Date(NOW.getTime() - ms);
+const after = (ms: number): Date => new Date(NOW.getTime() + ms);
 
 const OPERATOR = 'operator:ana';
 const CANARY_DEFECT: CanaryDefect = 'cold_tone';
@@ -96,6 +98,7 @@ interface CaseFixture {
   status?: CaseStatus;
   receivedAt?: Date;
   nextAttemptAt?: Date;
+  lockedUntil?: Date;
   flags?: CaseFlag[];
   canary?: boolean;
 }
@@ -107,13 +110,15 @@ async function plantCase(fixture: CaseFixture = {}): Promise<string> {
     status = 'needs_review',
     receivedAt = NOW,
     nextAttemptAt = NOW,
+    lockedUntil = null,
     flags = [],
   } = fixture;
   await owner`
     insert into cases (id, ticket_id, folio, received_at, source, customer_id, text_masked,
-      status, next_attempt_at, flags)
+      status, next_attempt_at, claim_token, locked_until, flags)
     values (${id}, ${`T-${id}`}, ${newFolio()}, ${receivedAt}, ${source}, 'cus_01', 'hola',
-      ${status}, ${nextAttemptAt}, ${owner.json(flags)})`;
+      ${status}, ${nextAttemptAt}, ${lockedUntil ? randomUUID() : null}, ${lockedUntil},
+      ${owner.json(flags)})`;
   if (fixture.canary)
     await owner`insert into canary_cases (case_id, defect) values (${id}, ${CANARY_DEFECT})`;
   return id;
@@ -277,11 +282,16 @@ describe('canary_catch_rate (01 Alerts)', () => {
 });
 
 describe('execution_without_decision: any execution an operator did not decide', () => {
+  const EXECUTABLE_TYPE: ActionType = 'resend_cep';
+
   async function executed(
     fixture: ProposalFixture,
     caseFixture: CaseFixture = {},
   ): Promise<string> {
-    const actionId = await plantProposal(await plantCase(caseFixture), fixture);
+    const actionId = await plantProposal(await plantCase(caseFixture), {
+      type: EXECUTABLE_TYPE,
+      ...fixture,
+    });
     await owner`insert into action_executions (action_id, status) values (${actionId}, 'started')`;
     return actionId;
   }
@@ -311,6 +321,36 @@ describe('execution_without_decision: any execution an operator did not decide',
     const fired = await rows(query('execution_without_decision'));
 
     expect(fired.map((row) => row['action_id'])).toEqual(breaches.toSorted());
+  });
+
+  it('pages on an execution decided by an actor other than an operator', async () => {
+    const breach = await executed({
+      status: 'executed',
+      decidedBy: 'agent:case-copilot',
+    });
+    await executed({ status: 'executed', decidedBy: OPERATOR });
+
+    const fired = await rows(query('execution_without_decision'));
+
+    expect(fired.map((row) => row['action_id'])).toEqual([breach]);
+  });
+
+  it('pages on an execution of a canary case whose action lost its canary flag', async () => {
+    const breach = await executed({ status: 'executed' }, { canary: true });
+    await executed({ status: 'executed' });
+
+    const fired = await rows(query('execution_without_decision'));
+
+    expect(fired.map((row) => row['action_id'])).toEqual([breach]);
+  });
+
+  it('pages on any execution of a none, which the executor never claims', async () => {
+    const breach = await executed({ status: 'executed', type: 'none' });
+    await executed({ status: 'executed' });
+
+    const fired = await rows(query('execution_without_decision'));
+
+    expect(fired.map((row) => row['action_id'])).toEqual([breach]);
   });
 
   it('stays quiet when every execution follows an operator decision', async () => {
@@ -392,8 +432,20 @@ describe('open_dispute_overdue: proposed past the first business day', () => {
   });
 });
 
-describe('oldest_queued: a queued case due for more than 15 minutes', () => {
+describe('oldest_queued: a case waiting for a worker more than 15 minutes', () => {
   const THRESHOLD_MS = 15 * MINUTE_MS;
+
+  async function investigating(
+    lockedUntil: Date,
+    caseFixture: CaseFixture = {},
+  ): Promise<string> {
+    return plantCase({
+      status: 'investigating',
+      nextAttemptAt: before(HOUR_MS),
+      lockedUntil,
+      ...caseFixture,
+    });
+  }
 
   it('pages with the oldest due time and how many are past it', async () => {
     const oldest = before(THRESHOLD_MS + MINUTE_MS);
@@ -417,6 +469,23 @@ describe('oldest_queued: a queued case due for more than 15 minutes', () => {
       source: EVAL,
       nextAttemptAt: before(HOUR_MS),
     });
+
+    expect(await rows(query('oldest_queued'))).toEqual([]);
+  });
+
+  it('pages on an investigating case whose lease ran out more than 15 minutes ago, dated from the lease', async () => {
+    const leaseEnd = before(THRESHOLD_MS + MINUTE_MS);
+    await investigating(leaseEnd);
+
+    expect(await rows(query('oldest_queued'))).toEqual([
+      { overdue: '1', oldest_due: leaseEnd },
+    ]);
+  });
+
+  it('stays quiet on a live lease, a lease out exactly 15 minutes and an eval case, however long ago they were due', async () => {
+    await investigating(after(MINUTE_MS));
+    await investigating(before(THRESHOLD_MS));
+    await investigating(before(HOUR_MS), { source: EVAL });
 
     expect(await rows(query('oldest_queued'))).toEqual([]);
   });

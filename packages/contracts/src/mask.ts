@@ -1037,7 +1037,9 @@ function maskNumber(value: number, key: string): number | string {
     return value;
   }
   if (!Number.isInteger(value)) {
-    return Number(value.toPrecision(SIGNIFICANT_DIGITS));
+    const rounded = Number(value.toPrecision(SIGNIFICANT_DIGITS));
+    // Rounding a large fraction leaves an integer the digit budget must still read.
+    return Number.isInteger(rounded) ? maskNumber(rounded, key) : rounded;
   }
   const digits = String(value).replace(NON_DIGIT, '');
   return digits.length >= MESSAGE_DIGIT_BUDGET ? maskPii(String(value)) : value;

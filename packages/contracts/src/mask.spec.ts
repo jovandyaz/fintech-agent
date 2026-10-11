@@ -992,3 +992,21 @@ describe('visibleTailOf', () => {
     expect(visibleTailOf('7899')).toBeUndefined();
   });
 });
+
+describe('maskJson — a rounded fraction', () => {
+  it.each([
+    ['a large balance', { balance: 12345678.9 }],
+    ['a large fraction under no key', { x: 98765432.1 }],
+    ['an amount that rounds up to eight digits', { amount: 9999999.995 }],
+  ])(
+    'masks %s that rounds to a long integer, so a second pass changes nothing',
+    (_, value) => {
+      const once = maskJson(value);
+      expect(maskJson(once)).toEqual(once);
+      expect(JSON.stringify(once)).not.toMatch(/\d{8}/);
+    },
+  );
+  it('keeps an amount that rounds to fewer than eight digits as a number', () => {
+    expect(maskJson({ amount: 1234567.891 })).toEqual({ amount: 1234570 });
+  });
+});
