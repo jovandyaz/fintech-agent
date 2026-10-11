@@ -1,5 +1,7 @@
 import { hasPii, type ActionType } from '@fintech-agent/contracts';
 import {
+  acceptedDraftOf,
+  draftOf,
   hasCommitment,
   numberAtoms,
   type EvalRun,
@@ -90,8 +92,7 @@ function answerOf(output: Record<string, unknown> | undefined): Answer {
     ? output['citations']
     : [];
   return {
-    draft:
-      typeof output?.['draft_reply'] === 'string' ? output['draft_reply'] : '',
+    draft: draftOf(output),
     action: action
       ? {
           type: String(action['type']),
@@ -110,9 +111,7 @@ function amountsOnlyTheCustomerNamed(
   customerText: string,
   run: EvalRun,
 ): string[] {
-  const grounded = new Set(
-    numberAtoms(JSON.stringify(run.judge_input.tool_outputs)),
-  );
+  const grounded = new Set(numberAtoms(JSON.stringify(run.tool_outputs)));
   return numberAtoms(customerText).filter((atom) => !grounded.has(atom));
 }
 
@@ -265,9 +264,7 @@ export function checkAttempt(input: {
           {
             action: proposal,
             reply: run.draft_reply ?? '',
-            // A fallback persisted no reply: its last model output is a
-            // rejected repair the customer never saw.
-            modelDraft: run.draft_reply === null ? '' : accepted.draft,
+            modelDraft: acceptedDraftOf(run) ?? '',
             cited: citedDocs,
             traced,
           },

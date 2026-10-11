@@ -46,8 +46,13 @@ export const evalRunOf = (over: Partial<EvalRun> = {}): EvalRun => ({
     { tool: 'get_customer', input: {} },
     { tool: 'get_card_authorization', input: { transaction_id: 'tx_cu01a' } },
   ],
+  tool_outputs: [],
   retrieved_docs: ['pol-04'],
   executions: 0,
-  judge_input: { draft_reply: '', cited_chunks: [], tool_outputs: [] },
+  judge_input: {
+    draft_reply: DISPUTE_DRAFT,
+    cited_chunks: [],
+    tool_outputs: [],
+  },
   ...over,
 });

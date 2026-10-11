@@ -21,7 +21,9 @@
     "e2e": "pnpm --filter @fintech-agent/e2e e2e",
     "eval": "pnpm --filter @fintech-agent/evals eval",
     "eval:agreement": "pnpm --filter @fintech-agent/evals eval:agreement",
+    "eval:carry-labels": "pnpm --filter @fintech-agent/evals eval:carry-labels",
     "eval:judgments": "pnpm --filter @fintech-agent/evals eval:judgments",
+    "eval:rejudge": "pnpm --filter @fintech-agent/evals eval:rejudge",
     "eval:report": "pnpm --filter @fintech-agent/evals eval:report"
   },
   "devDependencies": {

@@ -7,13 +7,18 @@ import type { EvaluateResult } from 'promptfoo';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  latestRunFile,
   latestRunRecord,
+  parseRunRecord,
   readBaseline,
+  rejudgedFileOf,
   resultsFileOf,
   slimResult,
+  storedRun,
   writeRunRecord,
   type RunRecord,
 } from './results.js';
+import { evalRunOf } from './test/eval-run.js';
 
 let dir: string;
 
@@ -184,6 +189,35 @@ describe('the run record (03 §Runner: evals/results/<date>-<commit>…json)', (
     expect((await latestRunRecord(dir)).meta.commit).toBe('1a2b3c4');
   });
 
+  it('names a re-judged record after the record it re-judges, the commit and the time', () => {
+    expect(
+      rejudgedFileOf(
+        '2026-10-08-0576343-140923Z.json',
+        'caf58fd',
+        '2026-10-10T17:45:01.250Z',
+      ),
+    ).toBe('2026-10-08-0576343-140923Z-rejudged-caf58fd-174501Z.json');
+  });
+
+  it('reads a re-judged record back as the newest run when it is', async () => {
+    const run = recordOf('2026-10-08T14:09:23.000Z', '0576343');
+    const original = await writeRunRecord(dir, run);
+    const rejudged = recordOf('2026-10-10T17:45:01.000Z', '0576343');
+    rejudged.meta.rubricSha256 = 'a'.repeat(64);
+    await writeFile(
+      join(
+        dir,
+        rejudgedFileOf(
+          original.slice(dir.length + 1),
+          'caf58fd',
+          rejudged.meta.timestamp,
+        ),
+      ),
+      JSON.stringify(rejudged),
+    );
+    expect((await latestRunRecord(dir)).meta.rubricSha256).toBe('a'.repeat(64));
+  });
+
   it('says which step writes a record when there is none', async () => {
     await writeRunRecord(
       dir,
@@ -194,6 +228,52 @@ describe('the run record (03 §Runner: evals/results/<date>-<commit>…json)', (
     );
     await expect(latestRunRecord(join(dir, 'missing'))).rejects.toThrow(
       'pnpm eval',
+    );
+  });
+});
+
+describe('reading a results file back (the edge of every eval CLI)', () => {
+  it('parses a record as a run wrote it, and refuses one that is not a run record', () => {
+    const record = recordOf('2026-10-08T14:09:23.000Z', '0576343');
+    expect(parseRunRecord(JSON.stringify(record))).toEqual(record);
+    expect(() =>
+      parseRunRecord(JSON.stringify({ ...record, meta: { date: 'x' } })),
+    ).toThrow('timestamp');
+    expect(() =>
+      parseRunRecord(JSON.stringify({ ...record, results: [{ vars: 1 }] })),
+    ).toThrow('results');
+  });
+
+  it('names the newest complete full run', async () => {
+    await writeRunRecord(dir, recordOf('2026-10-08T09:00:00.000Z', 'fff9999'));
+    const newest = await writeRunRecord(
+      dir,
+      recordOf('2026-10-08T11:00:00.000Z', '1a2b3c4'),
+    );
+    expect((await latestRunFile(dir)).name).toBe(newest.slice(dir.length + 1));
+  });
+
+  it('reads a run stored before runs kept their own tool outputs, taking them from its judge input', () => {
+    const outputs = [{ tool: 'get_customer', output: { first_name: 'Ana' } }];
+    const stored: Record<string, unknown> = {
+      ...evalRunOf({
+        judge_input: {
+          draft_reply: 'Hola Ana.',
+          cited_chunks: [],
+          tool_outputs: outputs,
+        },
+      }),
+    };
+    Reflect.deleteProperty(stored, 'tool_outputs');
+    expect(storedRun(stored).tool_outputs).toEqual(outputs);
+  });
+
+  it('refuses a stored run whose judge input or model answers do not parse', () => {
+    expect(() =>
+      storedRun({ ...evalRunOf(), judge_input: { draft_reply: 3 } }),
+    ).toThrow('judge_input');
+    expect(() => storedRun({ ...evalRunOf(), model_outputs: 'none' })).toThrow(
+      'model_outputs',
     );
   });
 });

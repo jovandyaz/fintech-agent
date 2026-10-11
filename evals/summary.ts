@@ -1,5 +1,3 @@
-import type { EvalRun } from '@fintech-agent/api/evals';
-
 import type { EvalCase } from './cases.js';
 import { judgeCostUsd } from './judge/groundedness.js';
 import {
@@ -14,9 +12,9 @@ import {
   type VariantReport,
 } from './report.js';
 import type { RedactorRecall } from './redactor.js';
+import { METADATA, rubricOf, storedRun } from './results.js';
 import { variantOf } from './runtime.js';
 
-const RUBRIC = 'llm-rubric';
 const PAIR = 2;
 const USD_DIGITS = 4;
 const RATE_DIGITS = 2;
@@ -26,8 +24,8 @@ const NONE = '—';
 /** The part of a promptfoo result a summary reads, as the results file keeps it. */
 export interface RecordedResult {
   vars: Record<string, unknown>;
-  /** Why an attempt reached no verdict, masked; absent when it ran. */
-  error?: string | undefined;
+  /** Why an attempt reached no verdict, masked; absent or null when it ran. */
+  error?: string | null | undefined;
   provider: { id?: string | undefined; label?: string | undefined };
   response?: { metadata?: Record<string, unknown> | undefined } | undefined;
   gradingResult?:
@@ -55,21 +53,16 @@ export interface RecordedResult {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const rubricOf = (result: RecordedResult) =>
-  result.gradingResult?.componentResults?.find(
-    ({ assertion }) => assertion?.type === RUBRIC,
-  );
-
 /**
  * One attempt as the report grades it; null for an attempt that recorded
  * no run (the provider threw), which the runner already fails on.
  */
 export function gradedAttemptOf(result: RecordedResult): GradedAttempt | null {
   const metadata = result.response?.metadata;
-  const run = metadata?.['run'];
+  const run = metadata?.[METADATA.run];
   const caseId = result.vars['case_id'];
-  const customerText = metadata?.['customer_text'];
-  const repeatIndex = metadata?.['repeat_index'];
+  const customerText = metadata?.[METADATA.customerText];
+  const repeatIndex = metadata?.[METADATA.repeatIndex];
   if (
     !isRecord(run) ||
     typeof caseId !== 'string' ||
@@ -83,7 +76,7 @@ export function gradedAttemptOf(result: RecordedResult): GradedAttempt | null {
     caseId,
     variant: variantOf(result.provider),
     repeatIndex,
-    run: run as unknown as EvalRun,
+    run: storedRun(run),
     customerText,
     grounded:
       !rubric || rubric.metadata?.graderError === true ? null : rubric.pass,

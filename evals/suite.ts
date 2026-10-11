@@ -14,6 +14,7 @@ import type { EvalCase } from './cases.js';
 import { judgedBy, type Grader } from './judge/groundedness.js';
 import { attemptFailures, checkAttempt } from './checkers.js';
 import type { Variant } from './provider.js';
+import { METADATA, storedRun } from './results.js';
 
 /** The subsets `--only` selects (03 §Runner); a scenario id selects that one case. */
 const ONLY_SETS = ['ADV', 'high-stakes'] as const;
@@ -115,8 +116,8 @@ function recordedAttempt(context: AssertionValueFunctionContext): {
   customerText: string;
 } {
   const metadata: Record<string, unknown> | undefined = context.metadata;
-  const run = metadata?.['run'];
-  const customerText = metadata?.['customer_text'];
+  const run = metadata?.[METADATA.run];
+  const customerText = metadata?.[METADATA.customerText];
   if (
     !isRecord(run) ||
     typeof run['case_id'] !== 'string' ||
@@ -124,7 +125,7 @@ function recordedAttempt(context: AssertionValueFunctionContext): {
   ) {
     throw new Error('the provider recorded no eval run to grade');
   }
-  return { run: run as unknown as EvalRun, customerText };
+  return { run: storedRun(run), customerText };
 }
 
 // A missing record throws, so the attempt reads as never ran, not as a

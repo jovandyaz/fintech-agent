@@ -8,7 +8,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { EVAL_CASES, type EvalCase } from './cases.js';
 import { groundednessAssertion } from './judge/groundedness.js';
-import { summarizeTrials, toTrialResult, runEvalSuite } from './runtime.js';
+import { evalProvider } from './provider.js';
+import { slimResult } from './results.js';
+import {
+  formatCaseOutcome,
+  summarizeTrials,
+  toTrialResult,
+  runEvalSuite,
+} from './runtime.js';
+import { gradedAttemptOf } from './summary.js';
 import {
   evalSuite,
   parseFlags,
@@ -205,6 +213,93 @@ describe('evalSuite through promptfoo (no key, local provider and grader)', () =
     expect(results.map(toTrialResult)).toMatchObject([
       { neverRan: false, success: true },
     ]);
+  });
+
+  const counting = (prompts: string[]): ApiProvider => ({
+    id: () => 'judge-local',
+    callApi: (prompt) => {
+      prompts.push(prompt);
+      return Promise.resolve({
+        output: JSON.stringify({ pass: true, score: 1, reason: 'r' }),
+      });
+    },
+  });
+
+  const judgedThrough = (run: EvalRun, label: EvalCase, judge: ApiProvider) =>
+    runEvalSuite(
+      evalSuite({
+        cases: [label],
+        providers: [
+          evalProvider({ variant: 'A', attempt: () => Promise.resolve(run) }),
+        ],
+        repeat: 1,
+        groundedness: groundednessAssertion('rubric'),
+        grader: judge,
+      }),
+    );
+
+  it("shows the judge the model's draft with its placeholders unfilled, never the filled reply", async () => {
+    const prompts: string[] = [];
+    const run = evalRunOf();
+    await judgedThrough(run, labelOf('CARD-UNREC-01'), counting(prompts));
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toContain(run.judge_input?.draft_reply);
+    expect(prompts[0]).toContain('{{folio}}');
+    expect(prompts[0]).not.toContain(run.folio);
+  });
+
+  it('never calls the judge for a run that persisted no reply: it is recorded as not judged, never as a pass', async () => {
+    const prompts: string[] = [];
+    const fellBack = evalRunOf({
+      run_status: 'fallback',
+      proposal: {
+        type: 'none',
+        transaction_ids: [],
+        reason_code: 'insufficient_information',
+      },
+      draft_reply: null,
+      judge_input: null,
+    });
+    const [result] = await judgedThrough(
+      fellBack,
+      labelOf('GEN-01'),
+      counting(prompts),
+    );
+    expect(prompts).toEqual([]);
+    const rubric = result?.gradingResult?.componentResults?.find(
+      ({ assertion }) => assertion?.type === 'llm-rubric',
+    );
+    expect(rubric).toMatchObject({
+      pass: false,
+      metadata: { graderError: true },
+    });
+    expect(rubric?.reason).toContain('not judged');
+    expect(gradedAttemptOf(slimResult(result!))?.grounded).toBeNull();
+    expect(toTrialResult(result!)).toMatchObject({ neverRan: false });
+  });
+
+  it('prints a fallback whose code checks pass as a pass: not judged is neutral, never an ungraded FAIL', async () => {
+    const fellBack = evalRunOf({
+      run_status: 'fallback',
+      category: 'general_inquiry',
+      proposal: {
+        type: 'none',
+        transaction_ids: [],
+        reason_code: 'insufficient_information',
+      },
+      draft_reply: null,
+      judge_input: null,
+    });
+    const results = await judgedThrough(
+      fellBack,
+      labelOf('GEN-01'),
+      counting([]),
+    );
+    expect(results.map(toTrialResult)).toMatchObject([
+      { success: true, errored: false, neverRan: false },
+    ]);
+    const [outcome] = summarizeTrials(results.map(toTrialResult));
+    expect(formatCaseOutcome(outcome!)).toMatch(/^PASS 1\/1 /);
   });
 
   it('reads an answer with no recorded run as never ran, not as a failure', async () => {

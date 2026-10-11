@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { shuffled } from '../shuffle.js';
 
-import type { JudgeInput } from '@fintech-agent/api/evals';
+import { JudgeInputSchema, type JudgeInput } from '@fintech-agent/api/evals';
 
 /** How a draft came to be graded: from the run, or a run draft with one defect injected. */
 export const ROW_SOURCES = ['run', 'mutation'] as const;
@@ -48,15 +48,6 @@ export interface HumanLabel {
   human_pass: boolean;
   reason: string;
 }
-
-/** The judge's input, as the provider records it and the rows carry it. */
-export const JudgeInputSchema = z.object({
-  draft_reply: z.string(),
-  cited_chunks: z.array(
-    z.object({ doc_id: z.string(), section: z.string(), text: z.string() }),
-  ),
-  tool_outputs: z.array(z.object({ tool: z.string(), output: z.unknown() })),
-});
 
 const LabelRowSchema = z.object({
   row_id: z.string().min(1),

@@ -1,11 +1,9 @@
-import { variantOf } from '../runtime.js';
-import {
-  JudgeInputSchema,
-  type CalibrationRow,
-  type JudgeVerdict,
-} from './rows.js';
+import { acceptedDraftOf, JudgeInputSchema } from '@fintech-agent/api/evals';
 
-const RUBRIC = 'llm-rubric';
+import { METADATA, rubricOf, storedRun } from '../results.js';
+import { variantOf } from '../runtime.js';
+import type { CalibrationRow, JudgeVerdict } from './rows.js';
+
 const FIRST_ATTEMPT = 0;
 
 /** The part of a promptfoo result the extraction reads; the provider sets the metadata. */
@@ -36,35 +34,45 @@ export interface GradedResult {
 /**
  * The calibration rows of a run (03 step 3): the first attempt of each case
  * and variant that the judge graded, as rows and, apart, the judge's
- * verdicts. A rubric the grader never reached (`graderError`) is no verdict,
- * so its row is left out and counted.
+ * verdicts. A first attempt that persisted no reply has nothing to ground,
+ * so it is no row and is counted apart; a rubric the grader never reached
+ * (`graderError`) is no verdict, so its row is left out and counted.
  */
 export function extractJudgments(results: readonly GradedResult[]): {
   rows: CalibrationRow[];
   verdicts: JudgeVerdict[];
   ungraded: number;
+  unreplied: number;
 } {
   const rows: CalibrationRow[] = [];
   const verdicts: JudgeVerdict[] = [];
   let ungraded = 0;
+  let unreplied = 0;
   for (const result of results) {
     const metadata = result.response?.metadata;
-    if (metadata?.['repeat_index'] !== FIRST_ATTEMPT) continue;
-    const rubric = result.gradingResult?.componentResults?.find(
-      (component) => component.assertion?.type === RUBRIC,
-    );
+    if (metadata?.[METADATA.repeatIndex] !== FIRST_ATTEMPT) continue;
+    const rubric = rubricOf(result);
     if (!rubric) continue;
-    if (rubric.metadata?.graderError === true) {
-      ungraded += 1;
-      continue;
-    }
     const case_id = result.vars['case_id'];
     if (typeof case_id !== 'string') {
       throw new Error('every eval test carries vars.case_id');
     }
     const variant = variantOf(result.provider);
     const row_id = `${variant}:${case_id}`;
-    const judgeInput = JudgeInputSchema.safeParse(metadata['judge_input']);
+    if (metadata[METADATA.run] === undefined) {
+      throw new Error(`${row_id} recorded no run`);
+    }
+    if (acceptedDraftOf(storedRun(metadata[METADATA.run])) === null) {
+      unreplied += 1;
+      continue;
+    }
+    if (rubric.metadata?.graderError === true) {
+      ungraded += 1;
+      continue;
+    }
+    const judgeInput = JudgeInputSchema.safeParse(
+      metadata[METADATA.judgeInput],
+    );
     if (!judgeInput.success) {
       throw new Error(`${row_id} recorded no judge input the judge can read`);
     }
@@ -81,5 +89,5 @@ export function extractJudgments(results: readonly GradedResult[]): {
       judge_reason: rubric.reason,
     });
   }
-  return { rows, verdicts, ungraded };
+  return { rows, verdicts, ungraded, unreplied };
 }

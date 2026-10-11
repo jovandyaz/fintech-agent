@@ -2,7 +2,7 @@ import { shuffled } from '../shuffle.js';
 import { MUTATIONS, type CalibrationRow, type Mutation } from './rows.js';
 
 const SPANISH_DATE =
-  /(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/;
+  /(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/g;
 const DAYS_SHIFTED = 3;
 const DAYS_IN_SHORTEST_MONTH = 28;
 
@@ -13,26 +13,38 @@ export const ADDED_PROMISES = [
   'Te garantizamos que el cargo se cancelará esta semana.',
 ] as const;
 
-// The harness fills its dates as dd/mm/aaaa; the model may still write a
-// long one. The first date in the draft, of either form, is shifted.
+// The judge reads the model's draft unfilled, so a literal date in it is
+// one the model wrote, long or dd/mm/aaaa; a `{{…}}` placeholder is the
+// harness's to fill, and changing it would plant no defect the judge reads.
 const NUMERIC_DATE =
-  /(?<![\d/])(0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/\d{4}(?![\d/])/;
+  /(?<![\d/])(0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/\d{4}(?![\d/])/g;
+const PLACEHOLDER = /\{\{[^{}]*\}\}/g;
 const DAY_DIGITS = 2;
 
 const shiftedDay = (day: number): number =>
   ((day + DAYS_SHIFTED - 1) % DAYS_IN_SHORTEST_MONTH) + 1;
 
 function shiftedDate(draft: string): string | null {
-  const match = [SPANISH_DATE.exec(draft), NUMERIC_DATE.exec(draft)]
-    .filter((found) => found?.[1] !== undefined)
-    .sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0))[0];
-  if (!match?.[1]) return null;
-  const day = shiftedDay(Number(match[1]));
+  const placeholders = [...draft.matchAll(PLACEHOLDER)].map((found) => ({
+    start: found.index,
+    end: found.index + found[0].length,
+  }));
+  const literal = (at: number): boolean =>
+    placeholders.every(({ start, end }) => at < start || at >= end);
+  const match = [
+    ...draft.matchAll(SPANISH_DATE),
+    ...draft.matchAll(NUMERIC_DATE),
+  ]
+    .filter((found) => literal(found.index))
+    .sort((a, b) => a.index - b.index)[0];
+  const dayText = match?.[1];
+  if (match === undefined || dayText === undefined) return null;
+  const day = shiftedDay(Number(dayText));
   const written =
-    match[1].length === DAY_DIGITS
+    dayText.length === DAY_DIGITS
       ? String(day).padStart(DAY_DIGITS, '0')
       : String(day);
-  return draft.replace(match[0], match[0].replace(match[1], written));
+  return `${draft.slice(0, match.index)}${written}${draft.slice(match.index + dayText.length)}`;
 }
 
 /**

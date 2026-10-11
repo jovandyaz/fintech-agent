@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { fixtureOf } from './fixtures.js';
 import { CLEAN_DRAFT } from './judge/controls.js';
-import { judgeText } from './judge/text.js';
+import { judgeText, NO_REPLY } from './judge/text.js';
 import { evalProvider, variantLabel, type EvalAttempt } from './provider.js';
 import { evalRunOf } from './test/eval-run.js';
 
@@ -31,6 +31,13 @@ describe('judgeText', () => {
     expect(text).toContain(CLEAN_DRAFT.cited_chunks[0]!.text);
     expect(text).toContain('"merchant_descriptor": "PAYPAL *DIGITALGOODS"');
     expect(text).not.toMatch(/open_dispute|label|expected/i);
+  });
+
+  it('answers NO_REPLY for a run with nothing to judge, which no judged text can equal', () => {
+    expect(judgeText(null)).toBe(NO_REPLY);
+    expect(judgeText({ ...CLEAN_DRAFT, draft_reply: NO_REPLY })).not.toBe(
+      NO_REPLY,
+    );
   });
 });
 
@@ -104,6 +111,23 @@ describe('evalProvider (03 §Runner: the real harness behind one promptfoo provi
     await expect(
       fellBack.callApi('', context('GEN-01', 0)),
     ).resolves.toHaveProperty('metadata.run.run_status', 'fallback');
+  });
+
+  it('answers a run that persisted no reply with NO_REPLY and records no judge input (03: nothing to ground)', async () => {
+    const fellBack = evalProvider({
+      variant: 'A',
+      attempt: () =>
+        Promise.resolve(
+          evalRunOf({
+            run_status: 'fallback',
+            draft_reply: null,
+            judge_input: null,
+          }),
+        ),
+    });
+    const response = await fellBack.callApi('', context('GEN-01', 0));
+    expect(response.output).toBe(NO_REPLY);
+    expect(response.metadata).toMatchObject({ judge_input: null });
   });
 
   it('lets a failed attempt fail the test as a provider error, never as an empty answer', async () => {

@@ -26,17 +26,19 @@ Folders appear as the build plan (`specs/04-build-plan.md`) reaches them.
 
 ## Commands
 
-| Command                                       | Runs                                                                              | Needs                              |
-| --------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------- |
-| `pnpm verify`                                 | typecheck, lint, unit and console tests, hook tests                               | nothing                            |
-| `pnpm test`                                   | unit, console and integration (Testcontainers Postgres) tests, hook tests         | Docker                             |
-| `docker compose up`                           | the whole stack                                                                   | `ANTHROPIC_API_KEY` for agent runs |
-| `pnpm eval`                                   | eval runner against the running stack                                             | stack + key                        |
-| `pnpm demo:post <ids…>`                       | signs and posts `data/webhook-fixtures` to the stack                              | stack                              |
-| `pnpm e2e`                                    | Playwright through the console: decide, demo, canary                              | fresh stack with `AGENT_MODE=off`  |
-| `pnpm canary:inject`                          | adds one practice canary case per template to the inbox                           | stack                              |
-| `pnpm ops:scan-logs` / `pnpm ops:scan-traces` | PII and security scans of log lines on stdin / of stored traces (`ops/README.md`) | logs piped in / stack              |
-| `pnpm eval:report`                            | re-grades the newest complete full run into EVALS.md, no model calls              | a run in `evals/results/`          |
+| Command                                        | Runs                                                                              | Needs                              |
+| ---------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------- |
+| `pnpm verify`                                  | typecheck, lint, unit and console tests, hook tests                               | nothing                            |
+| `pnpm test`                                    | unit, console and integration (Testcontainers Postgres) tests, hook tests         | Docker                             |
+| `docker compose up`                            | the whole stack                                                                   | `ANTHROPIC_API_KEY` for agent runs |
+| `pnpm eval`                                    | eval runner against the running stack                                             | stack + key                        |
+| `pnpm demo:post <ids…>`                        | signs and posts `data/webhook-fixtures` to the stack                              | stack                              |
+| `pnpm e2e`                                     | Playwright through the console: decide, demo, canary                              | fresh stack with `AGENT_MODE=off`  |
+| `pnpm canary:inject`                           | adds one practice canary case per template to the inbox                           | stack                              |
+| `pnpm ops:scan-logs` / `pnpm ops:scan-traces`  | PII and security scans of log lines on stdin / of stored traces (`ops/README.md`) | logs piped in / stack              |
+| `pnpm eval:report`                             | re-grades the newest complete full run into EVALS.md, no model calls              | a run in `evals/results/`          |
+| `pnpm eval:rejudge <results file>`             | re-runs only the judge on the newest run; `--dry-run` prints calls and cost only  | key; the user approves the spend   |
+| `pnpm eval:carry-labels <old calibration dir>` | carries labels to a fresh `eval:judgments` export where only placeholders changed | the old export and its labels      |
 
 ## Invariants (specs/02-security.md)
 

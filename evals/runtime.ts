@@ -6,6 +6,8 @@ import type {
   ResultFailureReason,
 } from 'promptfoo';
 
+import { NOT_JUDGED } from './judge/groundedness.js';
+
 const CENTS_DIGITS = 4;
 const TELEMETRY_OFF = 'PROMPTFOO_DISABLE_TELEMETRY';
 const PROVIDER_THREW: ResultFailureReason = 2;
@@ -77,14 +79,17 @@ export function variantOf(provider: {
 }
 
 /**
- * Reads one promptfoo result. A trial is errored only when every failing
- * assertion is a grader transport error (`metadata.graderError`); a real
- * failure beside one, or a provider throw, stays a behavioral failure.
+ * Reads one promptfoo result. A rubric not judged (a run with no reply) is
+ * neutral: the other assertions decide. A trial is errored only when every
+ * failing assertion is a grader transport error (`metadata.graderError`); a
+ * real failure beside one, or a provider throw, stays a behavioral failure.
  */
 export function toTrialResult(result: PromptfooTrial): TrialResult {
-  const failed = (result.gradingResult?.componentResults ?? []).filter(
+  const failing = (result.gradingResult?.componentResults ?? []).filter(
     (component) => !component.pass,
   );
+  const failed = failing.filter((component) => component.reason !== NOT_JUDGED);
+  const success = result.success || (failing.length > 0 && failed.length === 0);
   const checkerThrew = failed.some((component) =>
     component.reason.startsWith(CHECKER_THREW),
   );
@@ -98,8 +103,8 @@ export function toTrialResult(result: PromptfooTrial): TrialResult {
   return {
     caseId,
     providerId: variantOf(result.provider),
-    success: result.success,
-    errored: !result.success && onlyGraderErrors,
+    success,
+    errored: !success && onlyGraderErrors,
     neverRan: result.failureReason === PROVIDER_THREW || checkerThrew,
     inputTokens: result.tokenUsage?.prompt ?? 0,
     outputTokens: result.tokenUsage?.completion ?? 0,

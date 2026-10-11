@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { CLEAN_DRAFT, KNOWN_DEFECTS } from '../judge/controls.js';
 import type { RecordedResult } from '../summary.js';
+import { evalRunOf } from '../test/eval-run.js';
 import {
   assertGradedAsNow,
   exportJudgments,
@@ -32,6 +33,7 @@ const firstAttempt = (caseId: string, variant: string): RecordedResult => ({
   response: {
     metadata: {
       repeat_index: 0,
+      run: evalRunOf(),
       judge_input: {
         ...CLEAN_DRAFT,
         draft_reply: `${CLEAN_DRAFT.draft_reply} El 5 de octubre.`,
@@ -183,6 +185,31 @@ describe('exportJudgments (03 §Judge validation, steps 2 and 3)', () => {
     };
     const outcome = await exportWith(priced);
     expect(outcome.judgeCostUsd).toBeCloseTo(calls * 0.006, 6);
+  });
+
+  it('exports no row for a first attempt that persisted no reply, and counts it (03)', async () => {
+    const fellBack: RecordedResult = {
+      ...firstAttempt('ADV-03', 'variant-B'),
+      response: {
+        metadata: {
+          repeat_index: 0,
+          run: evalRunOf({ draft_reply: null, judge_input: null }),
+          judge_input: null,
+        },
+      },
+    };
+    const outcome = await exportJudgments({
+      results: [...RESULTS, fellBack],
+      grader: graderFailing([]),
+      judgeModel: JUDGE,
+      rubric: RUBRIC,
+      random: () => 0.37,
+      dir,
+    });
+    const keys = parseRowKeys(await readFile(join(dir, 'key.jsonl'), 'utf8'));
+    expect(keys.some(({ case_id }) => case_id === 'ADV-03')).toBe(false);
+    expect(keys.filter(({ source }) => source === 'run')).toHaveLength(6);
+    expect(outcome.unreplied).toBe(1);
   });
 
   it('refuses to export over labels already written, whose ids would no longer match', async () => {

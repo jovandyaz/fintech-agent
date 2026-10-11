@@ -123,20 +123,62 @@ describe('runEvalCase (03 §Runner: the real harness, in-process)', () => {
     expect(source).toEqual({ source: 'eval' });
   });
 
-  it('gives the judge the filled draft, the cited chunk as the model read it, and the tool outputs', async () => {
+  it("gives the judge the model's accepted draft with its placeholders unfilled, the cited chunk as the model read it, and the tool outputs", async () => {
     const run = await runEvalCase(
       depsWith(answering(() => objectResponse(resolutionOf()))),
       { customerId: 'cus_01', text: CASE_TEXT, receivedAt: RECEIVED_AT },
     );
-    expect(run.judge_input.draft_reply).toBe(run.draft_reply);
-    expect(run.judge_input.cited_chunks).toEqual([
+    expect(run.judge_input?.draft_reply).toBe(resolutionOf().draft_reply);
+    expect(run.judge_input?.cited_chunks).toEqual([
       {
         doc_id: 'pol-04',
         section: policyChunk().section,
         text: policyChunk().content,
       },
     ]);
-    expect(run.judge_input.tool_outputs.map(({ tool }) => tool)).toEqual([
+    expect(run.judge_input?.tool_outputs).toEqual(run.tool_outputs);
+    expect(run.tool_outputs.map(({ tool }) => tool)).toEqual([
+      'get_customer',
+      'get_card_authorization',
+    ]);
+  });
+
+  it('never shows the judge a value the harness filled: no folio, date or commitment sentence', async () => {
+    const run = await runEvalCase(
+      depsWith(answering(() => objectResponse(resolutionOf()))),
+      { customerId: 'cus_01', text: CASE_TEXT, receivedAt: RECEIVED_AT },
+    );
+    const filledDate = /\d{2}\/\d{2}\/\d{4}/;
+    const commitment = 'Te daremos una respuesta por escrito';
+    expect(run.draft_reply).toContain(run.folio);
+    expect(run.draft_reply).toMatch(filledDate);
+    expect(run.draft_reply).toContain(commitment);
+    const judged = run.judge_input?.draft_reply ?? '';
+    expect(judged).toContain('{{folio}}');
+    expect(judged).not.toContain(run.folio);
+    expect(judged).not.toMatch(filledDate);
+    expect(judged).not.toContain(commitment);
+  });
+
+  it('gives the judge nothing for a run that persisted no reply, and keeps its tool outputs for the checkers', async () => {
+    const promise = resolutionOf({
+      draft_reply:
+        'Hola {{nombre}}, te reembolsaremos el cargo mañana. Folio {{folio}}. {{compromiso_dictamen}}',
+    });
+    const run = await runEvalCase(
+      depsWith(
+        answering(
+          () => objectResponse(promise),
+          () => objectResponse(promise),
+        ),
+      ),
+      { customerId: 'cus_01', text: CASE_TEXT, receivedAt: RECEIVED_AT },
+    );
+    expect(run.run_status).toBe('fallback');
+    expect(run.draft_reply).toBeNull();
+    expect(run.model_outputs).toHaveLength(2);
+    expect(run.judge_input).toBeNull();
+    expect(run.tool_outputs.map(({ tool }) => tool)).toEqual([
       'get_customer',
       'get_card_authorization',
     ]);
@@ -155,7 +197,7 @@ describe('runEvalCase (03 §Runner: the real harness, in-process)', () => {
       ),
       { customerId: 'cus_01', text: CASE_TEXT, receivedAt: RECEIVED_AT },
     );
-    expect(run.judge_input.cited_chunks.map(({ text }) => text)).toEqual([
+    expect(run.judge_input?.cited_chunks.map(({ text }) => text)).toEqual([
       policyChunk().content,
     ]);
   });
@@ -168,10 +210,10 @@ describe('runEvalCase (03 §Runner: the real harness, in-process)', () => {
     const stored = await owner<{ output_masked: unknown }[]>`
       select s.output_masked from run_steps s
       where s.run_id = ${run.run_id} and s.kind = 'tool' order by s.idx`;
-    expect(run.judge_input.tool_outputs.map(({ output }) => output)).toEqual(
+    expect(run.judge_input?.tool_outputs.map(({ output }) => output)).toEqual(
       stored.map(({ output_masked }) => output_masked),
     );
-    expect(run.judge_input.tool_outputs[1]!.output).not.toEqual(
+    expect(run.judge_input?.tool_outputs[1]!.output).not.toEqual(
       run.tool_calls[1]!.input,
     );
   });
@@ -221,5 +263,6 @@ describe('runEvalCase (03 §Runner: the real harness, in-process)', () => {
       'passed',
     ]);
     expect(run.validations[0]!.codes).toContain('COMMITMENT_IN_REPLY');
+    expect(run.judge_input?.draft_reply).toBe(resolutionOf().draft_reply);
   });
 });

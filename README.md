@@ -81,7 +81,7 @@ pnpm eval                                     # stack up, ANTHROPIC_API_KEY expo
 pnpm eval --only CARD-UNREC-01 --variant A    # one case
 ```
 
-`pnpm eval` needs the running stack and a key, and costs money: a full run (104 agent runs, judge, redactor recall) cost $4.81 ([EVALS.md](EVALS.md), run 3); `EVAL_SPEND_CAP_USD`, once reached, stops new attempts. `--only <id>` runs one case: a variant-A attempt cost $0.0444 at p50 and $0.0764 at p95 before the judge; a high-stakes case runs three times, and without `--variant` both variants run. Method: [specs/03-evals.md](specs/03-evals.md).
+`pnpm eval` needs the running stack and a key, and costs money: a full run (104 agent runs, judge, redactor recall) cost $4.81 ([EVALS.md](EVALS.md), run 3); `EVAL_SPEND_CAP_USD`, once reached, stops new attempts. `pnpm eval:rejudge <results file>` re-runs only the judge on a stored run (about $1.82 for run 3, estimated) and writes a new results file; `--dry-run` prints the judge calls and their estimated cost without calling the judge or needing a key. `--only <id>` runs one case: a variant-A attempt cost $0.0444 at p50 and $0.0764 at p95 before the judge; a high-stakes case runs three times, and without `--variant` both variants run. Method: [specs/03-evals.md](specs/03-evals.md).
 
 ## Operations
 

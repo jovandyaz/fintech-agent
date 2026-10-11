@@ -42,7 +42,7 @@ async function main(): Promise<void> {
     dir: CALIBRATION_DIR,
   });
   console.log(
-    `${outcome.rows} rows to label (${outcome.ungraded} first attempts the judge never reached left out); the judge failed ${outcome.controlsFailed} of ${KNOWN_DEFECTS.length} known-bad controls; judge cost $${outcome.judgeCostUsd.toFixed(USD_DIGITS)}`,
+    `${outcome.rows} rows to label (${outcome.unreplied} first attempts with no reply and ${outcome.ungraded} the judge never reached left out); the judge failed ${outcome.controlsFailed} of ${KNOWN_DEFECTS.length} known-bad controls; judge cost $${outcome.judgeCostUsd.toFixed(USD_DIGITS)}`,
   );
 }
 

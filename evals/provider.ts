@@ -8,6 +8,7 @@ import type {
 
 import { fixtureOf, type CaseFixture } from './fixtures.js';
 import { judgeText } from './judge/text.js';
+import { METADATA } from './results.js';
 
 /** One attempt of a case through the real harness. */
 export type EvalAttempt = (fixture: CaseFixture) => Promise<EvalRun>;
@@ -64,10 +65,10 @@ export function evalProvider(input: {
           total: run.input_tokens + run.output_tokens,
         },
         metadata: {
-          run,
-          repeat_index: context?.repeatIndex ?? FIRST_ATTEMPT,
-          judge_input: run.judge_input,
-          customer_text: maskPii(fixture.text),
+          [METADATA.run]: run,
+          [METADATA.repeatIndex]: context?.repeatIndex ?? FIRST_ATTEMPT,
+          [METADATA.judgeInput]: run.judge_input,
+          [METADATA.customerText]: maskPii(fixture.text),
           model: run.model,
           prompt_version: run.prompt_version,
         },

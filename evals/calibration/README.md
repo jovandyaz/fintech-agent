@@ -25,3 +25,12 @@ The groundedness judge counts toward the variant decision only after a person ag
 4. Run `pnpm eval:agreement`. It reports TPR (the judge fails a draft you failed) and TNR (the judge passes a draft you passed) with 95% intervals, kappa as a secondary number, and every disagreement.
 
 The judge counts toward the decision only if it failed all 7 known-bad controls, TPR ≥ 0.8 and TNR ≥ 0.9. `pnpm eval:report` checks all of this and rewrites the EVALS.md summary with the judge counted or informational. Changing the rubric after seeing the agreement makes the judge informational for that run. `pnpm eval:judgments` refuses to run while `labels.jsonl` exists, because new row ids would label the wrong drafts.
+
+## After a re-judge
+
+When `pnpm eval:rejudge` re-judges the newest run under a corrected judge input (specs/03-evals.md §Judge validation), the rows must be exported again and the existing labels carried over:
+
+1. Move the current calibration files (`to-label.jsonl`, `judgments.jsonl`, `key.jsonl`, `controls.json`, `labels.jsonl`) to a folder outside the repo.
+2. Run `pnpm eval:judgments` on the re-judged run (paid: mutation rows and controls are judged again).
+3. Run `pnpm eval:carry-labels <that folder>`. A label is carried only when the new row's evidence is identical and filling its placeholders reproduces the old draft exactly; rows with no reply are dropped and the rest are listed to label again.
+4. Label the listed rows, then `pnpm eval:agreement` and `pnpm eval:report`. EVALS.md states that the labels were carried over from the first agreement.

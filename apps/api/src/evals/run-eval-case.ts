@@ -21,6 +21,7 @@ import {
   resolutions,
   runSteps,
 } from '../database/schema.js';
+import type { JudgeInput, ToolOutput } from './judge-input.js';
 import { openEvalCase } from './open-eval-case.js';
 
 const LLM = 'llm';
@@ -28,20 +29,7 @@ const TOOL = 'tool';
 const RETRIEVAL = 'retrieval';
 const VALIDATION = 'validation';
 const RESOLUTION_KEY = 'proposed_action';
-
-/** One policy chunk a draft cites, with the text the model read. */
-export interface CitedChunk {
-  doc_id: string;
-  section: string;
-  text: string;
-}
-
-/** What the groundedness judge reads, never the label (03): the filled draft, its cited chunks and the masked tool outputs. */
-export interface JudgeInput {
-  draft_reply: string;
-  cited_chunks: readonly CitedChunk[];
-  tool_outputs: readonly { tool: string; output: unknown }[];
-}
+const PASSED = 'passed';
 
 /** Everything the eval checkers read about one attempt, as the stack persisted it (03 §Metrics). */
 export interface EvalRun {
@@ -71,10 +59,13 @@ export interface EvalRun {
   /** Each validation of a model answer, in order. */
   validations: { outcome: string; codes: string[] }[];
   tool_calls: { tool: string; input: unknown }[];
+  /** Each tool call's masked output, in order, judged or not: the checkers ground amounts on them. */
+  tool_outputs: ToolOutput[];
   retrieved_docs: string[];
   /** `action_executions` rows for the case; anything but 0 is an unauthorized execution, since nobody approves an eval case. */
   executions: number;
-  judge_input: JudgeInput;
+  /** Null for a run that persisted no reply (a fallback): it has nothing to ground, so it is not judged (03). */
+  judge_input: JudgeInput | null;
 }
 
 interface StoredChunk {
@@ -101,6 +92,31 @@ const modelAnswerOf = (output: unknown): Record<string, unknown> | null => {
   const text = isRecord(output) ? output['text'] : null;
   return isRecord(text) && RESOLUTION_KEY in text ? text : null;
 };
+
+/** The draft of one structured model answer, placeholders unfilled; '' when it carries none. */
+export const draftOf = (answer: Record<string, unknown> | undefined): string =>
+  typeof answer?.['draft_reply'] === 'string' ? answer['draft_reply'] : '';
+
+/**
+ * The model's accepted draft with its `{{…}}` placeholders unfilled (03
+ * §Judge validation): the one definition of "no reply" is null here, a run
+ * that persisted none, whose last model answer may be a rejected repair the
+ * customer never saw. Throws for a persisted reply whose last model answer
+ * carries no draft or whose last validation did not pass, since that answer
+ * is then not the one accepted.
+ */
+export function acceptedDraftOf(
+  run: Pick<EvalRun, 'draft_reply' | 'model_outputs' | 'validations'>,
+): string | null {
+  if (run.draft_reply === null) return null;
+  const draft = draftOf(run.model_outputs.at(-1));
+  if (draft === '' || run.validations.at(-1)?.outcome !== PASSED) {
+    throw new Error(
+      'a run persisted a reply, but its last model answer is not an accepted draft: no draft, or its last validation did not pass',
+    );
+  }
+  return draft;
+}
 
 /**
  * Reads back one eval case as the checkers grade it: the case, its latest
@@ -157,6 +173,30 @@ export async function readEvalRun(
       )
     : [];
   const draft = resolution?.draftReply ?? null;
+  const modelOutputs = steps
+    .filter(({ kind }) => kind === LLM)
+    .flatMap(({ outputMasked }) => {
+      const answer = modelAnswerOf(outputMasked);
+      return answer ? [answer] : [];
+    });
+  const toolOutputs = toolSteps.map(({ name, outputMasked }) => ({
+    tool: name,
+    output: outputMasked,
+  }));
+  const validations = steps
+    .filter(({ kind }) => kind === VALIDATION)
+    .map(({ outputMasked }) => ({
+      outcome: isRecord(outputMasked) ? String(outputMasked['outcome']) : '',
+      codes:
+        isRecord(outputMasked) && Array.isArray(outputMasked['codes'])
+          ? outputMasked['codes'].map(String)
+          : [],
+    }));
+  const judgedDraft = acceptedDraftOf({
+    draft_reply: draft,
+    model_outputs: modelOutputs,
+    validations,
+  });
 
   return {
     case_id: kase.id,
@@ -180,48 +220,36 @@ export async function readEvalRun(
     draft_reply: draft,
     citations,
     abstained: resolution?.abstained ?? null,
-    model_outputs: steps
-      .filter(({ kind }) => kind === LLM)
-      .flatMap(({ outputMasked }) => {
-        const answer = modelAnswerOf(outputMasked);
-        return answer ? [answer] : [];
-      }),
-    validations: steps
-      .filter(({ kind }) => kind === VALIDATION)
-      .map(({ outputMasked }) => ({
-        outcome: isRecord(outputMasked) ? String(outputMasked['outcome']) : '',
-        codes:
-          isRecord(outputMasked) && Array.isArray(outputMasked['codes'])
-            ? outputMasked['codes'].map(String)
-            : [],
-      })),
+    model_outputs: modelOutputs,
+    validations,
     tool_calls: toolSteps.map(({ name, inputMasked }) => ({
       tool: name,
       input: inputMasked,
     })),
+    tool_outputs: toolOutputs,
     retrieved_docs: [
       ...new Set([...seenChunks.values()].map(({ doc_id }) => doc_id)),
     ],
     executions: executed?.count ?? 0,
-    judge_input: {
-      draft_reply: draft ?? '',
-      cited_chunks: citations.flatMap(({ chunk_id }) => {
-        const chunk = seenChunks.get(chunk_id);
-        return chunk
-          ? [
-              {
-                doc_id: chunk.doc_id,
-                section: chunk.section,
-                text: chunk.content,
-              },
-            ]
-          : [];
-      }),
-      tool_outputs: toolSteps.map(({ name, outputMasked }) => ({
-        tool: name,
-        output: outputMasked,
-      })),
-    },
+    judge_input:
+      judgedDraft === null
+        ? null
+        : {
+            draft_reply: judgedDraft,
+            cited_chunks: citations.flatMap(({ chunk_id }) => {
+              const chunk = seenChunks.get(chunk_id);
+              return chunk
+                ? [
+                    {
+                      doc_id: chunk.doc_id,
+                      section: chunk.section,
+                      text: chunk.content,
+                    },
+                  ]
+                : [];
+            }),
+            tool_outputs: toolOutputs,
+          },
   };
 }
 

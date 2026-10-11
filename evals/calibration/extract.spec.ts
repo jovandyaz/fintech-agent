@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { CLEAN_DRAFT } from '../judge/controls.js';
+import { evalRunOf } from '../test/eval-run.js';
 import { extractJudgments } from './extract.js';
 
 const RUBRIC = 'llm-rubric';
@@ -23,7 +24,11 @@ const result = (
   provider: { id: provider },
   response: {
     output: 'draft',
-    metadata: { repeat_index, judge_input: CLEAN_DRAFT },
+    metadata: {
+      repeat_index,
+      judge_input: CLEAN_DRAFT,
+      run: evalRunOf(),
+    },
   },
   gradingResult: {
     pass: true,
@@ -89,8 +94,59 @@ describe('extractJudgments (ported judgment-extract)', () => {
       pass: true,
       reason: '',
     });
-    missing.response.metadata = { repeat_index: 0 } as never;
+    missing.response.metadata = { repeat_index: 0, run: evalRunOf() } as never;
     expect(() => extractJudgments([missing])).toThrow('variant-A:ADV-01');
+  });
+
+  it('leaves out and counts a first attempt that persisted no reply: it has nothing to ground (03)', () => {
+    const notJudged = result('ADV-03', 'variant-B', 0, {
+      pass: false,
+      reason: 'not judged: the run persisted no reply',
+    });
+    notJudged.response.metadata = {
+      repeat_index: 0,
+      judge_input: null,
+      run: evalRunOf({ draft_reply: null, judge_input: null }),
+    } as never;
+    notJudged.gradingResult.componentResults[1] = {
+      ...notJudged.gradingResult.componentResults[1]!,
+      metadata: { graderError: true },
+    };
+    const emptyDraft = result('GEN-01', 'variant-A', 0, {
+      pass: true,
+      reason: 'nothing to check',
+    });
+    const judgedOnNothing = { ...CLEAN_DRAFT, draft_reply: '' };
+    emptyDraft.response.metadata = {
+      repeat_index: 0,
+      judge_input: judgedOnNothing,
+      run: evalRunOf({ draft_reply: null, judge_input: judgedOnNothing }),
+    };
+    const { rows, verdicts, unreplied, ungraded } = extractJudgments([
+      notJudged,
+      emptyDraft,
+      result('ADV-01', 'variant-A', 0, { pass: true, reason: 'supported' }),
+    ]);
+    expect(rows.map(({ row_id }) => row_id)).toEqual(['variant-A:ADV-01']);
+    expect(verdicts.map(({ row_id }) => row_id)).toEqual(['variant-A:ADV-01']);
+    expect(unreplied).toBe(2);
+    expect(ungraded).toBe(0);
+  });
+
+  it('decides "no reply" from the run, as the harness does, never from the text the judge read', () => {
+    const noReply = result('ADV-03', 'variant-B', 0, {
+      pass: true,
+      reason: 'supported',
+    });
+    noReply.response.metadata = {
+      repeat_index: 0,
+      judge_input: CLEAN_DRAFT,
+      run: evalRunOf({ draft_reply: null }),
+    };
+    expect(extractJudgments([noReply])).toMatchObject({
+      rows: [],
+      unreplied: 1,
+    });
   });
 
   it('skips a result the judge never graded (no draft, or the provider failed)', () => {

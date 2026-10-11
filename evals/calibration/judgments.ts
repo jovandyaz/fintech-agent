@@ -4,17 +4,15 @@ import { join } from 'node:path';
 
 import type { JudgeInput } from '@fintech-agent/api/evals';
 import { maskPii } from '@fintech-agent/contracts';
-import type { ApiProvider, Assertion, EvaluateResult } from 'promptfoo';
+import type { Assertion, GradingResult } from 'promptfoo';
 
 import {
   groundednessAssertion,
   judgeCostUsd,
-  judgedBy,
   type Grader,
 } from '../judge/groundedness.js';
 import { JUDGE_CONTROLS, type KnownDefect } from '../judge/controls.js';
-import { judgeText } from '../judge/text.js';
-import { runEvalSuite } from '../runtime.js';
+import { judgeEach } from '../judge/judge-each.js';
 import { extractJudgments, type GradedResult } from './extract.js';
 import { mutationNegatives } from './mutations.js';
 import {
@@ -26,8 +24,6 @@ import {
 
 /** 03 step 3: about 14 mutation negatives beside the 48 run rows. */
 const MUTATION_TARGET = 14;
-const JUDGE_CONCURRENCY = 4;
-const ROW_KEY = 'row_id';
 const JSON_INDENT = 2;
 const FILES = {
   toLabel: 'to-label.jsonl',
@@ -71,12 +67,7 @@ interface JudgeTokens {
   completionTokens: number;
 }
 
-const verdictOf = (result: EvaluateResult): JudgeVerdict => {
-  const rowId = result.vars[ROW_KEY];
-  const rubric = result.gradingResult?.componentResults?.[0];
-  if (typeof rowId !== 'string' || !rubric) {
-    throw new Error('a judged row came back with no verdict');
-  }
+const verdictOf = (rowId: string, rubric: GradingResult): JudgeVerdict => {
   if (rubric.metadata?.['graderError'] === true) {
     throw new Error(
       maskPii(`the judge was not reached for ${rowId}: ${rubric.reason}`),
@@ -95,34 +86,16 @@ async function judgeAll(
   groundedness: Assertion,
   grader: Grader,
 ): Promise<{ verdicts: JudgeVerdict[]; tokens: JudgeTokens }> {
-  const provider: ApiProvider = {
-    id: () => 'calibration',
-    callApi: (_prompt, context) => {
-      const rowId = context?.vars[ROW_KEY];
-      const input = typeof rowId === 'string' ? inputs.get(rowId) : undefined;
-      if (!input) throw new Error('a calibration test names no row');
-      return Promise.resolve({ output: judgeText(input) });
-    },
-  };
-  const results = await runEvalSuite(
-    {
-      providers: [provider],
-      prompts: [`{{${ROW_KEY}}}`],
-      tests: [...inputs.keys()].map((rowId) => ({
-        vars: { [ROW_KEY]: rowId },
-        options: judgedBy(grader),
-        assert: [groundedness],
-      })),
-    },
-    { maxConcurrency: JUDGE_CONCURRENCY },
-  );
+  const judged = await judgeEach(inputs, groundedness, grader);
   const tokens = { promptTokens: 0, completionTokens: 0 };
-  for (const result of results) {
-    const used = result.gradingResult?.componentResults?.[0]?.tokensUsed;
-    tokens.promptTokens += used?.prompt ?? 0;
-    tokens.completionTokens += used?.completion ?? 0;
+  for (const rubric of judged.values()) {
+    tokens.promptTokens += rubric.tokensUsed?.prompt ?? 0;
+    tokens.completionTokens += rubric.tokensUsed?.completion ?? 0;
   }
-  return { verdicts: results.map(verdictOf), tokens };
+  return {
+    verdicts: [...judged].map(([rowId, rubric]) => verdictOf(rowId, rubric)),
+    tokens,
+  };
 }
 
 /**
@@ -142,6 +115,7 @@ export async function exportJudgments(input: {
 }): Promise<{
   rows: number;
   ungraded: number;
+  unreplied: number;
   controlsFailed: number;
   judgeCostUsd: number;
 }> {
@@ -155,7 +129,9 @@ export async function exportJudgments(input: {
     );
   }
   const groundedness = groundednessAssertion(input.rubric);
-  const { rows, verdicts, ungraded } = extractJudgments(input.results);
+  const { rows, verdicts, ungraded, unreplied } = extractJudgments(
+    input.results,
+  );
   const negatives = mutationNegatives(rows, MUTATION_TARGET, input.random);
   const negativeJudgments = await judgeAll(
     new Map(negatives.map((row) => [row.row_id, row.judge_input])),
@@ -198,6 +174,7 @@ export async function exportJudgments(input: {
   return {
     rows: all.length,
     ungraded,
+    unreplied,
     controlsFailed: controls.controls.filter(({ judge_pass }) => !judge_pass)
       .length,
     judgeCostUsd: judgeCostUsd(input.judgeModel, {

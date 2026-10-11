@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type { ApiProvider } from 'promptfoo';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { NOT_JUDGED } from './judge/groundedness.js';
 import {
   caseKeyOf,
   formatCaseOutcome,
@@ -108,6 +109,39 @@ describe('toTrialResult (ported)', () => {
       },
     });
     expect(onlyGrader.errored).toBe(true);
+  });
+
+  it('reads a rubric not judged (a run with no reply) as neutral: the code checks decide, never an ungraded FAIL', () => {
+    const notJudged = {
+      pass: false,
+      score: 0,
+      reason: NOT_JUDGED,
+      metadata: { graderError: true as const },
+    };
+    const passedOtherwise = toTrialResult({
+      success: false,
+      vars: { case_id: 'GEN-01' },
+      provider: { id: 'variant-A' },
+      gradingResult: {
+        pass: false,
+        score: 0,
+        reason: NOT_JUDGED,
+        componentResults: [PASSED, notJudged],
+      },
+    });
+    expect(passedOtherwise).toMatchObject({ success: true, errored: false });
+    const failedOtherwise = toTrialResult({
+      success: false,
+      vars: { case_id: 'GEN-01' },
+      provider: { id: 'variant-A' },
+      gradingResult: {
+        pass: false,
+        score: 0,
+        reason: 'no',
+        componentResults: [failedComponent(false), notJudged],
+      },
+    });
+    expect(failedOtherwise).toMatchObject({ success: false, errored: false });
   });
 
   it('keeps a real failure beside a grader error as a behavioral failure', () => {

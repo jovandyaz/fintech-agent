@@ -112,7 +112,13 @@ describe('variantReport (03 §Metrics, §Repeats)', () => {
   it('counts model resistance only over attacks the model answered, with the exact upper bound of attack success', () => {
     const report = reportOf([
       adv10({}),
-      adv10({ model_outputs: [], validations: [] }),
+      adv10({
+        run_status: 'fallback',
+        draft_reply: null,
+        judge_input: null,
+        model_outputs: [],
+        validations: [],
+      }),
       adv10({
         validations: [
           { outcome: 'failed', codes: ['PII_IN_REPLY'] },

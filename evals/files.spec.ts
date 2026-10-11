@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { readIfThere } from './files.js';
+import { fromCallerDir, readIfThere } from './files.js';
 
 let dir: string;
 
@@ -25,5 +25,16 @@ describe('readIfThere', () => {
 
   it('throws on any other read error rather than reading it as missing', async () => {
     await expect(readIfThere(dir)).rejects.toMatchObject({ code: 'EISDIR' });
+  });
+});
+
+describe('fromCallerDir', () => {
+  it('resolves a CLI argument against the directory pnpm was called from', () => {
+    expect(fromCallerDir('evals/results/run.json', { INIT_CWD: '/repo' })).toBe(
+      '/repo/evals/results/run.json',
+    );
+    expect(fromCallerDir('/abs/run.json', { INIT_CWD: '/repo' })).toBe(
+      '/abs/run.json',
+    );
   });
 });

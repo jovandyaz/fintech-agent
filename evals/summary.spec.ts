@@ -122,6 +122,25 @@ describe('gradedAttemptOf', () => {
   it('skips an attempt that recorded no run', () => {
     expect(gradedAttemptOf(recorded({ noRun: true }))).toBeNull();
   });
+
+  it('reads a run stored before runs kept their own tool outputs, taking them from its judge input', () => {
+    const outputs = [{ tool: 'get_customer', output: { first_name: 'Ana' } }];
+    const result = recorded({ rubric: { pass: true } });
+    const legacy: Record<string, unknown> = {
+      ...evalRunOf({
+        judge_input: {
+          draft_reply: 'Hola Ana.',
+          cited_chunks: [],
+          tool_outputs: outputs,
+        },
+      }),
+    };
+    Reflect.deleteProperty(legacy, 'tool_outputs');
+    result.response = {
+      metadata: { ...result.response?.metadata, run: legacy },
+    };
+    expect(gradedAttemptOf(result)?.run.tool_outputs).toEqual(outputs);
+  });
 });
 
 describe('judgeSpend', () => {

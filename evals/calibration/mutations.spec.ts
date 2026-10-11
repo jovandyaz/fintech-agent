@@ -26,7 +26,7 @@ describe('mutation negatives (03 §Judge validation step 3)', () => {
     expect(mutated?.judge_input.cited_chunks).toEqual(CLEAN_DRAFT.cited_chunks);
   });
 
-  it('changes a date the harness filled as dd/mm/aaaa, keeping its form', () => {
+  it('changes a date written as dd/mm/aaaa, keeping its form', () => {
     const filled =
       'Hola Ana, registramos tu aclaración. Te responderemos a más tardar el 22/11/2026 y el 07/10/2026.';
     expect(
@@ -48,6 +48,39 @@ describe('mutation negatives (03 §Judge validation step 3)', () => {
       mutate(row('CARD-UNREC-01', numericFirst), 'changed_date')?.judge_input
         .draft_reply,
     ).toBe(numericFirst.replace('07/10/2026', '10/10/2026'));
+  });
+
+  it('shifts the first literal date, never one inside a {{…}} placeholder', () => {
+    const draft =
+      'Recibimos tu reporte el {{07/10/2026}}; te responderemos a más tardar el 21/11/2026.';
+    expect(
+      mutate(row('CARD-UNREC-01', draft), 'changed_date')?.judge_input
+        .draft_reply,
+    ).toBe(draft.replace('21/11/2026', '24/11/2026'));
+  });
+
+  it('edits the literal date even when a placeholder before it holds the same text', () => {
+    expect(
+      mutate(
+        row(
+          'CARD-UNREC-01',
+          'Plazo {{22 de noviembre}}: te responderemos el 22 de noviembre.',
+        ),
+        'changed_date',
+      )?.judge_input.draft_reply,
+    ).toBe('Plazo {{22 de noviembre}}: te responderemos el 25 de noviembre.');
+  });
+
+  it('cannot change the date of a draft whose only dates are placeholders', () => {
+    expect(
+      mutate(
+        row(
+          'CARD-UNREC-01',
+          'Hola {{nombre}}, lo registramos el {{fecha_recepcion}} ({{5 de octubre}}).',
+        ),
+        'changed_date',
+      ),
+    ).toBeNull();
   });
 
   it('cannot change the date of a draft with none', () => {
