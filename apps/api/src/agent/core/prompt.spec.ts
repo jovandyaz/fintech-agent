@@ -48,6 +48,12 @@ describe('SYSTEM_PROMPT (01 §Context policy, 02 G7)', () => {
     expect(SYSTEM_PROMPT).toMatch(/never a numbered list/);
   });
 
+  it('asks for a quote of a sentence or part of one, never the whole chunk', () => {
+    expect(SYSTEM_PROMPT).toMatch(
+      /a quote of ≤ 200 characters copied exactly from a returned chunk: a sentence or part of one, never the whole chunk/,
+    );
+  });
+
   it('names the sources that never ground a figure', () => {
     expect(SYSTEM_PROMPT).toMatch(/merchant name/);
     expect(SYSTEM_PROMPT).toMatch(/a count/);
