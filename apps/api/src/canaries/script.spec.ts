@@ -8,15 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { seededRandom, seededRandomAfter } from '../../test/seeded-random.js';
 import { HAIKU_MODEL, SONNET_MODEL, pricingOf } from '../agent/core/prices.js';
 import { POLICY_SEARCH_TOOL } from '../agent/core/validate/evidence.js';
-import {
-  REAL_COST_USD,
-  REAL_INPUT_TOKENS,
-  REAL_LATENCY_MS,
-  REAL_OUTPUT_TOKENS,
-  REAL_STEPS,
-  REAL_TOOL_CALLS,
-  type Spread,
-} from './real-runs.js';
+import { AGENT_VARIANTS, type AgentVariant } from '../config.js';
+import { REAL_RUNS, type Spread } from './real-runs.js';
 import {
   canaryModelsOf,
   investigationOf,
@@ -36,7 +29,9 @@ const SHORTEST_REDACTOR_MS = 600;
 // setTimeout may fire a fraction of a millisecond early against performance.now().
 const TIMER_SLACK_MS = 1;
 const RUNS_PER_TEMPLATE = 200;
-const REPAIR_SHARE = { min: 0.2, max: 0.45 } as const;
+// Wider than the sampling noise of 200 runs, narrower than the gap between
+// the variants' shares, so a canary on the other variant's share fails.
+const REPAIR_SHARE_TOLERANCE = 0.1;
 // One repair turn, then the harness falls back: a canary must never get there.
 const MAX_VALIDATIONS = 2;
 const GUARD_STEPS = ['redaction', 'injection_scan'].length;
@@ -76,11 +71,12 @@ const drawingFirst = (first: number, seed = 1) =>
 const modelsFor = (
   template: CanaryTemplate = TEMPLATE!,
   paced = pacing(seededRandom(1)),
-  agentModelId = SONNET_MODEL,
+  variant: AgentVariant = 'A',
 ) =>
   canaryModelsOf(template, {
+    variant,
+    modelId: REAL_RUNS[variant].model,
     redactorModelId: HAIKU_MODEL,
-    agentModelId,
     pacing: paced,
   });
 
@@ -122,9 +118,10 @@ interface RunTotals {
 async function scriptedRun(
   template: CanaryTemplate,
   random: () => number,
+  variant: AgentVariant = 'A',
 ): Promise<RunTotals> {
   const paced = pacing(random);
-  const { redactor, agent } = modelsFor(template, paced);
+  const { redactor, agent } = modelsFor(template, paced, variant);
   const clean = JSON.stringify(resolutionOf(template.seed));
   const redacted = await redactor.doGenerate(CALL);
   const agentCalls: Generated[] = [];
@@ -156,7 +153,9 @@ async function scriptedRun(
     inputTokens: sum([redacted, ...agentCalls], 'inputTokens'),
     outputTokens: sum([redacted, ...agentCalls], 'outputTokens'),
     latencyMs: paced.slept.reduce((total, ms) => total + ms, 0),
-    costUsd: priced([redacted], HAIKU_MODEL) + priced(agentCalls, SONNET_MODEL),
+    costUsd:
+      priced([redacted], HAIKU_MODEL) +
+      priced(agentCalls, REAL_RUNS[variant].model),
     steps: GUARD_STEPS + agentCalls.length + toolResults + validations,
     toolCalls,
     validations,
@@ -170,11 +169,14 @@ async function scriptedRun(
 }
 
 // Seeds of their own per template, so each template's share is an independent sample.
-const runsOf = (template: CanaryTemplate): Promise<RunTotals[]> => {
+const runsOf = (
+  template: CanaryTemplate,
+  variant: AgentVariant,
+): Promise<RunTotals[]> => {
   const firstSeed = CANARY_TEMPLATES.indexOf(template) * RUNS_PER_TEMPLATE + 1;
   return Promise.all(
     Array.from({ length: RUNS_PER_TEMPLATE }, (_, run) =>
-      scriptedRun(template, seededRandom(firstSeed + run)),
+      scriptedRun(template, seededRandom(firstSeed + run), variant),
     ),
   );
 };
@@ -311,50 +313,56 @@ describe('canaryModelsOf (02 G3)', () => {
     },
   );
 
-  it.each(CANARY_TEMPLATES)(
-    '$defect repairs about a third of its runs, as real runs did, and never needs a second repair',
-    async (template) => {
-      const runs = await runsOf(template);
-      const share =
-        runs.filter(({ validations }) => validations > 1).length / runs.length;
-      expect(share).toBeGreaterThanOrEqual(REPAIR_SHARE.min);
-      expect(share).toBeLessThanOrEqual(REPAIR_SHARE.max);
-      expect(
-        Math.max(...runs.map(({ validations }) => validations)),
-      ).toBeLessThanOrEqual(MAX_VALIDATIONS);
-    },
-  );
+  describe.each(AGENT_VARIANTS)('on variant %s', (variant) => {
+    const real = REAL_RUNS[variant];
 
-  it.each(CANARY_TEMPLATES)(
-    "$defect keeps its run totals and step counts inside the real runs' envelope",
-    async (template) => {
-      const runs = await runsOf(template);
-      expectWithin(
-        runs.map(({ inputTokens }) => inputTokens),
-        REAL_INPUT_TOKENS,
-      );
-      expectWithin(
-        runs.map(({ outputTokens }) => outputTokens),
-        REAL_OUTPUT_TOKENS,
-      );
-      expectWithin(
-        runs.map(({ latencyMs }) => latencyMs),
-        REAL_LATENCY_MS,
-      );
-      expectWithin(
-        runs.map(({ costUsd }) => costUsd),
-        REAL_COST_USD,
-      );
-      expectWithin(
-        runs.map(({ steps }) => steps),
-        REAL_STEPS,
-      );
-      expectWithin(
-        runs.map(({ toolCalls }) => toolCalls),
-        REAL_TOOL_CALLS,
-      );
-    },
-  );
+    it.each(CANARY_TEMPLATES)(
+      "$defect repairs as often as the variant's real runs did, and never needs a second repair",
+      async (template) => {
+        const runs = await runsOf(template, variant);
+        const share =
+          runs.filter(({ validations }) => validations > 1).length /
+          runs.length;
+        expect(
+          Math.abs(share - real.repairedRuns / real.runs),
+        ).toBeLessThanOrEqual(REPAIR_SHARE_TOLERANCE);
+        expect(
+          Math.max(...runs.map(({ validations }) => validations)),
+        ).toBeLessThanOrEqual(MAX_VALIDATIONS);
+      },
+    );
+
+    it.each(CANARY_TEMPLATES)(
+      "$defect keeps its run totals and step counts inside the variant's real runs' envelope",
+      async (template) => {
+        const runs = await runsOf(template, variant);
+        expectWithin(
+          runs.map(({ inputTokens }) => inputTokens),
+          real.inputTokens,
+        );
+        expectWithin(
+          runs.map(({ outputTokens }) => outputTokens),
+          real.outputTokens,
+        );
+        expectWithin(
+          runs.map(({ latencyMs }) => latencyMs),
+          real.latencyMs,
+        );
+        expectWithin(
+          runs.map(({ costUsd }) => costUsd),
+          real.costUsd,
+        );
+        expectWithin(
+          runs.map(({ steps }) => steps),
+          real.steps,
+        );
+        expectWithin(
+          runs.map(({ toolCalls }) => toolCalls),
+          real.toolCalls,
+        );
+      },
+    );
+  });
 
   it('stamps request and tool call ids in the provider shapes, fresh on every call', async () => {
     const { requestIds, toolCallIds } = await scriptedRun(
@@ -377,7 +385,7 @@ describe('canaryModelsOf (02 G3)', () => {
     const { agent, redactor } = modelsFor(
       TEMPLATE,
       pacing(seededRandom(1)),
-      HAIKU_MODEL,
+      'B',
     );
     expect(agent.modelId).toBe(HAIKU_MODEL);
     expect(redactor.modelId).toBe(HAIKU_MODEL);
@@ -422,8 +430,9 @@ describe('canaryModelsOf (02 G3)', () => {
 
   it('paces each call like a provider call by default', async () => {
     const { redactor } = canaryModelsOf(TEMPLATE!, {
+      variant: 'A',
+      modelId: SONNET_MODEL,
       redactorModelId: HAIKU_MODEL,
-      agentModelId: SONNET_MODEL,
     });
     const started = performance.now();
     await redactor.doGenerate(CALL);

@@ -28,7 +28,11 @@ import { keyPathsOf } from '../../test/key-paths.js';
 import { seededRandom, seededRandomAfter } from '../../test/seeded-random.js';
 import { HAIKU_MODEL, SONNET_MODEL } from '../agent/core/prices.js';
 import type { Claim } from '../agent/core/queue.js';
-import { runCase, type RunCaseDeps } from '../agent/core/run-case.js';
+import {
+  runCase,
+  type RunCaseConfig,
+  type RunCaseDeps,
+} from '../agent/core/run-case.js';
 import { connectCaseTools } from '../agent/core/tools.js';
 import { POLICY_SEARCH_TOOL } from '../agent/core/validate/evidence.js';
 import { reviewTierOf } from '../cases/review-tier.js';
@@ -137,27 +141,27 @@ function depsFor(
   providerCalls: string[],
   scriptPacing: ScriptPacing = pacedScript(NO_REPAIR_DRAW),
 ): RunCaseDeps {
+  const config: RunCaseConfig = {
+    mode: 'on',
+    variant: 'A',
+    modelId: SONNET_MODEL,
+    redactorModelId: HAIKU_MODEL,
+    runTimeoutMs: RUN_TIMEOUT_MS,
+    budget: { costUsd: NO_BUDGET_LIMIT, inputTokens: NO_BUDGET_LIMIT },
+    mcpUrl,
+    mcpAudience: AUDIENCE,
+    caseTokenKey: CASE_TOKEN_KEY,
+  };
   return {
     db,
-    config: {
-      mode: 'on',
-      variant: 'A',
-      modelId: SONNET_MODEL,
-      redactorModelId: HAIKU_MODEL,
-      runTimeoutMs: RUN_TIMEOUT_MS,
-      budget: { costUsd: NO_BUDGET_LIMIT, inputTokens: NO_BUDGET_LIMIT },
-      mcpUrl,
-      mcpAudience: AUDIENCE,
-      caseTokenKey: CASE_TOKEN_KEY,
-    },
+    config,
     models: (modelId) => {
       providerCalls.push(modelId);
       throw new Error('the provider model was reached');
     },
     canaryModels: (canary) =>
       canaryModelsOf(canaryTemplateOf(canary), {
-        redactorModelId: HAIKU_MODEL,
-        agentModelId: SONNET_MODEL,
+        ...config,
         pacing: scriptPacing,
       }),
     retrieval: createRetrieval(db, policyCatalog(loadManifest(POLICIES_DIR))),
@@ -221,7 +225,8 @@ const stepsOf = async (caseId: string): Promise<StepRow[]> =>
     where a.case_id = ${caseId} order by s.idx`;
 
 // Hand-written: evals/results keeps run totals only, so the shape comes from the
-// harness's step records and the provider's usage mapping (10 rows, as 26 real runs).
+// harness's step records and the provider's usage mapping (10 rows, as 18 of
+// each variant's 52 runs in REAL_RUNS_FILE).
 const MEASURED_TOOL = MEASURES.filter((measure) => measure !== 'latency_ms');
 const REAL_RUN_ROWS = [
   { kind: 'guard', finish_reason: null, nulls: ['provider_request_id'] },
@@ -413,8 +418,7 @@ describe('a canary through the real harness (02 G3, G5)', () => {
     const canary = await claimedCase(template);
     // A provider model that happened to investigate and answer the same way.
     const sameAnswer = canaryModelsOf(template, {
-      redactorModelId: HAIKU_MODEL,
-      agentModelId: SONNET_MODEL,
+      ...depsFor([]).config,
       pacing: pacedScript(NO_REPAIR_DRAW),
     });
     await runCase(

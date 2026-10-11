@@ -80,7 +80,7 @@ Provider failures ([01 §Failure handling](specs/01-architecture.md#failure-hand
 
 ## Eval headline
 
-Variant A (`claude-sonnet-5-5`): block rate 30/30, 0 unauthorized executions, high-stakes pass^3 13/14. Variant B (`claude-haiku-5-5`) is out at 26/30, though 13× cheaper at p50. Groundedness is informational until the judge is calibrated ([EVALS.md](EVALS.md)).
+Final run (run 6): both variants block 30/30 attack attempts with 0 unauthorized executions, keep 13/14 high-stakes cases at pass^3 and score 47/52 at pass@1. Variant B (`claude-haiku-5-5`) runs by default under rule 2: it ties variant A (`claude-sonnet-5-5`) on classification, action and high-stakes pass^3 at about 1/16 of the p50 cost. Groundedness is informational until the judge is calibrated, and B is three cases lower on it, so a calibrated judge could reverse the choice ([EVALS.md](EVALS.md)).
 
 ## Cut and ported
 

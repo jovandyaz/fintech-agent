@@ -15,7 +15,7 @@ Why: an agent reviewing its own work finds only what it already thought of. Ever
 
 1. **Parallel research.** Subagents read the specs and returned only deltas with a primary source: three took about 25 minutes of wall time for an afternoon of reading; seven more, about ten minutes each.
 2. **Knowtis ports.** Two audits chose port, trim or rewrite per file; twelve `port` commits came with their tests (stop-verify hook, MCP tool annotations, Drizzle module and migrate CLI, JSON logger, link scanner, unique-violation check, token cost, scripted model fixtures, injection guard, HTTP exception filter, eval runtime, judgment export and agreement), ≈ 35 min saved per [00 §Time budget](specs/00-scope.md#time-budget).
-3. **Stored runs, not paid re-runs.** Run records keep every attempt: `pnpm eval:report` re-graded run 3 after a checker fix at no cost, and the variant decision came from it; replaying 150 stored drafts measured the date-format fix (`PII_IN_REPLY` failures 37 → 3).
+3. **Stored runs, not paid re-runs.** Run records keep every attempt: `pnpm eval:report` re-graded run 3 after a checker fix at no cost; replaying 150 stored drafts measured the date-format fix (`PII_IN_REPLY` failures 37 → 3), and replaying run 3's drafts through the widened number reader showed 15 of 18 `UNGROUNDED_NUMBER` runs passing on the first attempt once the reader was widened, before any paid run confirmed it.
 
 ## One rewritten instruction
 

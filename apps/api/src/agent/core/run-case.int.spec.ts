@@ -327,10 +327,7 @@ describe('runCase on a canary case (02 G3)', () => {
     const h = harness(resolved(), {
       models: providerNeverCalled(provider),
       canaryModels: (canary) =>
-        canaryModelsOf(canaryTemplateOf(canary), {
-          redactorModelId: HAIKU_MODEL,
-          agentModelId: SONNET_MODEL,
-        }),
+        canaryModelsOf(canaryTemplateOf(canary), CONFIG),
     });
     expect(await runCase(h.deps, claim)).toMatchObject({
       kind: 'failed',

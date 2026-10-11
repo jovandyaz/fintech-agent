@@ -418,7 +418,7 @@ ${NEVER_ASKED}`,
         transaction_ids: ['tx_ad08a'],
         reason_code: 'customer_requested_receipt',
         justification:
-          'El SPEI tx_ad08a está liquidado y su CEP está disponible. Según pol-02, el comprobante permite a la beneficiaria demostrar ante su banco que el pago llegó.',
+          'El SPEI tx_ad08a está liquidado, su CEP está disponible y el cliente pidió el comprobante. Según pol-02, el comprobante permite a la beneficiaria demostrar ante su banco que el pago llegó.',
       },
       listFilter: { type: SPEI_OUT, min_amount: 7450, max_amount: 7450 },
       lookups: [{ tool: SPEI_STATUS, transaction_id: 'tx_ad08a' }],

@@ -30,9 +30,10 @@ import {
   numberAtoms,
   ungroundedAtoms,
 } from '../agent/core/validate/numbers.js';
+import { AGENT_VARIANTS } from '../config.js';
 import { replyViolations } from '../replies/reply-checks.js';
 import { POLICIES_DIR, loadCorpus } from '../retrieval/ingest.js';
-import { REAL_ACTIONS, REAL_RUNS, REAL_TEXT_CHARS } from './real-runs.js';
+import { REAL_RUNS } from './real-runs.js';
 import { misreadResolutionOf, resolutionOf } from './script.js';
 import {
   CANARY_DEFECTS,
@@ -58,8 +59,8 @@ const CUSTOMERS = dataset('customers.json', CustomerRecordSchema);
 const LAST_FOUR = 4;
 const byId = new Map<string, Transaction>(DATASET.map((tx) => [tx.id, tx]));
 const MIN_PHRASINGS = 3;
-// The batch proposes none about as often as variant A did (28 of 52), so a
-// none-heavy inbox cannot tell a canary batch apart.
+// The batch proposes none about as often as both variants' real runs did,
+// so a none-heavy inbox cannot tell a canary batch apart.
 const NONE_SHARE_TOLERANCE = 0.15;
 const [CARD_PURCHASE] = CARD_TYPES;
 const LONG_DIGIT_RUN = /\d{8,}/;
@@ -128,9 +129,13 @@ describe('canary templates (02 G3)', () => {
     const noneShare =
       CANARY_TEMPLATES.filter(({ seed }) => seed.action.type === 'none')
         .length / CANARY_TEMPLATES.length;
-    expect(
-      Math.abs(noneShare - REAL_ACTIONS.none / REAL_RUNS),
-    ).toBeLessThanOrEqual(NONE_SHARE_TOLERANCE);
+    for (const variant of AGENT_VARIANTS) {
+      const { actions, runs } = REAL_RUNS[variant];
+      expect(
+        Math.abs(noneShare - actions.none / runs),
+        variant,
+      ).toBeLessThanOrEqual(NONE_SHARE_TOLERANCE);
+    }
   });
 
   it.each(CANARY_TEMPLATES)(
@@ -151,18 +156,20 @@ describe('canary templates (02 G3)', () => {
   );
 
   it.each(CANARY_TEMPLATES)(
-    '$defect ($seed.customerId) writes paragraphs as long as real answers, naming figures as the tools print them',
+    "$defect ($seed.customerId) writes paragraphs as long as both variants' real answers, naming figures as the tools print them",
     ({ seed }) => {
       const lengths = {
         reasoningSummary: seed.reasoningSummary.length,
         justification: seed.action.justification.length,
         draftReply: seed.draftReply.length,
       };
-      for (const [field, length] of Object.entries(lengths)) {
-        const { min, max } =
-          REAL_TEXT_CHARS[field as keyof typeof REAL_TEXT_CHARS];
-        expect(length, field).toBeGreaterThanOrEqual(min);
-        expect(length, field).toBeLessThanOrEqual(max);
+      for (const variant of AGENT_VARIANTS) {
+        const { textChars } = REAL_RUNS[variant];
+        for (const [field, length] of Object.entries(lengths)) {
+          const { min, max } = textChars[field as keyof typeof textChars];
+          expect(length, `${field} on ${variant}`).toBeGreaterThanOrEqual(min);
+          expect(length, `${field} on ${variant}`).toBeLessThanOrEqual(max);
+        }
       }
       expect(numberAtoms(seed.draftReply)).not.toEqual([]);
     },

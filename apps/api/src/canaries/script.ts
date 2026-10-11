@@ -3,14 +3,22 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import type { Resolution } from '@fintech-agent/contracts';
 import type { LanguageModel } from 'ai';
 
+import type { RunCaseConfig } from '../agent/core/run-case.js';
+import type { AgentVariant } from '../config.js';
 import { POLICY_SEARCH_TOOL } from '../agent/core/validate/evidence.js';
 import { drawOne } from './draw.js';
-import { REAL_REPAIRED_RUNS, REAL_RUNS } from './real-runs.js';
+import { REAL_RUNS } from './real-runs.js';
 import type { CanarySeed, CanaryTemplate, LookupTool } from './templates.js';
 
 type ModelV4 = Extract<LanguageModel, { specificationVersion: 'v4' }>;
 type Generated = Awaited<ReturnType<ModelV4['doGenerate']>>;
 type Range = readonly [min: number, max: number];
+
+/** What a canary's script reads of the attempt's config: the variant whose real runs it plays, and the model ids it reports. */
+export type CanaryScriptConfig = Pick<
+  RunCaseConfig,
+  'variant' | 'modelId' | 'redactorModelId'
+>;
 
 /** How a scripted call spends time; tests pass a sleep that returns at once. */
 export interface ScriptPacing {
@@ -56,18 +64,21 @@ const REQUEST_ID: IdShape = { prefix: 'req_011C', chars: 20 };
 const TOOL_CALL_ID: IdShape = { prefix: 'toolu_01', chars: 22 };
 const POLICY_RESULTS = 3;
 const FINISH = { toolCalls: 'tool-calls', stop: 'stop' } as const;
-// A scripted run answers first with a repairable slip as often as real runs did (02 G3).
-const REPAIR_SHARE = REAL_REPAIRED_RUNS / REAL_RUNS;
 
-// Calibrated against the real runs' envelope (real-runs.ts); the agent sets no
-// cacheControl, so no call reads from a prompt cache.
+// Calibrated against both variants' real runs (real-runs.ts); only the answer's
+// length, with the repair share, differs enough between their models to need
+// a value each. The agent sets no cacheControl, so no call reads from a
+// prompt cache.
 const FIRST_INPUT_TOKENS: Range = [4_150, 4_550];
 const TOOL_RESULTS_TOKENS: Range = [450, 950];
 const REPAIR_PROMPT_TOKENS: Range = [40, 90];
 const TOOL_STEP_OUTPUT_TOKENS: Range = [100, 240];
-const ANSWER_OUTPUT_TOKENS: Range = [800, 1_150];
-const TOOL_STEP_MS: Range = [1_800, 3_400];
-const ANSWER_MS: Range = [6_500, 9_500];
+const ANSWER_OUTPUT_TOKENS: Readonly<Record<AgentVariant, Range>> = {
+  A: [800, 1_150],
+  B: [1_450, 2_050],
+};
+const TOOL_STEP_MS: Range = [1_500, 2_900];
+const ANSWER_MS: Range = [5_000, 7_500];
 const REDACTOR_INPUT_TOKENS: Range = [420, 760];
 const REDACTOR_OUTPUT_TOKENS: Range = [6, 14];
 const REDACTOR_MS: Range = [600, 1_600];
@@ -288,24 +299,19 @@ const toolTurn = (step: ScriptedStep, random: () => number): Turn => ({
 
 /**
  * The models a canary's case runs with instead of the provider's (02 G3), by
- * role, so a variant whose agent shares the redactor's model id still gets
- * the right script: the redactor finds nothing, and the agent replays the
- * template's investigation in two steps of parallel calls, then answers its
- * resolution. A drawn share of runs answers first with a misread figure and
- * the resolution on the repair turn; any later call answers it again. Each
- * call builds fresh scripts, so a re-run replays them from the start;
- * production pacing unless given another.
+ * role: the redactor finds nothing; the agent replays the template's
+ * investigation in two steps of parallel calls, then answers its resolution,
+ * repairing a misread figure as often as the variant's real runs did and at
+ * their length. Each call builds fresh scripts, so a re-run replays them from
+ * the start; production pacing unless given another.
  */
 export function canaryModelsOf(
   template: CanaryTemplate,
-  input: {
-    redactorModelId: string;
-    agentModelId: string;
-    pacing?: ScriptPacing;
-  },
+  input: CanaryScriptConfig & { pacing?: ScriptPacing },
 ): ScriptedModels {
   const pacing = input.pacing ?? PROVIDER_PACING;
-  const repairs = pacing.random() < REPAIR_SHARE;
+  const { repairedRuns, runs } = REAL_RUNS[input.variant];
+  const repairs = pacing.random() < repairedRuns / runs;
   const steps = investigationOf(template.seed, pacing.random);
   const resolution = JSON.stringify(resolutionOf(template.seed));
   const answers = repairs
@@ -325,21 +331,16 @@ export function canaryModelsOf(
           NO_NEXT_PROMPT,
         ),
     ),
-    agent: scriptedModel(
-      input.agentModelId,
-      pacing,
-      FIRST_INPUT_TOKENS,
-      (call) => {
-        const step = steps[call];
-        if (step) return toolTurn(step, pacing.random);
-        const index = Math.min(call - steps.length, answers.length - 1);
-        return answerTurn(
-          answerAt(answers, index),
-          ANSWER_MS,
-          ANSWER_OUTPUT_TOKENS,
-          index < answers.length - 1 ? REPAIR_PROMPT_TOKENS : NO_NEXT_PROMPT,
-        );
-      },
-    ),
+    agent: scriptedModel(input.modelId, pacing, FIRST_INPUT_TOKENS, (call) => {
+      const step = steps[call];
+      if (step) return toolTurn(step, pacing.random);
+      const index = Math.min(call - steps.length, answers.length - 1);
+      return answerTurn(
+        answerAt(answers, index),
+        ANSWER_MS,
+        ANSWER_OUTPUT_TOKENS[input.variant],
+        index < answers.length - 1 ? REPAIR_PROMPT_TOKENS : NO_NEXT_PROMPT,
+      );
+    }),
   };
 }

@@ -31,6 +31,8 @@ export const AGENT_MODES = ['on', 'off'] as const;
 export const AGENT_WORKER_STATES = ['on', 'off'] as const;
 /** The two agent variants the evals compare (01 §Stack, Models). */
 export const AGENT_VARIANTS = ['A', 'B'] as const;
+/** One of `AGENT_VARIANTS`. */
+export type AgentVariant = (typeof AGENT_VARIANTS)[number];
 
 const PREFIX = /^\d+$/;
 // The widest subnet a proxy list may name: a whole private range, or /0, would
@@ -105,7 +107,7 @@ const ApiConfigSchema = z.object({
     .positive()
     .max(MAX_AGENT_POLL_MS)
     .default(DEFAULT_AGENT_POLL_MS),
-  AGENT_VARIANT: z.enum(AGENT_VARIANTS).default('A'),
+  AGENT_VARIANT: z.enum(AGENT_VARIANTS).default('B'),
   AGENT_MODEL_A: pricedModel(SONNET_MODEL),
   AGENT_MODEL_B: pricedModel(HAIKU_MODEL),
   REDACTOR_MODEL: pricedModel(HAIKU_MODEL),

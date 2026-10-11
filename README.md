@@ -78,10 +78,10 @@ docker compose down -v && AGENT_MODE=off docker compose up -d --build --wait
 
 ```sh
 pnpm eval                                     # stack up, ANTHROPIC_API_KEY exported
-pnpm eval --only CARD-UNREC-01 --variant A    # one case
+pnpm eval --only CARD-UNREC-01 --variant B    # one case
 ```
 
-`pnpm eval` needs the running stack and a key, and costs money: a full run (104 agent runs, judge, redactor recall) cost $4.81 ([EVALS.md](EVALS.md), run 3); `EVAL_SPEND_CAP_USD`, once reached, stops new attempts. `pnpm eval:rejudge <results file>` re-runs only the judge on a stored run (about $1.82 for run 3, estimated) and writes a new results file; `--dry-run` prints the judge calls and their estimated cost without calling the judge or needing a key. `--only <id>` runs one case: a variant-A attempt cost $0.0444 at p50 and $0.0764 at p95 before the judge; a high-stakes case runs three times, and without `--variant` both variants run. Method: [specs/03-evals.md](specs/03-evals.md).
+`pnpm eval` needs the running stack and a key, and costs money: a full run (104 agent runs, judge, redactor recall) cost $5.40 ([EVALS.md](EVALS.md), run 6); `EVAL_SPEND_CAP_USD`, once reached, stops new attempts. `pnpm eval:rejudge <results file>` re-runs only the judge on a stored run (about $1.82 for run 3, estimated) and writes a new results file; `--dry-run` prints the judge calls and their estimated cost without calling the judge or needing a key. `--only <id>` runs one case: an attempt of variant B, the default, cost $0.0029 at p50 and $0.0053 at p95 before the judge (variant A: $0.0466 and $0.0792), and the judge about $0.023 per judged attempt; a high-stakes case runs three times, and without `--variant` both variants run. Method: [specs/03-evals.md](specs/03-evals.md).
 
 ## Operations
 
@@ -94,7 +94,7 @@ Both print one JSON line per alert, never the flagged content, and exit `0` when
 ## Read next
 
 - [DESIGN.md](DESIGN.md): trade-offs, defense model, rollout.
-- [EVALS.md](EVALS.md): the measurements and why variant A runs.
+- [EVALS.md](EVALS.md): the measurements and why variant B runs.
 - [PLAYBOOK.md](PLAYBOOK.md): one page in Spanish for ops teams.
 - [AI_NOTES.md](AI_NOTES.md): the agent setup that built this.
 - [docs/compliance.md](docs/compliance.md): OWASP mappings, Mexican regulation, retention.

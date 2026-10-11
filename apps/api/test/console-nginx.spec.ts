@@ -3,23 +3,47 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const NGINX = readFileSync(
-  resolve(import.meta.dirname, '../../console/nginx.conf'),
-  'utf8',
-);
+const consoleFile = (name: string): string =>
+  readFileSync(resolve(import.meta.dirname, '../../console', name), 'utf8');
+const NGINX = consoleFile('nginx.conf');
+const SECURITY_HEADERS = consoleFile('security-headers.conf');
+const SECURITY_INCLUDE = 'include /etc/nginx/snippets/security-headers.conf;';
+const LOCATION_BLOCK = /location [^{]+\{[^}]*\}/g;
+const locationNamed = (path: string): string =>
+  (NGINX.match(LOCATION_BLOCK) ?? []).find((block) =>
+    block.startsWith(`location ${path} {`),
+  ) ?? '';
 
 describe('console nginx (02 G3, G7)', () => {
-  it("sends the 02 G7 CSP on every answer: default-src 'self'; img-src 'self'", () => {
-    expect(NGINX).toContain(
+  it('sends the 02 G7 CSP and the security headers from the server level', () => {
+    for (const header of [
       `add_header Content-Security-Policy "default-src 'self'; img-src 'self'" always;`,
-    );
+      'add_header X-Content-Type-Options "nosniff" always;',
+      'add_header X-Frame-Options "DENY" always;',
+      'add_header Referrer-Policy "no-referrer" always;',
+    ]) {
+      expect(SECURITY_HEADERS).toContain(header);
+    }
+    expect(NGINX.replace(LOCATION_BLOCK, '')).toContain(SECURITY_INCLUDE);
   });
 
-  it('sets every header at server level, so no location drops the CSP', () => {
-    const locations = NGINX.match(/location [^{]+\{[^}]*\}/g) ?? [];
+  it('re-includes every header in a location that adds its own, so none drops the CSP', () => {
+    const locations = NGINX.match(LOCATION_BLOCK) ?? [];
     expect(locations.length).toBeGreaterThan(0);
-    expect(locations.filter((block) => block.includes('add_header'))).toEqual(
-      [],
+    expect(
+      locations.filter(
+        (block) =>
+          block.includes('add_header') && !block.includes(SECURITY_INCLUDE),
+      ),
+    ).toEqual([]);
+  });
+
+  it('revalidates index.html on every load and keeps the hashed assets for good', () => {
+    expect(locationNamed('/')).toContain(
+      'add_header Cache-Control "no-cache" always;',
+    );
+    expect(locationNamed('/assets/')).toContain(
+      'add_header Cache-Control "public, max-age=31536000, immutable";',
     );
   });
 

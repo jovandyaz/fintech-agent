@@ -11,5 +11,6 @@ RUN pnpm --filter @fintech-agent/console build
 
 FROM nginxinc/nginx-unprivileged:1.30-alpine
 COPY apps/console/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/console/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /repo/apps/console/dist /usr/share/nginx/html
 EXPOSE 8080
