@@ -64,6 +64,16 @@ describe('fillPlaceholders', () => {
     expect(replyViolations(reply)).toEqual([]);
   });
 
+  it('absorbs one period written after a commitment, which already ends in one', () => {
+    const reply = filled(
+      'Hola {{nombre}}.\n\n{{compromiso_dictamen}}.\n\n{{compromiso_abono}}.',
+      '2026-10-07T15:00:00Z',
+    );
+    expect(reply).not.toContain('..');
+    expect(reply).toContain('la CONDUSEF.\n\nTe abonaremos');
+    expect(reply.endsWith('resolvemos tu aclaración.')).toBe(true);
+  });
+
   // The first full eval run: long Spanish dates left their days as loose
   // digits that, with the amount, crossed the masker's message budget.
   it('fills a draft that names an amount, a date and a time without tripping PII_IN_REPLY', () => {

@@ -7,6 +7,11 @@ export const COMMITMENT_PLACEHOLDERS = [
 ] as const;
 type CommitmentPlaceholder = (typeof COMMITMENT_PLACEHOLDERS)[number];
 
+export const COMMITMENT_TOKEN_SOURCE = `\\{\\{(?:${COMMITMENT_PLACEHOLDERS.join('|')})\\}\\}`;
+// Models write a period after a commitment by habit; its wording already ends
+// in one, so the filler drops the second rather than rendering "CONDUSEF..".
+const COMMITMENT_PERIOD = new RegExp(`(${COMMITMENT_TOKEN_SOURCE})\\.`, 'gu');
+
 /** The placeholders a draft may carry (02 G5); the harness fills them after validation. */
 export const PLACEHOLDERS = [
   'nombre',
@@ -106,5 +111,5 @@ export function fillPlaceholders(text: string, context: FillContext): string {
         throw new Error(`unknown placeholder {{${name}}}`);
       return values(name);
     });
-  return fill(text);
+  return fill(text.replace(COMMITMENT_PERIOD, '$1'));
 }

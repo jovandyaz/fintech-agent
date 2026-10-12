@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 
-import { APPROVED_FACTOR_WARNINGS } from '@fintech-agent/contracts';
+import {
+  APPROVED_FACTOR_WARNINGS,
+  MAX_QUOTE_CHARS,
+} from '@fintech-agent/contracts';
 
 import { TWO_FACTORS } from './validate/predicates.js';
 
@@ -29,7 +32,7 @@ Investigating:
 - search_policies: bank policies, queried in their own words; its description lists them.
 
 The resolution:
-- citations: chunk_id, doc_id, section and a quote of ≤ 200 characters copied exactly from a returned chunk: a sentence or part of one, never the whole chunk. With no policy support, set abstained and cite nothing.
+- citations: chunk_id, doc_id, section and a quote of ≤ ${MAX_QUOTE_CHARS} characters copied exactly from a returned chunk: a sentence or part of one, never the whole chunk. With no policy support, set abstained and cite nothing.
 - evidence: the transactions you checked, by id and kind.
 - proposed_action: open_dispute, resend_cep or escalate_fraud only when the tool data supports it, with the ids it concerns; otherwise none. Each id needs its get_spei_status or get_card_authorization output; a list row alone never supports an action. When account data contradicts a policy, propose none and say why.
 - reasoning_summary: two or three sentences on what you checked and why.

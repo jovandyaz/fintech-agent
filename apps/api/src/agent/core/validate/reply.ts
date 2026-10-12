@@ -10,6 +10,7 @@ import type { RunEvidence } from './evidence.js';
 import { groundingAtoms, ungroundedAtoms } from './numbers.js';
 import {
   COMMITMENT_PLACEHOLDERS,
+  COMMITMENT_TOKEN_SOURCE,
   isPlaceholder,
   placeholdersIn,
   type Placeholder,
@@ -21,16 +22,13 @@ import { TWO_FACTORS } from './predicates.js';
 const GLUED_PLACEHOLDER = /[\p{L}\p{N}]\{\{|\}\}[\p{L}\p{N}]|\}\}\{\{/u;
 
 // A commitment fills as a whole sentence that starts with a capital and ends
-// with a period, so only a line break, or a space between it and a sentence
-// boundary, keeps the filled text whole ("su dictamen Te daremos… CONDUSEF..").
+// with a period, so anywhere but between sentence boundaries it renders broken
+// text ("su dictamen Te daremos…").
 const COMMITMENT_LITERALS = COMMITMENT_PLACEHOLDERS.map(
   (name) => `{{${name}}}`,
 );
 const SENTENCE_OPENING_PLACEHOLDERS = [...COMMITMENT_LITERALS, '{{nombre}}'];
-const COMMITMENT_TOKEN = new RegExp(
-  `\\{\\{(?:${COMMITMENT_PLACEHOLDERS.join('|')})\\}\\}`,
-  'gu',
-);
+const COMMITMENT_TOKEN = new RegExp(COMMITMENT_TOKEN_SOURCE, 'gu');
 const SENTENCE_END = /[.!?…]/u;
 const SENTENCE_OPENER = /[\p{Lu}¿¡]/u;
 // Whitespace other than '\n', which may touch a commitment on its own.
@@ -47,12 +45,14 @@ function startsSentenceAt(draft: string, index: number): boolean {
   );
 }
 
+// One period may follow a commitment: fillPlaceholders drops it.
 function endsSentenceAt(draft: string, end: number): boolean {
-  let next = end;
+  const close = draft[end] === '.' ? end + 1 : end;
+  let next = close;
   while (next < draft.length && INLINE_SPACE.test(draft[next]!)) next += 1;
   if (next === draft.length || draft[next] === '\n') return true;
   return (
-    next > end &&
+    next > close &&
     (SENTENCE_OPENER.test(draft[next]!) ||
       SENTENCE_OPENING_PLACEHOLDERS.some((literal) =>
         draft.startsWith(literal, next),

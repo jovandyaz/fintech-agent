@@ -973,7 +973,9 @@ describe('date placeholders and their commitments', () => {
       'Nuestro equipo te dará su dictamen {{compromiso_dictamen}}.',
       'El abono se haría {{compromiso_abono}}, salvo que se demuestren dos factores.',
       'El abono llegaría en este plazo: {{compromiso_abono}}',
-      'Folio {{folio}}. {{compromiso_dictamen}}.',
+      'Folio {{folio}}. {{compromiso_dictamen}}..',
+      'Folio {{folio}}. {{compromiso_dictamen}}.Y revisaremos el cargo.',
+      'Folio {{folio}}. {{compromiso_dictamen}}, y revisaremos el cargo.',
       'Folio {{folio}}. {{compromiso_dictamen}} y revisaremos el cargo.',
       'Folio {{folio}}.{{compromiso_dictamen}}',
       'Folio {{folio}}. {{compromiso_abono}}¿Dudas?',
@@ -997,6 +999,9 @@ describe('date placeholders and their commitments', () => {
       '¡Gracias! {{compromiso_abono}} ¡Seguimos en contacto!',
       'Revisaremos tu caso… {{compromiso_dictamen}} Éste es tu folio: {{folio}}.',
       '{{compromiso_dictamen}} {{nombre}}, gracias por escribirnos.',
+      'Folio {{folio}}. {{compromiso_dictamen}}.',
+      'Folio {{folio}}.\n\n{{compromiso_dictamen}}.\n\n{{compromiso_abono}}.\n\nGracias.',
+      'Folio {{folio}}. {{compromiso_abono}}. {{compromiso_dictamen}}. Gracias.',
     ]) {
       expect(codesOf(replying(draft)), draft).toEqual([]);
     }
@@ -1007,8 +1012,8 @@ describe('validate, then fill', () => {
   const DRAFT =
     'Hola {{nombre}}, tu folio es {{folio}}. {{compromiso_dictamen}} {{compromiso_abono}}';
   const FOLIO = 'AC-K7Q3-M9X2';
-  const filledFor = (receivedAt: Date): string => {
-    const outcome = validate(replying(DRAFT), {
+  const filledFor = (receivedAt: Date, draft = DRAFT): string => {
+    const outcome = validate(replying(draft), {
       evidence: buildEvidence(runOf(CARD_DISPUTE_RUN, { receivedAt })),
       stateRules: [],
     });
@@ -1024,6 +1029,17 @@ describe('validate, then fill', () => {
     const filled = filledFor(RECEIVED_AT);
     expect(filled).toBe(
       'Hola Ana, tu folio es AC-K7Q3-M9X2. Te daremos una respuesta por escrito a más tardar el 21/11/2026. Si no estás de acuerdo con ella, puedes acudir a la CONDUSEF. Te abonaremos el importe del cargo a más tardar el 09/10/2026, mientras resolvemos tu aclaración.',
+    );
+    expect(replyViolations(filled)).toEqual([]);
+  });
+
+  it('accepts a period after each commitment and fills it once', () => {
+    const filled = filledFor(
+      RECEIVED_AT,
+      'Hola {{nombre}}, tu folio es {{folio}}.\n\n{{compromiso_dictamen}}.\n\n{{compromiso_abono}}.',
+    );
+    expect(filled).toBe(
+      'Hola Ana, tu folio es AC-K7Q3-M9X2.\n\nTe daremos una respuesta por escrito a más tardar el 21/11/2026. Si no estás de acuerdo con ella, puedes acudir a la CONDUSEF.\n\nTe abonaremos el importe del cargo a más tardar el 09/10/2026, mientras resolvemos tu aclaración.',
     );
     expect(replyViolations(filled)).toEqual([]);
   });

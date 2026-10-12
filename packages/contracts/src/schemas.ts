@@ -97,7 +97,7 @@ export const APPROVED_FACTOR_WARNINGS = [
 export const ActionIdSchema = z.string().regex(registryIdPattern('act'));
 export const CaseIdSchema = z.string().regex(registryIdPattern('case'));
 
-const MAX_QUOTE_CHARS = 200;
+export const MAX_QUOTE_CHARS = 200;
 
 /** `quote` is verbatim from the chunk; the validator checks it (CITATION_QUOTE_MISMATCH). */
 export const CitationSchema = z.strictObject({

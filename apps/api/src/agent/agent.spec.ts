@@ -246,7 +246,7 @@ describe('runAgent (01 §The agentic node)', () => {
     expect(lastUserText(model)).toContain('SCHEMA');
   });
 
-  it('names the placeholder rules when SCHEMA is among the repair codes, and only then', async () => {
+  it('names every SCHEMA cause when SCHEMA is among the repair codes, and only then', async () => {
     const schema = inOrder(
       ...investigation,
       () => objectResponse(withAction({ type: 'refund' })),
@@ -256,6 +256,7 @@ describe('runAgent (01 §The agentic node)', () => {
     expect(lastUserText(schema)).toContain(
       'each {{compromiso_*}} is a whole sentence of its own, period included',
     );
+    expect(lastUserText(schema)).toContain('a quote is at most 200 characters');
     const [citation] = resolutionOf().citations;
     const unseen = inOrder(
       ...investigation,
