@@ -1,6 +1,14 @@
 import type { AddressInfo } from 'node:net';
 
-import type { CardTx, Customer, SpeiTx } from '@fintech-agent/contracts';
+import {
+  DEFAULT_LIST_LIMIT,
+  MAX_LIST_LIMIT,
+  CorePageSchema,
+  type CardTx,
+  type Customer,
+  type SpeiTx,
+  type Transaction,
+} from '@fintech-agent/contracts';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createCoreMock, type CoreMock } from './server.js';
@@ -9,6 +17,10 @@ const READ_KEY = 'test-read-key';
 const EXECUTOR_KEY = 'test-executor-key';
 const OWNER = 'cus_01';
 const OTHER = 'cus_02';
+const HISTORY_ROWS = 200;
+const HISTORY_START_MS = Date.UTC(2026, 6, 1);
+const MS_PER_HOUR = 3_600_000;
+const MAX_PAGES = Math.ceil(HISTORY_ROWS / MAX_LIST_LIMIT);
 
 const customer = (id: string): Customer => ({
   id,
@@ -95,10 +107,13 @@ const dispute = {
   reason_code: 'unrecognized_charge',
 };
 
-beforeEach(async () => {
+async function start(
+  customers: Customer[],
+  transactions: Transaction[],
+): Promise<void> {
   core = createCoreMock({
-    customers: [customer(OWNER), customer(OTHER)],
-    transactions: [speiOut, cardCharge, foreignCharge],
+    customers,
+    transactions,
     readKey: READ_KEY,
     executorKey: EXECUTOR_KEY,
     databasePath: ':memory:',
@@ -108,12 +123,21 @@ beforeEach(async () => {
   );
   const { port } = core.server.address() as AddressInfo;
   base = `http://127.0.0.1:${port}`;
-});
+}
 
-afterEach(async () => {
+async function stop(): Promise<void> {
   await new Promise<void>((resolve) => core.server.close(() => resolve()));
   core.close();
-});
+}
+
+beforeEach(() =>
+  start(
+    [customer(OWNER), customer(OTHER)],
+    [speiOut, cardCharge, foreignCharge],
+  ),
+);
+
+afterEach(stop);
 
 describe('core-mock reads', () => {
   it('answers health without a key', async () => {
@@ -184,6 +208,40 @@ describe('core-mock reads', () => {
       total: 2,
       next_cursor: null,
     });
+  });
+
+  it(`walks a ${HISTORY_ROWS}-movement history in capped pages, newest first, each row once`, async () => {
+    const history = Array.from({ length: HISTORY_ROWS }, (_, i) => ({
+      ...cardCharge,
+      id: `tx_h${String(i).padStart(3, '0')}`,
+      created_at: new Date(HISTORY_START_MS + i * MS_PER_HOUR).toISOString(),
+    }));
+    await stop();
+    await start([customer(OWNER)], history);
+
+    const first = CorePageSchema.parse(
+      await (await read(`/customers/${OWNER}/transactions`)).json(),
+    );
+    expect(first.items).toHaveLength(DEFAULT_LIST_LIMIT);
+    expect(first.total).toBe(HISTORY_ROWS);
+    expect(first.next_cursor).toBe(String(DEFAULT_LIST_LIMIT));
+
+    const seen: string[] = [];
+    let cursor: string | null = '0';
+    for (let page = 0; page < MAX_PAGES && cursor !== null; page++) {
+      const body = CorePageSchema.parse(
+        await (
+          await read(
+            `/customers/${OWNER}/transactions?limit=${MAX_LIST_LIMIT}&cursor=${cursor}`,
+          )
+        ).json(),
+      );
+      expect(body.items.length).toBeLessThanOrEqual(MAX_LIST_LIMIT);
+      seen.push(...body.items.map((item) => item.id));
+      cursor = body.next_cursor;
+    }
+    expect(cursor).toBeNull();
+    expect(seen).toEqual(history.map((t) => t.id).reverse());
   });
 
   it('caps the page size at 25', async () => {

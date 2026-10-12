@@ -23,6 +23,8 @@ const ALL_LOG_LEVELS: LogLevel[] = [
   'fatal',
 ];
 const STACK = 'Error: boom\n    at run (job.ts:1:1)';
+const OWN_STACK =
+  'Error: connect ECONNREFUSED\n    at connect (/app/src/db.ts:1:1)';
 const PAN = '4111111111111111';
 const PHONE = '+52 55 1234 5678';
 const JWT =
@@ -159,6 +161,7 @@ describe('JsonConsoleLogger behind Nest Logger', () => {
       code: 'ECONNREFUSED',
       port: 5432,
       address: { host: '127.0.0.1' },
+      stack: OWN_STACK,
     });
 
     new Logger('Database').warn('Database connection error', failure);
@@ -176,9 +179,7 @@ describe('JsonConsoleLogger behind Nest Logger', () => {
       context: 'Database',
       timestamp: expect.any(String) as unknown,
     });
-    const [head, ownFrame] = String(stack).split('\n');
-    expect(head).toBe('Error: connect ECONNREFUSED');
-    expect(ownFrame).toContain('json-console-logger.spec.ts:');
+    expect(stack).toBe(OWN_STACK);
   });
 
   it('takes the message from an error logged on its own', () => {
