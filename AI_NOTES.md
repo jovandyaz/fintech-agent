@@ -4,7 +4,7 @@ Five answers to the brief. Plan deviations are `Ruling:` lines in `docs/handoff/
 
 ## Tools and setup, and why
 
-- **Claude Code:** Opus orchestrates subagents by role from the roster in [`docs/agent-setup/`](docs/agent-setup/README.md), plus the repo's [`invariant-reviewer`](.claude/agents/invariant-reviewer.md), which checks a diff against G1–G8 only.
+- **Claude Code:** I run Opus as the orchestrator, dispatching subagents by role from the roster in [`docs/agent-setup/`](docs/agent-setup/README.md), plus the repo's [`invariant-reviewer`](.claude/agents/invariant-reviewer.md), which checks a diff against G1–G8 only.
 - **Skills:** my `workflows` plugin (0.4.0) over Superpowers, one per phase ([§Skills by phase](docs/agent-setup/README.md#skills-by-phase)), declared in `.claude/settings.json`.
 - **MCP** (`.mcp.json`): Context7, Playwright, read-only Postgres.
 - **Repo:** `AGENTS.md`, `CLAUDE.md`, `.claude/rules/`, three hooks (AGENTS.md §Hooks), skills `add-eval-case` and `add-policy-doc`; my user-level comment and magic-value hooks (`docs/agent-setup/hooks/`).
@@ -13,7 +13,7 @@ Why: an agent reviewing its own work finds only what it already thought of. Ever
 
 ## Speed-ups
 
-1. **Parallel research.** Subagents read the specs and returned only deltas with a primary source: three took about 25 minutes of wall time for an afternoon of reading; seven more, about ten minutes each.
+1. **Parallel research.** I had subagents read the specs and return only deltas with a primary source: three took about 25 minutes of wall time for an afternoon of reading; seven more, about ten minutes each.
 2. **Knowtis ports.** Two audits chose port, trim or rewrite per file; twelve `port` commits came with their tests (stop-verify hook, MCP tool annotations, Drizzle module and migrate CLI, JSON logger, link scanner, unique-violation check, token cost, scripted model fixtures, injection guard, HTTP exception filter, eval runtime, judgment export and agreement), ≈ 35 min saved per [00 §Time budget](specs/00-scope.md#time-budget).
 3. **Stored runs, not paid re-runs.** Run records keep every attempt: `pnpm eval:report` re-graded run 3 after a checker fix at no cost; replaying 150 stored drafts measured the date-format fix (`PII_IN_REPLY` failures 37 → 3), and replaying run 3's drafts through the widened number reader showed 15 of 18 `UNGROUNDED_NUMBER` runs passing on the first attempt once the reader was widened, before any paid run confirmed it.
 
@@ -29,7 +29,7 @@ After (commit `db3cb5c`, `AGENTS.md` and `CLAUDE.md`):
 >
 > … dispatch `invariant-reviewer` with read-only instructions (no test runs).
 
-What went wrong: "on the step's commit range" reads as after the commits, against the line above it ("before committing it"). In Step 4c the invariant reviewer ran after eight executor commits and blocked a real hole (next section); the fixes became follow-up commits. In Step 4d two dispatches stalled at the 600 s watchdog; the third, read-only with my test results, finished. It slipped once more in Step 5, then held.
+What went wrong: "on the step's commit range" reads as after the commits, against the line above it ("before committing it"). In Step 4c the invariant reviewer ran after eight executor commits and blocked a real hole (next section); the fixes became follow-up commits. In Step 4d two dispatches stalled at the 600 s watchdog; the third, read-only and handed the orchestrator's test results, finished. It slipped once more in Step 5, then held.
 
 ## One agent error caught
 
@@ -37,8 +37,8 @@ In Step 4c the write contract typed `reason_code` as a free string, which the ex
 
 ## What was not delegated blind
 
-`CLAUDE.md`: "judgment-heavy work (gate, executor, validator) is never delegated blind". Steps 4–7 ran inline: I wrote the gate, executor, validator, agent loop, Persist, worker and the console's decision panel; subagents reviewed them. In Steps 8 and 9, implementers work from written briefs in fresh contexts and never commit; I commit after the full sequence. Rulings on G paths are mine, each in the ledger with its cost if wrong.
+My rule in `CLAUDE.md`: "judgment-heavy work (gate, executor, validator) is never delegated blind". Steps 4–7 ran in my main session, not in delegated subagents: the gate, executor, validator, agent loop, Persist, worker and the console's decision panel were written there, where I could steer each diff, and subagents only reviewed them. In Steps 8 and 9, implementers worked from written briefs in fresh contexts and never committed; commits came only after the full sequence. Every ruling on a G path is a `Ruling:` line in the ledger with its cost if wrong, so each one can be audited.
 
-The user decided every paid run and its cap (USD 15 for the first eval run; another agent's relayed authorization was treated as information, and I asked the user), labels the calibration rows blind (until then the judge is informational), made the design calls (the post-research scope, closing residual risks instead of accepting them, `dd/mm/aaaa` over loosening G6, the Haiku redactor, Step 8's design), and ran the history rewrite the permission classifier refused me.
+I decided every paid run and its cap (USD 15 for the first eval run; when another agent relayed an authorization, Claude treated it as information and asked me). I labeled the calibration rows blind to the judge's verdicts, with Claude's per-row suggestions showing ([EVALS.md §Honest limits](EVALS.md#honest-limits)), so the judge stays informational until ops reviewers label fresh rows. I made the design calls: the post-research scope, closing residual risks instead of accepting them, `dd/mm/aaaa` over loosening G6, the Haiku redactor and Step 8's design. I ran the history rewrite myself, since the permission classifier would not let Claude do it.
 
 The dated log behind these answers: [docs/handoff/build-log/ai-notes-log.md](docs/handoff/build-log/ai-notes-log.md).
