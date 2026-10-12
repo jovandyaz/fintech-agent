@@ -182,6 +182,17 @@ describe('scanStoredText: the trace half of the PII sink scan (01 §Observabilit
     );
   });
 
+  it('scans a case on the dataset clock by when its event row arrived (01 Case clock)', async () => {
+    const keys = await plantCaseRun(OLD, [['cases', 'text_masked']]);
+    await owner`
+      insert into webhook_events (event_id, payload_hash, case_id, received_at)
+      values (${`evt-${keys.cases}`}, 'hash', ${keys.cases}, ${RECENT})`;
+
+    expect(await scanStoredText(db, SINCE)).toEqual(
+      alertsFor(keys, [['cases', 'text_masked']]),
+    );
+  });
+
   it('ignores rows written before since', async () => {
     await plantCaseRun(OLD, SCANNED);
 

@@ -14,6 +14,7 @@ import { eq } from 'drizzle-orm';
 import { isUniqueViolation } from '../common/errors/unique-violation.js';
 import type { Database, DbTransaction } from '../database/index.js';
 import { auditLog, cases, webhookEvents } from '../database/schema.js';
+import type { CaseClock } from './case-clock.js';
 
 const TICKET_UNIQUE = 'cases_ticket_id_unique';
 const ACKNOWLEDGED = 'case.acknowledged';
@@ -61,13 +62,14 @@ export function intakeEvent(db: Database, input: IntakeInput): Promise<Intake> {
   return db.transaction((tx) => recordIntake(tx, input));
 }
 
-/** One event to record, with who opened its case. */
+/** One event to record, with who opened its case and the clock its case is received on. */
 export interface IntakeInput {
   event: WebhookEvent;
   payloadHash: string;
   source: CaseSource;
   opener: Opener;
   now: Date;
+  clock: CaseClock;
 }
 
 /**
@@ -78,7 +80,7 @@ export async function recordIntake(
   tx: DbTransaction,
   input: IntakeInput,
 ): Promise<Intake> {
-  const { event, payloadHash, source, opener, now } = input;
+  const { event, payloadHash, source, opener, now, clock } = input;
   const caseId = newRegistryId('case');
   const recorded = await tx
     .insert(webhookEvents)
@@ -110,12 +112,13 @@ export async function recordIntake(
     };
   }
   const folio = newFolio();
+  const receivedAt = await clock(tx, now);
   try {
     await tx.insert(cases).values({
       id: caseId,
       ticketId: event.ticket_id,
       folio,
-      receivedAt: now,
+      receivedAt,
       source,
       customerId: event.customer_id,
       textMasked: maskPii(event.text),

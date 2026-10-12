@@ -9,6 +9,7 @@ import postgres from 'postgres';
 import { reasonOf } from '../common/errors/reason-of.js';
 import { JsonConsoleLogger } from '../common/logging/json-console-logger.js';
 import * as schema from '../database/schema.js';
+import { RECORDED_CLOCK } from '../webhooks/case-clock.js';
 import { injectCanaries } from './inject.js';
 import { injectConfigOf } from './inject-config.js';
 
@@ -28,6 +29,7 @@ try {
   });
   const caseIds = await injectCanaries(drizzle({ client: sql, schema }), {
     now: () => new Date(),
+    caseClock: RECORDED_CLOCK,
     random: () => Math.random(),
     sleep: (ms) => sleep(ms),
     spreadMs: config.spreadMs,

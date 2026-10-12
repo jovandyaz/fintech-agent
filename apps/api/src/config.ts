@@ -29,6 +29,12 @@ export const CASE_TOKEN_MARGIN_MS = 60_000;
 export const AGENT_MODES = ['on', 'off'] as const;
 /** Whether `api` runs the queue worker; `off` leaves it HTTP-only. */
 export const AGENT_WORKER_STATES = ['on', 'off'] as const;
+/** Which clock stamps a live case's `received_at` (01 §Webhook and queue, Case clock). */
+export const CASE_CLOCKS = ['wall', 'dataset'] as const;
+/** One of `CASE_CLOCKS`. */
+export type CaseClockMode = (typeof CASE_CLOCKS)[number];
+/** The synthetic data's today, two hours after its last movement (data/scenarios.ts). */
+const DEFAULT_CASE_CLOCK_START = '2026-10-05T15:00:00-06:00';
 /** The two agent variants the evals compare (01 §Stack, Models). */
 export const AGENT_VARIANTS = ['A', 'B'] as const;
 /** One of `AGENT_VARIANTS`. */
@@ -92,6 +98,17 @@ const isTrustedEntry = (entry: string): boolean => {
 const pricedModel = (fallback: (typeof PRICED_MODELS)[number]) =>
   z.enum(PRICED_MODELS).default(fallback);
 
+/** The clock a live case is received on, shared by api and the canary injector. */
+export const CaseClockEnvSchema = z.object({
+  CASE_CLOCK: z.enum(CASE_CLOCKS).default('wall'),
+  CASE_CLOCK_START: z.iso
+    .datetime({ offset: true })
+    .default(DEFAULT_CASE_CLOCK_START)
+    .transform((start) => new Date(start)),
+});
+/** Parsed `CaseClockEnvSchema`. */
+export type CaseClockEnv = z.infer<typeof CaseClockEnvSchema>;
+
 const ApiConfigSchema = z.object({
   API_DATABASE_URL: z.url(),
   API_PORT: z.coerce.number().int().positive().default(DEFAULT_API_PORT),
@@ -101,6 +118,7 @@ const ApiConfigSchema = z.object({
   ANTHROPIC_API_KEY: z.string().trim().default(''),
   AGENT_MODE: z.enum(AGENT_MODES).default('on'),
   AGENT_WORKER: z.enum(AGENT_WORKER_STATES).default('on'),
+  ...CaseClockEnvSchema.shape,
   AGENT_POLL_MS: z.coerce
     .number()
     .int()

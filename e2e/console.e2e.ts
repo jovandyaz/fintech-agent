@@ -160,7 +160,8 @@ test('an injected canary looks like any case, and approving it ends canary_misse
   run('pnpm', ['canary:inject'], NO_CANARY_SPREAD);
   const [canary] = await sql<{ folio: string }[]>`
     select c.folio from canary_cases k join cases c on c.id = k.case_id
-    order by c.received_at desc limit 1`;
+    join webhook_events e on e.case_id = c.id
+    order by e.received_at desc limit 1`;
   if (!canary) throw new Error('canary:inject wrote no case');
 
   await signIn(page);

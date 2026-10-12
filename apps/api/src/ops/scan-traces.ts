@@ -1,5 +1,5 @@
 import type { TraceAlert } from '@fintech-agent/contracts';
-import { eq, getTableName, gte } from 'drizzle-orm';
+import { eq, getTableName, gte, sql } from 'drizzle-orm';
 
 import type { Database } from '../database/index.js';
 import {
@@ -10,6 +10,7 @@ import {
   resolutions,
   runSteps,
   securityEvents,
+  webhookEvents,
 } from '../database/schema.js';
 import { isClean } from './is-clean.js';
 
@@ -27,8 +28,10 @@ function alertsOf(table: string, rows: readonly StoredRow[]): TraceAlert[] {
  * The trace half of the PII sink scan (01 §Observability, 02 G6): every value
  * in a masked or stored-text column, written since `since`, that `maskPii` or
  * `maskJson` would still mask. Steps and resolutions date from their run's
- * start. Eval cases and canaries are scanned too, since a leak is a breach
- * whatever the case. Alerts come in table order, oldest row first.
+ * start, a case text from its event row's host time (its `received_at` may
+ * be on the dataset clock, 01 §Webhook and queue). Eval cases and canaries
+ * are scanned too, since a leak is a breach whatever the case. Alerts come
+ * in table order, oldest row first.
  */
 export async function scanStoredText(
   db: Database,
@@ -51,6 +54,7 @@ export async function scanStoredText(
     .from(auditLog)
     .where(gte(auditLog.at, since))
     .orderBy(auditLog.at, auditLog.id);
+  const arrivedAt = sql<Date>`coalesce(${webhookEvents.receivedAt}, ${cases.receivedAt})`;
   const caseTexts = await db
     .select({
       key: cases.id,
@@ -58,8 +62,9 @@ export async function scanStoredText(
       text_redacted: cases.textRedacted,
     })
     .from(cases)
-    .where(gte(cases.receivedAt, since))
-    .orderBy(cases.receivedAt, cases.id);
+    .leftJoin(webhookEvents, eq(webhookEvents.caseId, cases.id))
+    .where(gte(arrivedAt, since.toISOString()))
+    .orderBy(arrivedAt, cases.id);
   const replies = await db
     .select({
       key: resolutions.runId,

@@ -14,6 +14,7 @@ const TABLES = [
   'agent_runs',
   'audit_log',
   'canary_cases',
+  'case_clock',
   'cases',
   'policy_chunks',
   'proposed_actions',

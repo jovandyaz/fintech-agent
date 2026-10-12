@@ -106,6 +106,14 @@ const casesFor = (ticketId: string) =>
     }[]
   >`select id, status, source, text_masked, folio from cases where ticket_id = ${ticketId}`;
 
+describe('api boot (01 Case clock, 02 G3)', () => {
+  it('records the case clock it boots with, for the canary injector to share', async () => {
+    const [recorded] = await owner<{ mode: string }[]>`
+      select mode from case_clock`;
+    expect(recorded).toEqual({ mode: 'wall' });
+  });
+});
+
 describe('POST /webhooks/tickets (01 §Webhook and queue, 02 Required tests "Webhook")', () => {
   it('queues one case with a folio and acknowledges it at once with 202', async () => {
     const event = eventOf();

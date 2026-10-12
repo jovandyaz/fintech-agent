@@ -13,6 +13,7 @@ import {
 import type { RequestMeta } from '../common/http/request-meta.js';
 import type { Database } from '../database/index.js';
 import type { Operator } from '../operators/operator-tokens.js';
+import type { CaseClock } from './case-clock.js';
 import {
   intakeEvent,
   payloadHashOf,
@@ -31,11 +32,15 @@ export const WEBHOOK_SENDER: Opener = {
 /** The provider of what the webhook and the console form need. */
 export const WEBHOOK_DEPS = 'WEBHOOK_DEPS';
 
-/** What a delivery needs: the database, the secrets (the first one signs), a clock. */
+/**
+ * What a delivery needs: the database, the secrets (the first one signs), the
+ * host clock and the clock its case is received on.
+ */
 export interface WebhookDeps {
   db: Database;
   secrets: readonly [Buffer, ...Buffer[]];
   now: () => Date;
+  caseClock: CaseClock;
 }
 
 /** Why a delivery is refused before it reaches intake. */
@@ -100,6 +105,7 @@ export async function acceptDelivery(
     payloadHash: payloadHashOf(delivery.body),
     ...opened,
     now,
+    clock: deps.caseClock,
   });
 }
 

@@ -4,6 +4,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
+import { DATASET_NOW } from '../../../data/scenarios.js';
+
 interface ComposeService {
   environment?: Record<string, string> | string[];
   env_file?: unknown;
@@ -84,6 +86,19 @@ describe('compose process boundary (02 G1)', () => {
       'utf8',
     );
     expect(example).toMatch(/^AGENT_VARIANT=B$/m);
+  });
+
+  it("runs the local stack on the dataset clock, started at the data's today (01 Case clock)", () => {
+    expect(env('api')).toMatchObject({
+      CASE_CLOCK: '${CASE_CLOCK:-dataset}',
+      CASE_CLOCK_START: `${'${'}CASE_CLOCK_START:-${DATASET_NOW}}`,
+    });
+    const example = readFileSync(
+      resolve(import.meta.dirname, '../../../.env.example'),
+      'utf8',
+    );
+    expect(example).toMatch(/^CASE_CLOCK=dataset$/m);
+    expect(example).toContain(`\nCASE_CLOCK_START=${DATASET_NOW}\n`);
   });
 
   it('gives WEBHOOK_SECRET only to api, which verifies tickets and signs console cases', () => {

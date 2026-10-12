@@ -210,6 +210,28 @@ describe('console read API (04 Step 7, 02 G3)', () => {
     expect(withEval.map(({ case_id }) => case_id)).toContain('case_inboxeval');
   });
 
+  it('puts the newest arrival first even when the dataset clock received it earlier (01 Case clock)', async () => {
+    await insertCase(owner, 'case_inboxyesterday');
+    await insertCase(owner, 'case_inboxtoday');
+    await owner`
+      update cases set received_at = timestamptz '2026-10-05T16:30:00-06:00'
+      where id = 'case_inboxyesterday'`;
+    await owner`
+      update cases set received_at = timestamptz '2026-10-05T15:05:00-06:00'
+      where id = 'case_inboxtoday'`;
+    await owner`
+      insert into webhook_events (event_id, payload_hash, case_id, received_at)
+      values ('evt-inboxyesterday', 'h1', 'case_inboxyesterday', now() - interval '1 day'),
+        ('evt-inboxtoday', 'h2', 'case_inboxtoday', now())`;
+
+    const ids = InboxItemSchema.array()
+      .parse(await (await get('/cases')).json())
+      .map(({ case_id }) => case_id);
+    expect(ids.indexOf('case_inboxtoday')).toBeLessThan(
+      ids.indexOf('case_inboxyesterday'),
+    );
+  });
+
   it('refuses an unknown inbox parameter value with 400', async () => {
     expect((await get('/cases?include_eval=maybe')).status).toBe(
       HTTP.badRequest,

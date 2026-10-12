@@ -36,6 +36,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { CANARY_DEFECTS, type CanaryDefect } from '../canaries/templates.js';
+import { CASE_CLOCKS, type CaseClockMode } from '../config.js';
 
 /** The full-text configuration of migration 0000: Spanish stems over unaccented words. */
 export const SEARCH_CONFIG = sql.raw(`'es_unaccent'`);
@@ -276,4 +277,26 @@ export const policyChunks = pgTable(
     quarantined: boolean().notNull().default(false),
   },
   (t) => [index('policy_chunks_tsv').using('gin', t.tsv)],
+);
+
+/**
+ * The clock api receives live cases on, as it last booted (01 §Webhook and
+ * queue, Case clock): one row, so the canary injector stamps its cases on the
+ * same clock and never on its own environment's (02 G3).
+ */
+export const caseClock = pgTable(
+  'case_clock',
+  {
+    id: boolean().primaryKey().default(true),
+    mode: text().$type<CaseClockMode>().notNull(),
+    start: timestamptz('start').notNull(),
+    recordedAt: timestamptz('recorded_at').notNull().defaultNow(),
+  },
+  (t) => [
+    check('case_clock_one_row', sql`${t.id}`),
+    check(
+      'case_clock_mode_known',
+      sql`${t.mode} in (${sql.raw(CASE_CLOCKS.map((mode) => `'${mode}'`).join(', '))})`,
+    ),
+  ],
 );

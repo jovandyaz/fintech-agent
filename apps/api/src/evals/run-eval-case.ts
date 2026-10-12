@@ -262,7 +262,10 @@ export async function runEvalCase(
   deps: RunCaseDeps,
   input: { customerId: string; text: string; receivedAt: Date },
 ): Promise<EvalRun> {
-  const opened = await openEvalCase(deps.db, input);
+  const opened = await openEvalCase(deps.db, {
+    ...input,
+    now: new Date(deps.clock()),
+  });
   const claim = await claimCase(deps.db, opened.case_id, {
     now: new Date(deps.clock()),
     runTimeoutMs: deps.config.runTimeoutMs,

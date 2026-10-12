@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { DATASET_NOW } from '../../../data/scenarios.js';
 import { loadApiConfig } from './config.js';
 
 const ENV = {
@@ -79,6 +80,32 @@ describe('loadApiConfig', () => {
     expect(
       loadApiConfig({ ...ENV, ANTHROPIC_API_KEY: '  ' }).ANTHROPIC_API_KEY,
     ).toBe('');
+  });
+
+  it('runs on the host clock unless told to run on the dataset clock', () => {
+    expect(loadApiConfig(ENV)).toMatchObject({
+      CASE_CLOCK: 'wall',
+      CASE_CLOCK_START: new Date(DATASET_NOW),
+    });
+    expect(
+      loadApiConfig({
+        ...ENV,
+        CASE_CLOCK: 'dataset',
+        CASE_CLOCK_START: '2026-10-06T09:00:00-06:00',
+      }),
+    ).toMatchObject({
+      CASE_CLOCK: 'dataset',
+      CASE_CLOCK_START: new Date('2026-10-06T09:00:00-06:00'),
+    });
+  });
+
+  it('refuses an unknown case clock or a start without its offset', () => {
+    expect(() => loadApiConfig({ ...ENV, CASE_CLOCK: 'frozen' })).toThrow(
+      /CASE_CLOCK/,
+    );
+    expect(() =>
+      loadApiConfig({ ...ENV, CASE_CLOCK_START: '2026-10-05T15:00:00' }),
+    ).toThrow(/CASE_CLOCK_START/);
   });
 
   it('turns the agent off with AGENT_MODE=off', () => {

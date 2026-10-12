@@ -61,6 +61,8 @@ services:
       CASE_TOKEN_KEY: ${CASE_TOKEN_KEY:-dev-case-token-key-0123456789abcdef}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-whsec_ZGV2LXdlYmhvb2stc2VjcmV0LTAxMjM0NTY3ODlhYmNkZWY=}
       CANARY_SPREAD_MS: ${CANARY_SPREAD_MS:-300000}
+      CASE_CLOCK: ${CASE_CLOCK:-dataset}
+      CASE_CLOCK_START: ${CASE_CLOCK_START:-2026-10-05T15:00:00-06:00}
       # Only the console's nginx may tell api the operator's address (02 G3).
       TRUST_PROXY: ${CONSOLE_IP:-10.231.0.10}
     ports:

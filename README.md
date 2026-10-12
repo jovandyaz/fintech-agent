@@ -83,6 +83,8 @@ pnpm demo:post ADV-01 CARD-UNREC-01 CONFLICT-01   # any id in data/webhook-fixtu
 
 Under the kill switch, `ADV-01` still shows the injection flag.
 
+The data is synthetic and frozen on Monday 2026-10-05 at 15:00, so the stack runs on its clock (`CASE_CLOCK=dataset`): each day, the first case you open is received then, and later ones by the time elapsed since. "Ayer" in a new case means Sunday 2026-10-04, as the data has it. `CASE_CLOCK=wall` in `.env` uses the real time instead.
+
 `demo:post` and `canary:inject` read `.env.example` and your shell, never `.env`: if you changed `WEBHOOK_SECRET`, `API_PORT` or a database password there, export the matching value (`API_DATABASE_URL` for canaries) first. `pnpm start --demo` passes your `.env`'s `API_PORT` and `WEBHOOK_SECRET` itself.
 
 ## Canaries

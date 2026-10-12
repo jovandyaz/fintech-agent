@@ -3,6 +3,7 @@ import { Module, type DynamicModule } from '@nestjs/common';
 
 import type { ApiConfig } from '../config.js';
 import { DATABASE, type Database } from '../database/index.js';
+import { caseClockOf, recordCaseClock } from './case-clock.js';
 import { ConsoleCasesController } from './console-cases.controller.js';
 import { WEBHOOK_DEPS, type WebhookDeps } from './delivery.js';
 import { WebhooksController } from './webhooks.controller.js';
@@ -12,6 +13,7 @@ import { WebhooksController } from './webhooks.controller.js';
 export class WebhooksModule {
   static register(config: ApiConfig): DynamicModule {
     const secrets = parseWebhookSecrets(config.WEBHOOK_SECRET);
+    const caseClock = caseClockOf(config);
     return {
       module: WebhooksModule,
       controllers: [WebhooksController, ConsoleCasesController],
@@ -19,11 +21,10 @@ export class WebhooksModule {
         {
           provide: WEBHOOK_DEPS,
           inject: [DATABASE],
-          useFactory: (db: Database): WebhookDeps => ({
-            db,
-            secrets,
-            now: () => new Date(),
-          }),
+          useFactory: async (db: Database): Promise<WebhookDeps> => {
+            await recordCaseClock(db, config);
+            return { db, secrets, now: () => new Date(), caseClock };
+          },
         },
       ],
     };

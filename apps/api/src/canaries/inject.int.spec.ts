@@ -10,6 +10,7 @@ import {
 } from '../../test/database.js';
 import { claimNextCase } from '../agent/core/queue.js';
 import * as schema from '../database/schema.js';
+import { WALL_CLOCK, datasetClock } from '../webhooks/case-clock.js';
 import { injectCanaries, type InjectPacing } from './inject.js';
 import {
   CANARY_DEFECTS,
@@ -23,6 +24,8 @@ const RUN_TIMEOUT_MS = 180_000;
 const FIRST_DRAW = 0;
 const LAST_DRAW = 0.999;
 const TEMPLATE_DEFECTS = CANARY_TEMPLATES.map(({ defect }) => defect);
+const DATASET_START = new Date('2026-10-05T15:00:00-06:00');
+const MS_PER_HOUR = 3_600_000;
 
 let db: TestDatabase;
 let owner: postgres.Sql;
@@ -49,6 +52,7 @@ function pacing(spreadMs = 0): InjectPacing & { slept: number[] } {
     slept,
     spreadMs,
     now: () => new Date(),
+    caseClock: WALL_CLOCK,
     random: () => draws[draw++ % draws.length]!,
     sleep: (ms) => {
       slept.push(ms);
@@ -133,6 +137,24 @@ describe('canary:inject (02 G3)', () => {
       }
     },
   );
+
+  it("receives each case on the clock it is given, a sender's case's own (01 Case clock)", async () => {
+    const caseIds = await inject({
+      ...pacing(),
+      caseClock: datasetClock(DATASET_START),
+    });
+    const rows = await owner<{ received_at: Date }[]>`
+      select received_at from cases where id in ${owner(caseIds)}`;
+    expect(rows).toHaveLength(CANARY_TEMPLATES.length);
+    for (const { received_at } of rows) {
+      expect(received_at.getTime()).toBeGreaterThanOrEqual(
+        DATASET_START.getTime(),
+      );
+      expect(received_at.getTime()).toBeLessThan(
+        DATASET_START.getTime() + MS_PER_HOUR,
+      );
+    }
+  });
 
   it('spreads the cases over the window, in shuffled order', async () => {
     const paced = pacing(SPREAD_MS);

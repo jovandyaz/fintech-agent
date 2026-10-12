@@ -7,14 +7,19 @@ import {
 
 import type { Database } from '../database/index.js';
 import { canaryCases } from '../database/schema.js';
+import type { CaseClock } from '../webhooks/case-clock.js';
 import { WEBHOOK_SENDER } from '../webhooks/delivery.js';
 import { payloadHashOf, recordIntake } from '../webhooks/intake.js';
 import { drawOne } from './draw.js';
 import { CANARY_TEMPLATES, type CanaryTemplate } from './templates.js';
 
-/** When canaries arrive: the clock, the draws and the window they spread over. */
+/**
+ * When canaries arrive: the host clock, the clock a sender's case is received
+ * on (a canary carries the same, 02 G3), the draws and the window they spread over.
+ */
 export interface InjectPacing {
   now: () => Date;
+  caseClock: CaseClock;
   random: () => number;
   sleep: (ms: number) => Promise<void>;
   spreadMs: number;
@@ -32,9 +37,9 @@ function shuffled<T>(items: readonly T[], random: () => number): T[] {
 async function injectOne(
   db: Database,
   { defect, seed }: CanaryTemplate,
-  input: { text: string; now: Date },
+  input: { text: string; now: Date; caseClock: CaseClock },
 ): Promise<string> {
-  const { text, now } = input;
+  const { text, now, caseClock } = input;
   const event: WebhookEvent = {
     event_id: `${EVENT_ID_PREFIX}${newIdPayload()}`,
     ticket_id: `${TICKET_ID_PREFIX}${newIdPayload()}`,
@@ -49,6 +54,7 @@ async function injectOne(
       source: 'webhook',
       opener: WEBHOOK_SENDER,
       now,
+      clock: caseClock,
     });
     await tx.insert(canaryCases).values({ caseId: case_id, defect });
     return case_id;
@@ -82,6 +88,7 @@ export async function injectCanaries(
       await injectOne(db, template, {
         text: drawOne(template.seed.texts, pacing.random),
         now: pacing.now(),
+        caseClock: pacing.caseClock,
       }),
     );
   }

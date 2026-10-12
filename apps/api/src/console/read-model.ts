@@ -24,6 +24,7 @@ import {
   proposedActions,
   resolutions,
   runSteps,
+  webhookEvents,
 } from '../database/schema.js';
 
 /** What the console's reads need: the database and the core-mock read client. */
@@ -49,23 +50,28 @@ const summaryOf = (row: CaseRow): InboxItem => ({
   received_at: row.receivedAt.toISOString(),
 });
 
-/** The inbox (01): open work before decided cases, the `high` review tier first, then newest; eval cases only when asked. */
+/**
+ * The inbox (01): open work before decided cases, the `high` review tier
+ * first, then the newest arrival by host time (`received_at` may be on the
+ * dataset clock, 01 §Webhook and queue); eval cases only when asked.
+ */
 export async function inboxOf(
   db: Database,
   input: { includeEval: boolean },
 ): Promise<InboxItem[]> {
   const rows = await db
-    .select()
+    .select({ case: cases })
     .from(cases)
+    .leftJoin(webhookEvents, eq(webhookEvents.caseId, cases.id))
     .where(input.includeEval ? undefined : ne(cases.source, 'eval'))
     .orderBy(
       asc(eq(cases.status, RESOLVED)),
       desc(sql`coalesce(${eq(cases.reviewTier, 'high')}, false)`),
-      desc(cases.receivedAt),
+      desc(sql`coalesce(${webhookEvents.receivedAt}, ${cases.receivedAt})`),
       asc(cases.id),
     )
     .limit(INBOX_LIMIT);
-  return rows.map(summaryOf);
+  return rows.map((row) => summaryOf(row.case));
 }
 
 /**

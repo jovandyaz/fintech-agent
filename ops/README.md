@@ -21,6 +21,17 @@ A block reads "now" from the setting `alerts.now` when it is set, else `now()`, 
 select set_config('alerts.now', '2026-10-13T00:01:00-06:00', false);
 ```
 
+On a stack with `CASE_CLOCK=dataset` (the local default), `received_at` runs on the synthetic data's clock, so set `alerts.now` to that clock before the blocks that count from it (`open_dispute_overdue` and `cost_per_case_p95`), and back to `''` (host time) before the others, which compare host-time columns. With your `CASE_CLOCK_START` in place of the default below, this mirrors `datasetClock` in `apps/api/src/webhooks/case-clock.ts`:
+
+```sql
+select set_config('alerts.now', (timestamptz '2026-10-05T15:00:00-06:00' + (now() - coalesce(
+  least((select min(e.received_at) from webhook_events e join cases c on c.id = e.case_id
+   where c.source <> 'eval'
+     and (e.received_at at time zone 'America/Mexico_City')::date
+       = (now() at time zone 'America/Mexico_City')::date), now()),
+  now())))::text, false);
+```
+
 `metrics.sql` takes its window from `metrics.window` (an interval, default `7 days`) the same way.
 
 ## Cadence and owners
