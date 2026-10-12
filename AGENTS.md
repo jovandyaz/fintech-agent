@@ -13,7 +13,7 @@ An agent that investigates a customer case with read-only tools and policies, pr
 | `apps/core-mock`                  | Synthetic core banking API; the only write endpoints, for the executor                                | 01            |
 | `apps/console`                    | React ops console                                                                                     | 04 step 7     |
 | `packages/contracts`              | Zod schemas and `maskPii`                                                                             | 01, 02 G6     |
-| `data/`                           | Seeded dataset, scenarios, policy docs, webhook fixtures                                              | 03, 04        |
+| `data/`                           | Seeded dataset and its CUSTOMERS.md view, scenarios, policy docs, webhook fixtures                    | 03, 04        |
 | `evals/`                          | promptfoo runner, labeled cases, judge calibration                                                    | 03            |
 | `e2e/`                            | Playwright end-to-end tests of the console against the compose stack                                  | 04 step 7     |
 | `scripts/dev/`                    | `pnpm start`, `stop`, `reset`, `e2e:isolated`: preflight and the local compose stack in one command   | —             |
@@ -27,22 +27,22 @@ Folders appear as the build plan (`specs/04-build-plan.md`) reaches them.
 
 ## Commands
 
-| Command                                        | Runs                                                                              | Needs                              |
-| ---------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------- |
-| `pnpm start`                                   | preflight, `.env` from `.env.example`, the whole stack up and healthy, sign-in    | Docker; asks for a key on a TTY    |
-| `pnpm stop` / `pnpm reset`                     | stops the stack keeping its data / deletes containers and volumes (asks first)    | Docker                             |
-| `pnpm verify`                                  | typecheck, lint, unit and console tests, hook tests                               | nothing                            |
-| `pnpm test`                                    | unit, console and integration (Testcontainers Postgres) tests, hook tests         | Docker                             |
-| `docker compose up`                            | the whole stack                                                                   | `ANTHROPIC_API_KEY` for agent runs |
-| `pnpm eval`                                    | eval runner against the running stack                                             | stack + key                        |
-| `pnpm demo:post <ids…>`                        | signs and posts `data/webhook-fixtures` to the stack                              | stack                              |
-| `pnpm e2e`                                     | Playwright through the console: decide, demo, canary                              | fresh stack with `AGENT_MODE=off`  |
-| `pnpm e2e:isolated`                            | `pnpm e2e` on a throwaway compose project; stops and restarts the user's stack    | Docker                             |
-| `pnpm canary:inject`                           | adds one practice canary case per template to the inbox                           | stack                              |
-| `pnpm ops:scan-logs` / `pnpm ops:scan-traces`  | PII and security scans of log lines on stdin / of stored traces (`ops/README.md`) | logs piped in / stack              |
-| `pnpm eval:report`                             | re-grades the newest complete full run into EVALS.md, no model calls              | a run in `evals/results/`          |
-| `pnpm eval:rejudge <results file>`             | re-runs only the judge on the newest run; `--dry-run` prints calls and cost only  | key; the user approves the spend   |
-| `pnpm eval:carry-labels <old calibration dir>` | carries labels to a fresh `eval:judgments` export where only placeholders changed | the old export and its labels      |
+| Command                                        | Runs                                                                                         | Needs                              |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `pnpm start`                                   | preflight, `.env` from `.env.example`, the whole stack up and healthy, sample cases, sign-in | Docker; asks for a key on a TTY    |
+| `pnpm stop` / `pnpm reset`                     | stops the stack keeping its data / deletes containers and volumes (asks first)               | Docker                             |
+| `pnpm verify`                                  | typecheck, lint, unit and console tests, hook tests                                          | nothing                            |
+| `pnpm test`                                    | unit, console and integration (Testcontainers Postgres) tests, hook tests                    | Docker                             |
+| `docker compose up`                            | the whole stack                                                                              | `ANTHROPIC_API_KEY` for agent runs |
+| `pnpm eval`                                    | eval runner against the running stack                                                        | stack + key                        |
+| `pnpm demo:post <ids…>`                        | signs and posts `data/webhook-fixtures` to the stack                                         | stack                              |
+| `pnpm e2e`                                     | Playwright through the console: decide, demo, canary                                         | fresh stack with `AGENT_MODE=off`  |
+| `pnpm e2e:isolated`                            | `pnpm e2e` on a throwaway compose project; stops and restarts the user's stack               | Docker                             |
+| `pnpm canary:inject`                           | adds one practice canary case per template to the inbox                                      | stack                              |
+| `pnpm ops:scan-logs` / `pnpm ops:scan-traces`  | PII and security scans of log lines on stdin / of stored traces (`ops/README.md`)            | logs piped in / stack              |
+| `pnpm eval:report`                             | re-grades the newest complete full run into EVALS.md, no model calls                         | a run in `evals/results/`          |
+| `pnpm eval:rejudge <results file>`             | re-runs only the judge on the newest run; `--dry-run` prints calls and cost only             | key; the user approves the spend   |
+| `pnpm eval:carry-labels <old calibration dir>` | carries labels to a fresh `eval:judgments` export where only placeholders changed            | the old export and its labels      |
 
 ## Invariants (specs/02-security.md)
 

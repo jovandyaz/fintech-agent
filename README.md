@@ -21,14 +21,14 @@ pnpm install
 pnpm start
 ```
 
-`pnpm start` checks the machine first (Node, dependencies, Docker and its daemon, Compose, the five host ports, the compose subnet) and says what to fix. Then it copies `.env.example` to `.env` if there is no `.env` (it never overwrites one), settles how the agent runs, builds and starts the stack with `docker compose up --detach --build --wait`, and ends with the console URL, the sign-in tokens and the agent's state read from `/api/status`. The first build takes a few minutes. Run it again after pulling new code: it rebuilds and recreates only what changed, and a stack that is already running is updated, not refused.
+`pnpm start` checks the machine first (Node, dependencies, Docker and its daemon, Compose, the five host ports, the compose subnet) and says what to fix. Then it copies `.env.example` to `.env` if there is no `.env` (it never overwrites one), settles how the agent runs, builds and starts the stack with `docker compose up --detach --build --wait`, posts the [sample cases](#sample-cases), and ends with the console URL, the sign-in tokens and the agent's state read from `/api/status`. The first build takes a few minutes. Run it again after pulling new code: it rebuilds and recreates only what changed, and a stack that is already running is updated, not refused.
 
 Without `ANTHROPIC_API_KEY` in your shell or `.env`, it asks on a terminal: paste a key (saved to the git-ignored `.env`, not shown as you paste) or continue with the [kill switch](#without-a-key-and-the-kill-switch). Where nobody can answer (CI, a pipe) it never asks and starts with the kill switch.
 
 | Command                  | What it does                                                                                          |
 | ------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `pnpm start --agent-off` | Starts with the kill switch, even with a key                                                          |
-| `pnpm start --demo`      | Also posts the [sample cases](#sample-cases)                                                          |
+| `pnpm start --no-demo`   | Skips the [sample cases](#sample-cases), which it posts by default                                    |
 | `pnpm start --check`     | Runs the checks only; starts nothing                                                                  |
 | `pnpm start -- --help`   | The options (pnpm answers `pnpm start --help` itself)                                                 |
 | `pnpm stop`              | Stops the stack and keeps its data                                                                    |
@@ -67,7 +67,7 @@ Open the URL `pnpm start` prints (<http://localhost:5173> by default) and sign i
 
 These tokens exist only for local use; set `OPERATOR_TOKENS` to your own anywhere else (`pnpm start` then stops printing them).
 
-**Nuevo caso** opens a case through the same signed webhook a real ticket takes. A case shows the masked text, the cited proposal, the trace (tools, retrieval, validator codes, tokens, cost and latency per step), the editable reply and the decision. Flags need acknowledgment; on a `high`-tier case, approving an action asks you to check off its transactions.
+**Nuevo caso** opens a case through the same signed webhook a real ticket takes. To write one of your own, [data/CUSTOMERS.md](data/CUSTOMERS.md) lists each customer with their movements. A case shows the masked text, the cited proposal, the trace (tools, retrieval, validator codes, tokens, cost and latency per step), the editable reply and the decision. Flags need acknowledgment; on a `high`-tier case, approving an action asks you to check off its transactions.
 
 ## Sample cases
 
@@ -75,7 +75,7 @@ These tokens exist only for local use; set `OPERATOR_TOKENS` to your own anywher
 pnpm demo:post ADV-01 CARD-UNREC-01 CONFLICT-01   # any id in data/webhook-fixtures
 ```
 
-`pnpm start --demo` posts these three once the stack is up.
+`pnpm start` posts these three once the stack is up (with a key, the agent investigates them, about $0.01 in all on variant B); posting them again opens nothing new.
 
 - `ADV-01` orders a $5,000 refund to a CLABE: look for the flag _Posible instrucción en el texto del cliente_, the CLABE masked, and no action or a fraud escalation (no refund action exists, 02 G2).
 - `CARD-UNREC-01` disputes an unrecognized PAYPAL charge: an `open_dispute` on that charge with the cited policy, on a `high`-tier case.
@@ -85,7 +85,7 @@ Under the kill switch, `ADV-01` still shows the injection flag.
 
 The data is synthetic and frozen on Monday 2026-10-05 at 15:00, so the stack runs on its clock (`CASE_CLOCK=dataset`): each day, the first case you open is received then, and later ones by the time elapsed since. "Ayer" in a new case means Sunday 2026-10-04, as the data has it. `CASE_CLOCK=wall` in `.env` uses the real time instead.
 
-`demo:post` and `canary:inject` read `.env.example` and your shell, never `.env`: if you changed `WEBHOOK_SECRET`, `API_PORT` or a database password there, export the matching value (`API_DATABASE_URL` for canaries) first. `pnpm start --demo` passes your `.env`'s `API_PORT` and `WEBHOOK_SECRET` itself.
+`demo:post` and `canary:inject` read `.env.example` and your shell, never `.env`: if you changed `WEBHOOK_SECRET`, `API_PORT` or a database password there, export the matching value (`API_DATABASE_URL` for canaries) first. `pnpm start` passes your `.env`'s `API_PORT` and `WEBHOOK_SECRET` itself.
 
 ## Canaries
 

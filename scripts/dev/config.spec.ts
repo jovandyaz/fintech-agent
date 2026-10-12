@@ -26,18 +26,22 @@ const DEV_TOKENS =
 
 describe('parseStartArgs', () => {
   it('reads every flag pnpm start takes', () => {
-    expect(parseStartArgs(['--agent-off', '--demo', '--check'])).toEqual({
+    expect(parseStartArgs(['--agent-off', '--no-demo', '--check'])).toEqual({
       agentOff: true,
-      demo: true,
+      demo: false,
       check: true,
       help: false,
     });
   });
 
-  it('defaults every flag to off', () => {
+  it('no longer takes --demo, now the default', () => {
+    expect(() => parseStartArgs(['--demo'])).toThrow(UsageError);
+  });
+
+  it('posts the sample cases unless told not to, and turns every other flag off', () => {
     expect(parseStartArgs([])).toEqual({
       agentOff: false,
-      demo: false,
+      demo: true,
       check: false,
       help: false,
     });
@@ -66,7 +70,7 @@ describe('parseResetArgs', () => {
   });
 
   it('refuses a flag that only start takes', () => {
-    expect(() => parseResetArgs(['--demo'])).toThrow(UsageError);
+    expect(() => parseResetArgs(['--no-demo'])).toThrow(UsageError);
   });
 });
 

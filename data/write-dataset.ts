@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { customersMarkdown } from './customers-md.js';
 import { DATASET_SEED, generateDataset } from './generate.js';
 
 const DATA_DIR = import.meta.dirname;
@@ -14,6 +15,10 @@ const write = (path: string, value: unknown): void => {
 const dataset = generateDataset(DATASET_SEED);
 write(join(DATA_DIR, 'customers.json'), dataset.customers);
 write(join(DATA_DIR, 'transactions.json'), dataset.transactions);
+writeFileSync(
+  join(DATA_DIR, 'CUSTOMERS.md'),
+  customersMarkdown(dataset.customers, dataset.transactions),
+);
 rmSync(FIXTURES_DIR, { recursive: true, force: true });
 mkdirSync(FIXTURES_DIR);
 for (const { scenario_id, event } of dataset.fixtures) {

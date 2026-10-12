@@ -46,8 +46,9 @@ recreates only what changed.
 Options:
   --agent-off  Start with the kill switch (AGENT_MODE=off): the console works,
                each case reaches review uninvestigated, nothing calls a model.
-  --demo       Post the sample cases ADV-01, CARD-UNREC-01 and CONFLICT-01
-               once the stack is up.
+  --no-demo    Skip the sample cases ADV-01, CARD-UNREC-01 and CONFLICT-01,
+               which it otherwise posts once the stack is up (posting them
+               again opens nothing new).
   --check      Run the preflight checks only; start nothing.
   -h, --help   Show this help.
 
@@ -181,7 +182,7 @@ async function printSummary(
   stack: Stack,
   env: Record<string, string>,
   exampleText: string,
-  args: StartArgs,
+  demoPosted: boolean,
 ): Promise<void> {
   const consoleUrl = `http://localhost:${publishedPort(stack, 'console') ?? env.CONSOLE_PORT}`;
   const operators = devOperators(
@@ -208,7 +209,7 @@ async function printSummary(
   }
 
   heading('Next');
-  if (!args.demo) {
+  if (!demoPosted) {
     console.log(
       `  pnpm demo:post ${DEMO_FIXTURES.join(' ')}   post the sample cases`,
     );
@@ -278,6 +279,7 @@ async function main(): Promise<number> {
     return upExit;
   }
 
+  let demoPosted = false;
   if (args.demo) {
     heading('Posting the sample cases');
     const demoExit = await run('pnpm', ['demo:post', ...DEMO_FIXTURES], {
@@ -285,12 +287,13 @@ async function main(): Promise<number> {
       API_PORT: String(publishedPort(stack, 'api') ?? env.API_PORT),
       WEBHOOK_SECRET: env.WEBHOOK_SECRET,
     });
-    if (demoExit !== EXIT.ok) {
+    demoPosted = demoExit === EXIT.ok;
+    if (!demoPosted) {
       warn('Posting the sample cases failed; the stack itself is up.');
     }
   }
 
-  await printSummary(stack, env, exampleText, args);
+  await printSummary(stack, env, exampleText, demoPosted);
   return EXIT.ok;
 }
 

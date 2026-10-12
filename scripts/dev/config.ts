@@ -58,7 +58,7 @@ export function parseStartArgs(argv: readonly string[]): StartArgs {
     argv,
     {
       'agent-off': { type: 'boolean' },
-      demo: { type: 'boolean' },
+      'no-demo': { type: 'boolean' },
       check: { type: 'boolean' },
       ...HELP,
     },
@@ -66,7 +66,7 @@ export function parseStartArgs(argv: readonly string[]): StartArgs {
   );
   return {
     agentOff: flags['agent-off'],
-    demo: flags.demo,
+    demo: !flags['no-demo'],
     check: flags.check,
     help: flags.help,
   };
