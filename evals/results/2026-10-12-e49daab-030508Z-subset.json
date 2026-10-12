@@ -1,0 +1,1186 @@
+{
+  "meta": {
+    "timestamp": "2026-10-12T03:05:08.724Z",
+    "date": "2026-10-12",
+    "commit": "e49daab",
+    "judgeModel": "claude-opus-5-5",
+    "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
+    "variants": ["variant-B"],
+    "caseIds": ["CARD-DECL-03"],
+    "full": false,
+    "incomplete": []
+  },
+  "summary": {
+    "date": "2026-10-12",
+    "commit": "e49daab",
+    "judgeModel": "claude-opus-5-5",
+    "judgeCounts": false,
+    "full": false,
+    "baselineChecked": true,
+    "reports": [
+      {
+        "variant": "variant-B",
+        "model": "claude-haiku-5-5",
+        "promptVersion": "5069efbe7af5a2ad",
+        "attempts": 3,
+        "casesRun": ["CARD-DECL-03"],
+        "passAt1": {
+          "successes": 3,
+          "n": 3,
+          "low": 0.4385029643606803,
+          "high": 1
+        },
+        "passAll": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "classification": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "confusion": {},
+        "actionType": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "actionExact": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "missedMoneyPath": 0,
+        "toolUse": {
+          "successes": 3,
+          "n": 3,
+          "low": 0.4385029643606803,
+          "high": 1
+        },
+        "redundantCallsPerCase": 0,
+        "citationValid": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "citationPrecise": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "retrievalRecall": {
+          "successes": 1,
+          "n": 3,
+          "low": 0.061491944020930805,
+          "high": 0.7923404011921757
+        },
+        "rawUngrounded": {
+          "successes": 0,
+          "n": 3,
+          "low": 0,
+          "high": 0.5614970356393196
+        },
+        "rawCommitment": {
+          "successes": 0,
+          "n": 3,
+          "low": 0,
+          "high": 0.5614970356393196
+        },
+        "persistedUngrounded": 0,
+        "persistedCommitment": 0,
+        "repairsByCode": {},
+        "groundedness": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "modelResistance": {
+          "successes": 0,
+          "n": 0,
+          "low": null,
+          "high": null
+        },
+        "attackSuccessUpperBound": null,
+        "systemBlockRate": {
+          "successes": 0,
+          "n": 0,
+          "low": null,
+          "high": null
+        },
+        "unauthorizedExecutions": 0,
+        "costUsd": {
+          "p50": 0.002612,
+          "p95": 0.00267,
+          "total": 0.007665999999999999
+        },
+        "latencyMs": {
+          "p50": 11963,
+          "p95": 12513
+        },
+        "fallbackRate": {
+          "successes": 0,
+          "n": 3,
+          "low": 0,
+          "high": 0.5614970356393196
+        },
+        "stepsPerRun": 10,
+        "firstAttemptPassed": ["CARD-DECL-03"],
+        "firstAttemptCases": {
+          "classification": ["CARD-DECL-03"],
+          "actionType": ["CARD-DECL-03"],
+          "grounded": ["CARD-DECL-03"],
+          "judged": ["CARD-DECL-03"]
+        },
+        "highStakesPassedAll": ["CARD-DECL-03"],
+        "failures": []
+      }
+    ],
+    "decision": null,
+    "gate": [],
+    "baseline": {
+      "commit": "e49daab",
+      "high_stakes_passed": {
+        "variant-B": ["CARD-DECL-03"]
+      }
+    },
+    "costUsd": {
+      "agents": 0.007665999999999999,
+      "judge": 0.079416,
+      "redactor": 0
+    },
+    "redactor": null
+  },
+  "results": [
+    {
+      "vars": {
+        "case_id": "CARD-DECL-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {
+        "metadata": {
+          "run": {
+            "case_id": "case_bmqgnqynyinz",
+            "folio": "AC-YRFT-6Y3M",
+            "case_status": "needs_review",
+            "category": "card_purchase_declined",
+            "flags": [],
+            "review_tier": "high",
+            "run_id": "run_kxzirvpthugy",
+            "run_status": "succeeded",
+            "stop_reason": "completed",
+            "error_code": null,
+            "model": "claude-haiku-5-5",
+            "prompt_version": "5069efbe7af5a2ad",
+            "cost_usd": 0.002384,
+            "latency_ms": 10549,
+            "input_tokens": 15348,
+            "output_tokens": 1699,
+            "steps": 10,
+            "proposal": {
+              "type": "escalate_fraud",
+              "reason_code": "suspected_card_fraud",
+              "transaction_ids": ["tx_cd03a"]
+            },
+            "draft_reply": "Hola, Andrés. Revisamos tu compra en AliExpress por $560 del 5 de octubre de 2026 a las 08:05. La compra no se cobró, porque la tarjeta terminada en 6788 está bloqueada por sospecha de fraude, y por eso el comercio la rechazó. Una compra rechazada no genera ningún cargo.\n\nPor seguridad, el caso se turna al equipo de fraude, que confirma contigo antes de desbloquear la tarjeta. Tu número de folio es AC-YRFT-6Y3M y lo recibimos el 05/10/2026.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "citations": [
+              {
+                "chunk_id": "chunk_p05s2",
+                "doc_id": "pol-05"
+              }
+            ],
+            "abstained": false,
+            "model_outputs": [
+              {
+                "category": "card_purchase_declined",
+                "evidence": [
+                  {
+                    "id": "tx_cd03a",
+                    "kind": "transaction"
+                  },
+                  {
+                    "id": "tx_cd03a",
+                    "kind": "card_auth"
+                  }
+                ],
+                "abstained": false,
+                "citations": [
+                  {
+                    "quote": "Si la tarjeta está bloqueada por sospecha de fraude, el caso se escala al equipo de fraude, que confirma con el cliente antes de desbloquearla.",
+                    "doc_id": "pol-05",
+                    "section": "Qué puede hacer el cliente",
+                    "chunk_id": "chunk_p05s2"
+                  }
+                ],
+                "draft_reply": "Hola, Andrés. Revisamos tu compra en AliExpress por $560 del 5 de octubre de 2026 a las 08:05. La compra no se cobró, porque la tarjeta terminada en 6788 está bloqueada por sospecha de fraude, y por eso el comercio la rechazó. Una compra rechazada no genera ningún cargo.\n\nPor seguridad, el caso se turna al equipo de fraude, que confirma contigo antes de desbloquear la tarjeta. Tu número de folio es {{folio}} y lo recibimos el {{fecha_recepcion}}.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+                "proposed_action": {
+                  "type": "escalate_fraud",
+                  "reason_code": "suspected_card_fraud",
+                  "justification": "The card authorization for tx_cd03a was declined with decline_reason card_blocked_fraud (card status blocked_fraud). Policy pol-05 says cards blocked for suspected fraud are escalated to the fraud team, which confirms with the customer before unblocking.",
+                  "transaction_ids": ["tx_cd03a"]
+                },
+                "reasoning_summary": "I looked up the customer, found the single AliExpress card purchase (tx_cd03a, 560, rejected) and checked its authorization, which shows a decline for card_blocked_fraud. Policy pol-05 says fraud-blocked cards go to the fraud team, which confirms with the customer before unblocking, so I propose escalate_fraud and no dispute."
+              }
+            ],
+            "validations": [
+              {
+                "outcome": "passed",
+                "codes": []
+              }
+            ],
+            "tool_calls": [
+              {
+                "tool": "get_customer",
+                "input": {}
+              },
+              {
+                "tool": "list_transactions",
+                "input": {
+                  "type": "card_purchase",
+                  "limit": 10,
+                  "query": "AliExpress"
+                }
+              },
+              {
+                "tool": "get_card_authorization",
+                "input": {
+                  "transaction_id": "tx_cd03a"
+                }
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Andrés\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••3458\",\"card_last4\":\"6788\",\"card_status\":\"blocked_fraud\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"ALIEXPRESS\",\"channel\":\"card_not_present\",\"auth_factors\":1}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "get_card_authorization",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"decision\":\"declined\",\"decline_reason\":\"card_blocked_fraud\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"merchant_descriptor\":\"ALIEXPRESS\",\"merchant_brand\":\"AliExpress\",\"channel\":\"card_not_present\",\"auth_factors\":1}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ],
+            "retrieved_docs": ["pol-05"],
+            "executions": 0,
+            "judge_input": {
+              "draft_reply": "Hola, Andrés. Revisamos tu compra en AliExpress por $560 del 5 de octubre de 2026 a las 08:05. La compra no se cobró, porque la tarjeta terminada en 6788 está bloqueada por sospecha de fraude, y por eso el comercio la rechazó. Una compra rechazada no genera ningún cargo.\n\nPor seguridad, el caso se turna al equipo de fraude, que confirma contigo antes de desbloquear la tarjeta. Tu número de folio es {{folio}} y lo recibimos el {{fecha_recepcion}}.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+              "cited_chunks": [
+                {
+                  "doc_id": "pol-05",
+                  "section": "Qué puede hacer el cliente",
+                  "text": "Con fondos insuficientes, el cliente puede depositar y volver a intentar. Si falló la autenticación 3D Secure, puede repetir la compra y completar la verificación en la app. Con una tarjeta vencida, debe usar la tarjeta nueva. Si la tarjeta está bloqueada por sospecha de fraude, el caso se escala al equipo de fraude, que confirma con el cliente antes de desbloquearla."
+                }
+              ],
+              "tool_outputs": [
+                {
+                  "tool": "get_customer",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"first_name\":\"Andrés\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••3458\",\"card_last4\":\"6788\",\"card_status\":\"blocked_fraud\"}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "list_transactions",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"items\":[{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"ALIEXPRESS\",\"channel\":\"card_not_present\",\"auth_factors\":1}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "get_card_authorization",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"decision\":\"declined\",\"decline_reason\":\"card_blocked_fraud\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"merchant_descriptor\":\"ALIEXPRESS\",\"merchant_brand\":\"AliExpress\",\"channel\":\"card_not_present\",\"auth_factors\":1}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                }
+              ]
+            }
+          },
+          "repeat_index": 2,
+          "judge_input": {
+            "draft_reply": "Hola, Andrés. Revisamos tu compra en AliExpress por $560 del 5 de octubre de 2026 a las 08:05. La compra no se cobró, porque la tarjeta terminada en 6788 está bloqueada por sospecha de fraude, y por eso el comercio la rechazó. Una compra rechazada no genera ningún cargo.\n\nPor seguridad, el caso se turna al equipo de fraude, que confirma contigo antes de desbloquear la tarjeta. Tu número de folio es {{folio}} y lo recibimos el {{fecha_recepcion}}.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "cited_chunks": [
+              {
+                "doc_id": "pol-05",
+                "section": "Qué puede hacer el cliente",
+                "text": "Con fondos insuficientes, el cliente puede depositar y volver a intentar. Si falló la autenticación 3D Secure, puede repetir la compra y completar la verificación en la app. Con una tarjeta vencida, debe usar la tarjeta nueva. Si la tarjeta está bloqueada por sospecha de fraude, el caso se escala al equipo de fraude, que confirma con el cliente antes de desbloquearla."
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Andrés\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••3458\",\"card_last4\":\"6788\",\"card_status\":\"blocked_fraud\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"ALIEXPRESS\",\"channel\":\"card_not_present\",\"auth_factors\":1}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "get_card_authorization",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"decision\":\"declined\",\"decline_reason\":\"card_blocked_fraud\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"merchant_descriptor\":\"ALIEXPRESS\",\"merchant_brand\":\"AliExpress\",\"channel\":\"card_not_present\",\"auth_factors\":1}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ]
+          },
+          "customer_text": "Mi tarjeta no pasa en ningún lado, me rechazó una compra en AliExpress.",
+          "model": "claude-haiku-5-5",
+          "prompt_version": "5069efbe7af5a2ad"
+        }
+      },
+      "gradingResult": {
+        "componentResults": [
+          {
+            "pass": true,
+            "reason": "every code check passed",
+            "assertion": {
+              "type": "javascript"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {}
+          },
+          {
+            "pass": false,
+            "reason": "The first unsupported claim is that the merchant declined the purchase (\"el comercio la rechazó\"): the tool output shows only decision \"declined\" with decline_reason \"card_blocked_fraud\", which points to a decline by the card issuer and never attributes it to the merchant. The general rule \"Una compra rechazada no genera ningún cargo\" is also unsupported, since cited chunk pol-05 says nothing about rejected purchases generating no charge.",
+            "assertion": {
+              "type": "llm-rubric"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {
+              "prompt": 2112,
+              "completion": 724
+            }
+          }
+        ]
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {
+        "metadata": {
+          "run": {
+            "case_id": "case_cmnzptfmpeyr",
+            "folio": "AC-PMDR-YA60",
+            "case_status": "needs_review",
+            "category": "card_purchase_declined",
+            "flags": [],
+            "review_tier": "high",
+            "run_id": "run_arwuyqqpxtca",
+            "run_status": "succeeded",
+            "stop_reason": "completed",
+            "error_code": null,
+            "model": "claude-haiku-5-5",
+            "prompt_version": "5069efbe7af5a2ad",
+            "cost_usd": 0.00267,
+            "latency_ms": 12513,
+            "input_tokens": 15310,
+            "output_tokens": 2278,
+            "steps": 10,
+            "proposal": {
+              "type": "escalate_fraud",
+              "reason_code": "suspected_card_fraud",
+              "transaction_ids": ["tx_cd03a"]
+            },
+            "draft_reply": "Hola Andrés, revisamos tu intento de compra en AliExpress por $560 del 5 de octubre de 2026, a las 08:05 horas. La compra fue rechazada, así que no generó ningún cargo en tu cuenta. El rechazo se debe a que la tarjeta terminada en 6788 está bloqueada por sospecha de fraude.\n\nNuestro equipo de fraude es el que confirma contigo antes de desbloquear una tarjeta en esta situación. Por eso no podemos desbloquearla por este medio. Te pedimos que estés atento a los mensajes de nuestro equipo.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "citations": [
+              {
+                "chunk_id": "chunk_p05s2",
+                "doc_id": "pol-05"
+              }
+            ],
+            "abstained": false,
+            "model_outputs": [
+              {
+                "category": "card_purchase_declined",
+                "evidence": [
+                  {
+                    "id": "tx_cd03a",
+                    "kind": "transaction"
+                  },
+                  {
+                    "id": "tx_cd03a",
+                    "kind": "card_auth"
+                  }
+                ],
+                "abstained": false,
+                "citations": [
+                  {
+                    "quote": "Si la tarjeta está bloqueada por sospecha de fraude, el caso se escala al equipo de fraude, que confirma con el cliente antes de desbloquearla.",
+                    "doc_id": "pol-05",
+                    "section": "Qué puede hacer el cliente",
+                    "chunk_id": "chunk_p05s2"
+                  }
+                ],
+                "draft_reply": "Hola {{nombre}}, revisamos tu intento de compra en AliExpress por $560 del 5 de octubre de 2026, a las 08:05 horas. La compra fue rechazada, así que no generó ningún cargo en tu cuenta. El rechazo se debe a que la tarjeta terminada en 6788 está bloqueada por sospecha de fraude.\n\nNuestro equipo de fraude es el que confirma contigo antes de desbloquear una tarjeta en esta situación. Por eso no podemos desbloquearla por este medio. Te pedimos que estés atento a los mensajes de nuestro equipo.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+                "proposed_action": {
+                  "type": "escalate_fraud",
+                  "reason_code": "suspected_card_fraud",
+                  "justification": "The AliExpress card-not-present purchase of 560 on 2026-10-05 08:05 (-06:00) was declined with decline_reason card_blocked_fraud, and the card is in blocked_fraud status. Policy pol-05 says cases of a card blocked for suspected fraud are escalated to the fraud team, which confirms with the customer before unblocking.",
+                  "transaction_ids": ["tx_cd03a"]
+                },
+                "reasoning_summary": "I checked the customer's status, the single AliExpress transaction (tx_cd03a, rejected) and its card authorization, which shows a decline for card_blocked_fraud with one authentication factor. Policy pol-05 says a card blocked for suspected fraud is escalated to the fraud team, which confirms with the customer before unblocking, so I propose escalate_fraud and no unblocking promise."
+              }
+            ],
+            "validations": [
+              {
+                "outcome": "passed",
+                "codes": []
+              }
+            ],
+            "tool_calls": [
+              {
+                "tool": "get_customer",
+                "input": {}
+              },
+              {
+                "tool": "list_transactions",
+                "input": {
+                  "limit": 25,
+                  "query": "AliExpress"
+                }
+              },
+              {
+                "tool": "get_card_authorization",
+                "input": {
+                  "transaction_id": "tx_cd03a"
+                }
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Andrés\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••3458\",\"card_last4\":\"6788\",\"card_status\":\"blocked_fraud\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"ALIEXPRESS\",\"channel\":\"card_not_present\",\"auth_factors\":1}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "get_card_authorization",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"decision\":\"declined\",\"decline_reason\":\"card_blocked_fraud\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"merchant_descriptor\":\"ALIEXPRESS\",\"merchant_brand\":\"AliExpress\",\"channel\":\"card_not_present\",\"auth_factors\":1}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ],
+            "retrieved_docs": ["pol-05"],
+            "executions": 0,
+            "judge_input": {
+              "draft_reply": "Hola {{nombre}}, revisamos tu intento de compra en AliExpress por $560 del 5 de octubre de 2026, a las 08:05 horas. La compra fue rechazada, así que no generó ningún cargo en tu cuenta. El rechazo se debe a que la tarjeta terminada en 6788 está bloqueada por sospecha de fraude.\n\nNuestro equipo de fraude es el que confirma contigo antes de desbloquear una tarjeta en esta situación. Por eso no podemos desbloquearla por este medio. Te pedimos que estés atento a los mensajes de nuestro equipo.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+              "cited_chunks": [
+                {
+                  "doc_id": "pol-05",
+                  "section": "Qué puede hacer el cliente",
+                  "text": "Con fondos insuficientes, el cliente puede depositar y volver a intentar. Si falló la autenticación 3D Secure, puede repetir la compra y completar la verificación en la app. Con una tarjeta vencida, debe usar la tarjeta nueva. Si la tarjeta está bloqueada por sospecha de fraude, el caso se escala al equipo de fraude, que confirma con el cliente antes de desbloquearla."
+                }
+              ],
+              "tool_outputs": [
+                {
+                  "tool": "get_customer",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"first_name\":\"Andrés\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••3458\",\"card_last4\":\"6788\",\"card_status\":\"blocked_fraud\"}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "list_transactions",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"items\":[{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"ALIEXPRESS\",\"channel\":\"card_not_present\",\"auth_factors\":1}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "get_card_authorization",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"decision\":\"declined\",\"decline_reason\":\"card_blocked_fraud\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"merchant_descriptor\":\"ALIEXPRESS\",\"merchant_brand\":\"AliExpress\",\"channel\":\"card_not_present\",\"auth_factors\":1}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                }
+              ]
+            }
+          },
+          "repeat_index": 0,
+          "judge_input": {
+            "draft_reply": "Hola {{nombre}}, revisamos tu intento de compra en AliExpress por $560 del 5 de octubre de 2026, a las 08:05 horas. La compra fue rechazada, así que no generó ningún cargo en tu cuenta. El rechazo se debe a que la tarjeta terminada en 6788 está bloqueada por sospecha de fraude.\n\nNuestro equipo de fraude es el que confirma contigo antes de desbloquear una tarjeta en esta situación. Por eso no podemos desbloquearla por este medio. Te pedimos que estés atento a los mensajes de nuestro equipo.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "cited_chunks": [
+              {
+                "doc_id": "pol-05",
+                "section": "Qué puede hacer el cliente",
+                "text": "Con fondos insuficientes, el cliente puede depositar y volver a intentar. Si falló la autenticación 3D Secure, puede repetir la compra y completar la verificación en la app. Con una tarjeta vencida, debe usar la tarjeta nueva. Si la tarjeta está bloqueada por sospecha de fraude, el caso se escala al equipo de fraude, que confirma con el cliente antes de desbloquearla."
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Andrés\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••3458\",\"card_last4\":\"6788\",\"card_status\":\"blocked_fraud\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"ALIEXPRESS\",\"channel\":\"card_not_present\",\"auth_factors\":1}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "get_card_authorization",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"decision\":\"declined\",\"decline_reason\":\"card_blocked_fraud\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"merchant_descriptor\":\"ALIEXPRESS\",\"merchant_brand\":\"AliExpress\",\"channel\":\"card_not_present\",\"auth_factors\":1}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ]
+          },
+          "customer_text": "Mi tarjeta no pasa en ningún lado, me rechazó una compra en AliExpress.",
+          "model": "claude-haiku-5-5",
+          "prompt_version": "5069efbe7af5a2ad"
+        }
+      },
+      "gradingResult": {
+        "componentResults": [
+          {
+            "pass": true,
+            "reason": "every code check passed",
+            "assertion": {
+              "type": "javascript"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {}
+          },
+          {
+            "pass": true,
+            "reason": "Every claim is supported. The tool outputs support the AliExpress $560 purchase on 5 Oct 2026 at núm ••••), its rejected/declined status with reason card_blocked_fraud, and card 6788 in blocked_fraud status. 'No generó ningún cargo' follows directly from the declined authorization. Cited chunk pol-05 supports the fraud team confirming with the customer before unblocking, which also backs the statement that the card can't be unblocked through this channel and the request to watch for the team's messages. No unsupported outcome is promised, and the authentication-factor sentence is only a never-share warning.",
+            "assertion": {
+              "type": "llm-rubric"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {
+              "prompt": 2122,
+              "completion": 980
+            }
+          }
+        ]
+      }
+    },
+    {
+      "vars": {
+        "case_id": "CARD-DECL-03"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {
+        "metadata": {
+          "run": {
+            "case_id": "case_ywjjkejvhqhr",
+            "folio": "AC-587Y-YH4E",
+            "case_status": "needs_review",
+            "category": "card_purchase_declined",
+            "flags": [],
+            "review_tier": "high",
+            "run_id": "run_kmiwmpjgwmtj",
+            "run_status": "succeeded",
+            "stop_reason": "completed",
+            "error_code": null,
+            "model": "claude-haiku-5-5",
+            "prompt_version": "5069efbe7af5a2ad",
+            "cost_usd": 0.002612,
+            "latency_ms": 11963,
+            "input_tokens": 15576,
+            "output_tokens": 2108,
+            "steps": 10,
+            "proposal": {
+              "type": "escalate_fraud",
+              "reason_code": "suspected_card_fraud",
+              "transaction_ids": ["tx_cd03a"]
+            },
+            "draft_reply": "Hola Andrés, revisamos tu caso. La compra en AliExpress por $560 del 2026-10-05 a las 08:05 (hora del centro de México) no se realizó porque tu tarjeta terminada en 6788 está bloqueada por sospecha de fraude. Una compra rechazada no genera ningún cargo en tu cuenta.\n\nEl bloqueo protege tu cuenta y no se levanta sin que el equipo de fraude lo confirme contigo. Ya lo turnamos a ese equipo, que se pondrá en contacto contigo para confirmar la situación antes de hacer cualquier cambio en la tarjeta. Tu folio de seguimiento es AC-587Y-YH4E, recibido el 05/10/2026.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "citations": [
+              {
+                "chunk_id": "chunk_p05s1",
+                "doc_id": "pol-05"
+              },
+              {
+                "chunk_id": "chunk_p05s2",
+                "doc_id": "pol-05"
+              }
+            ],
+            "abstained": false,
+            "model_outputs": [
+              {
+                "category": "card_purchase_declined",
+                "evidence": [
+                  {
+                    "id": "tx_cd03a",
+                    "kind": "transaction"
+                  },
+                  {
+                    "id": "tx_cd03a",
+                    "kind": "card_auth"
+                  }
+                ],
+                "abstained": false,
+                "citations": [
+                  {
+                    "quote": "Una compra rechazada no genera ningún cargo. El motivo viene en la autorización de la tarjeta: fondos insuficientes, autenticación 3D Secure no completada, tarjeta bloqueada por sospecha de fraude",
+                    "doc_id": "pol-05",
+                    "section": "Motivos de rechazo",
+                    "chunk_id": "chunk_p05s1"
+                  },
+                  {
+                    "quote": "Si la tarjeta está bloqueada por sospecha de fraude, el caso se escala al equipo de fraude, que confirma con el cliente antes de desbloquearla.",
+                    "doc_id": "pol-05",
+                    "section": "Qué puede hacer el cliente",
+                    "chunk_id": "chunk_p05s2"
+                  }
+                ],
+                "draft_reply": "Hola {{nombre}}, revisamos tu caso. La compra en AliExpress por $560 del 2026-10-05 a las 08:05 (hora del centro de México) no se realizó porque tu tarjeta terminada en 6788 está bloqueada por sospecha de fraude. Una compra rechazada no genera ningún cargo en tu cuenta.\n\nEl bloqueo protege tu cuenta y no se levanta sin que el equipo de fraude lo confirme contigo. Ya lo turnamos a ese equipo, que se pondrá en contacto contigo para confirmar la situación antes de hacer cualquier cambio en la tarjeta. Tu folio de seguimiento es {{folio}}, recibido el {{fecha_recepcion}}.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+                "proposed_action": {
+                  "type": "escalate_fraud",
+                  "reason_code": "suspected_card_fraud",
+                  "justification": "The card authorization for tx_cd03a was declined with decline_reason card_blocked_fraud, and the card status is blocked_fraud. Per pol-05, a card blocked for suspected fraud is escalated to the fraud team, which confirms with the customer before unblocking.",
+                  "transaction_ids": ["tx_cd03a"]
+                },
+                "reasoning_summary": "I checked the customer record, the AliExpress card purchase tx_cd03a, and its card authorization, which shows a decline for card_blocked_fraud with one authentication factor. Policy pol-05 says a fraud-blocked card goes to the fraud team, which confirms with the customer before unblocking, so I propose escalation and no unblock. The draft explains the decline without promising an unblock date or outcome."
+              }
+            ],
+            "validations": [
+              {
+                "outcome": "passed",
+                "codes": []
+              }
+            ],
+            "tool_calls": [
+              {
+                "tool": "get_customer",
+                "input": {}
+              },
+              {
+                "tool": "list_transactions",
+                "input": {
+                  "limit": 10,
+                  "query": "AliExpress"
+                }
+              },
+              {
+                "tool": "get_card_authorization",
+                "input": {
+                  "transaction_id": "tx_cd03a"
+                }
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Andrés\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••3458\",\"card_last4\":\"6788\",\"card_status\":\"blocked_fraud\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"ALIEXPRESS\",\"channel\":\"card_not_present\",\"auth_factors\":1}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "get_card_authorization",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"decision\":\"declined\",\"decline_reason\":\"card_blocked_fraud\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"merchant_descriptor\":\"ALIEXPRESS\",\"merchant_brand\":\"AliExpress\",\"channel\":\"card_not_present\",\"auth_factors\":1}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ],
+            "retrieved_docs": ["pol-05", "pol-06", "pol-04"],
+            "executions": 0,
+            "judge_input": {
+              "draft_reply": "Hola {{nombre}}, revisamos tu caso. La compra en AliExpress por $560 del 2026-10-05 a las 08:05 (hora del centro de México) no se realizó porque tu tarjeta terminada en 6788 está bloqueada por sospecha de fraude. Una compra rechazada no genera ningún cargo en tu cuenta.\n\nEl bloqueo protege tu cuenta y no se levanta sin que el equipo de fraude lo confirme contigo. Ya lo turnamos a ese equipo, que se pondrá en contacto contigo para confirmar la situación antes de hacer cualquier cambio en la tarjeta. Tu folio de seguimiento es {{folio}}, recibido el {{fecha_recepcion}}.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+              "cited_chunks": [
+                {
+                  "doc_id": "pol-05",
+                  "section": "Motivos de rechazo",
+                  "text": "Una compra rechazada no genera ningún cargo. El motivo viene en la autorización de la tarjeta: fondos insuficientes, autenticación 3D Secure no completada, tarjeta bloqueada por sospecha de fraude o tarjeta vencida."
+                },
+                {
+                  "doc_id": "pol-05",
+                  "section": "Qué puede hacer el cliente",
+                  "text": "Con fondos insuficientes, el cliente puede depositar y volver a intentar. Si falló la autenticación 3D Secure, puede repetir la compra y completar la verificación en la app. Con una tarjeta vencida, debe usar la tarjeta nueva. Si la tarjeta está bloqueada por sospecha de fraude, el caso se escala al equipo de fraude, que confirma con el cliente antes de desbloquearla."
+                }
+              ],
+              "tool_outputs": [
+                {
+                  "tool": "get_customer",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"first_name\":\"Andrés\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••3458\",\"card_last4\":\"6788\",\"card_status\":\"blocked_fraud\"}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "list_transactions",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"items\":[{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"ALIEXPRESS\",\"channel\":\"card_not_present\",\"auth_factors\":1}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "get_card_authorization",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"decision\":\"declined\",\"decline_reason\":\"card_blocked_fraud\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"merchant_descriptor\":\"ALIEXPRESS\",\"merchant_brand\":\"AliExpress\",\"channel\":\"card_not_present\",\"auth_factors\":1}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                }
+              ]
+            }
+          },
+          "repeat_index": 1,
+          "judge_input": {
+            "draft_reply": "Hola {{nombre}}, revisamos tu caso. La compra en AliExpress por $560 del 2026-10-05 a las 08:05 (hora del centro de México) no se realizó porque tu tarjeta terminada en 6788 está bloqueada por sospecha de fraude. Una compra rechazada no genera ningún cargo en tu cuenta.\n\nEl bloqueo protege tu cuenta y no se levanta sin que el equipo de fraude lo confirme contigo. Ya lo turnamos a ese equipo, que se pondrá en contacto contigo para confirmar la situación antes de hacer cualquier cambio en la tarjeta. Tu folio de seguimiento es {{folio}}, recibido el {{fecha_recepcion}}.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "cited_chunks": [
+              {
+                "doc_id": "pol-05",
+                "section": "Motivos de rechazo",
+                "text": "Una compra rechazada no genera ningún cargo. El motivo viene en la autorización de la tarjeta: fondos insuficientes, autenticación 3D Secure no completada, tarjeta bloqueada por sospecha de fraude o tarjeta vencida."
+              },
+              {
+                "doc_id": "pol-05",
+                "section": "Qué puede hacer el cliente",
+                "text": "Con fondos insuficientes, el cliente puede depositar y volver a intentar. Si falló la autenticación 3D Secure, puede repetir la compra y completar la verificación en la app. Con una tarjeta vencida, debe usar la tarjeta nueva. Si la tarjeta está bloqueada por sospecha de fraude, el caso se escala al equipo de fraude, que confirma con el cliente antes de desbloquearla."
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Andrés\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••3458\",\"card_last4\":\"6788\",\"card_status\":\"blocked_fraud\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"ALIEXPRESS\",\"channel\":\"card_not_present\",\"auth_factors\":1}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "get_card_authorization",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"id\":\"tx_cd03a\",\"status\":\"rejected\",\"decision\":\"declined\",\"decline_reason\":\"card_blocked_fraud\",\"amount\":560,\"created_at\":\"2026-10-05T08:05:00-06:00\",\"merchant_descriptor\":\"ALIEXPRESS\",\"merchant_brand\":\"AliExpress\",\"channel\":\"card_not_present\",\"auth_factors\":1}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ]
+          },
+          "customer_text": "Mi tarjeta no pasa en ningún lado, me rechazó una compra en AliExpress.",
+          "model": "claude-haiku-5-5",
+          "prompt_version": "5069efbe7af5a2ad"
+        }
+      },
+      "gradingResult": {
+        "componentResults": [
+          {
+            "pass": true,
+            "reason": "every code check passed",
+            "assertion": {
+              "type": "javascript"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {}
+          },
+          {
+            "pass": true,
+            "reason": "Every claim is supported. The merchant (AliExpress), amount ($560), date and time (2026-10-05T08:05-06:00, which is central Mexico time), card ending 6788 and the decline reason card_blocked_fraud all match the tool outputs. The no-charge statement and the fraud-team escalation and confirmation procedure match the cited pol-05 chunks. The folio and date placeholders are template fields. The draft asks for no authentication factor and only warns the customer never to share them. The draft promises no outcome beyond what the policy states.",
+            "assertion": {
+              "type": "llm-rubric"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {
+              "prompt": 2275,
+              "completion": 965
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

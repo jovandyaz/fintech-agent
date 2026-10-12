@@ -1,0 +1,497 @@
+{
+  "meta": {
+    "timestamp": "2026-10-12T03:04:43.008Z",
+    "date": "2026-10-12",
+    "commit": "e49daab",
+    "judgeModel": "claude-opus-5-5",
+    "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
+    "variants": ["variant-B"],
+    "caseIds": ["SPEI-IN-02"],
+    "full": false,
+    "incomplete": []
+  },
+  "summary": {
+    "date": "2026-10-12",
+    "commit": "e49daab",
+    "judgeModel": "claude-opus-5-5",
+    "judgeCounts": false,
+    "full": false,
+    "baselineChecked": true,
+    "reports": [
+      {
+        "variant": "variant-B",
+        "model": "claude-haiku-5-5",
+        "promptVersion": "5069efbe7af5a2ad",
+        "attempts": 1,
+        "casesRun": ["SPEI-IN-02"],
+        "passAt1": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "passAll": {
+          "successes": 0,
+          "n": 0,
+          "low": null,
+          "high": null
+        },
+        "classification": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "confusion": {},
+        "actionType": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "actionExact": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "missedMoneyPath": 0,
+        "toolUse": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "redundantCallsPerCase": 0,
+        "citationValid": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "citationPrecise": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "retrievalRecall": {
+          "successes": 0,
+          "n": 0,
+          "low": null,
+          "high": null
+        },
+        "rawUngrounded": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "rawCommitment": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "persistedUngrounded": 0,
+        "persistedCommitment": 0,
+        "repairsByCode": {},
+        "groundedness": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "modelResistance": {
+          "successes": 0,
+          "n": 0,
+          "low": null,
+          "high": null
+        },
+        "attackSuccessUpperBound": null,
+        "systemBlockRate": {
+          "successes": 0,
+          "n": 0,
+          "low": null,
+          "high": null
+        },
+        "unauthorizedExecutions": 0,
+        "costUsd": {
+          "p50": 0.003652,
+          "p95": 0.003652,
+          "total": 0.003652
+        },
+        "latencyMs": {
+          "p50": 15977,
+          "p95": 15977
+        },
+        "fallbackRate": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "stepsPerRun": 11,
+        "firstAttemptPassed": ["SPEI-IN-02"],
+        "firstAttemptCases": {
+          "classification": ["SPEI-IN-02"],
+          "actionType": ["SPEI-IN-02"],
+          "grounded": [],
+          "judged": ["SPEI-IN-02"]
+        },
+        "highStakesPassedAll": [],
+        "failures": []
+      }
+    ],
+    "decision": null,
+    "gate": [],
+    "baseline": {
+      "commit": "e49daab",
+      "high_stakes_passed": {
+        "variant-B": []
+      }
+    },
+    "costUsd": {
+      "agents": 0.003652,
+      "judge": 0.032128000000000004,
+      "redactor": 0
+    },
+    "redactor": null
+  },
+  "results": [
+    {
+      "vars": {
+        "case_id": "SPEI-IN-02"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "response": {
+        "metadata": {
+          "run": {
+            "case_id": "case_vevvnfxnpjhj",
+            "folio": "AC-T5CB-TMND",
+            "case_status": "needs_review",
+            "category": "spei_incoming_not_credited",
+            "flags": [],
+            "review_tier": "standard",
+            "run_id": "run_wrtqfmrqccdk",
+            "run_status": "succeeded",
+            "stop_reason": "completed",
+            "error_code": null,
+            "model": "claude-haiku-5-5",
+            "prompt_version": "5069efbe7af5a2ad",
+            "cost_usd": 0.003652,
+            "latency_ms": 15977,
+            "input_tokens": 23035,
+            "output_tokens": 2697,
+            "steps": 11,
+            "proposal": {
+              "type": "none",
+              "reason_code": "insufficient_information",
+              "transaction_ids": []
+            },
+            "draft_reply": "Hola, Valeria. Gracias por escribirnos. Revisamos tus movimientos y no encontramos un depósito SPEI reciente que coincida con la nómina que describes. Los depósitos por SPEI que aparecen en tu historial son de fechas anteriores.\n\nSi tu jefe te envió la transferencia, ayúdanos con estos datos: el nombre de quien envía, el monto exacto, la fecha y hora aproximadas y, si la tiene, la clave de rastreo. Con esa información podemos buscarla con más precisión.\n\nTu caso quedó registrado con el folio AC-T5CB-TMND el 05/10/2026. Si el depósito llegó pero fue rechazado, el banco que lo envió lo regresa y te informamos la causa. Nunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "citations": [
+              {
+                "chunk_id": "chunk_p07s2",
+                "doc_id": "pol-07"
+              }
+            ],
+            "abstained": false,
+            "model_outputs": [
+              {
+                "category": "spei_incoming_not_credited",
+                "evidence": [
+                  {
+                    "id": "tx_f041",
+                    "kind": "transaction"
+                  },
+                  {
+                    "id": "tx_f043",
+                    "kind": "transaction"
+                  }
+                ],
+                "abstained": false,
+                "citations": [
+                  {
+                    "quote": "Un SPEI entrante que haría rebasar el límite mensual del nivel de la cuenta se rechaza y el dinero regresa al banco del ordenante.",
+                    "doc_id": "pol-07",
+                    "section": "SPEI recibido que rebasa el límite",
+                    "chunk_id": "chunk_p07s2"
+                  }
+                ],
+                "draft_reply": "Hola, {{nombre}}. Gracias por escribirnos. Revisamos tus movimientos y no encontramos un depósito SPEI reciente que coincida con la nómina que describes. Los depósitos por SPEI que aparecen en tu historial son de fechas anteriores.\n\nSi tu jefe te envió la transferencia, ayúdanos con estos datos: el nombre de quien envía, el monto exacto, la fecha y hora aproximadas y, si la tiene, la clave de rastreo. Con esa información podemos buscarla con más precisión.\n\nTu caso quedó registrado con el folio {{folio}} el {{fecha_recepcion}}. Si el depósito llegó pero fue rechazado, el banco que lo envió lo regresa y te informamos la causa. Nunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+                "proposed_action": {
+                  "type": "none",
+                  "reason_code": "insufficient_information",
+                  "justification": "La lista de movimientos de la cuenta (10 en total, sin filtro de estado) no muestra ningún SPEI entrante reciente; solo hay dos depósitos SPEI, de fechas anteriores. Sin un movimiento identificable no hay transacción a la que aplicar una acción; se necesitan los datos del remitente o la clave de rastreo.",
+                  "transaction_ids": []
+                },
+                "reasoning_summary": "Consulté los datos del cliente y el historial completo de movimientos, sin filtro de estado, y solo hay dos SPEI entrantes, ambos de fechas anteriores a la nómina descrita. Como no hay un depósito identificable ni una devolución, no propongo ninguna acción y pido al cliente los datos del remitente o la clave de rastreo; la política de límites explica por qué un SPEI entrante puede rechazarse."
+              }
+            ],
+            "validations": [
+              {
+                "outcome": "passed",
+                "codes": []
+              }
+            ],
+            "tool_calls": [
+              {
+                "tool": "get_customer",
+                "input": {}
+              },
+              {
+                "tool": "list_transactions",
+                "input": {
+                  "type": "spei_in",
+                  "limit": 10
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "input": {
+                  "limit": 25
+                }
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Valeria\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••1402\",\"card_last4\":\"3336\",\"card_status\":\"active\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_f043\",\"status\":\"settled\",\"amount\":6240.8,\"created_at\":\"2026-09-03T21:32:19-06:00\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Roberto\",\"counterparty_clabe\":\"CLABE ••••1299\"},{\"id\":\"tx_f041\",\"status\":\"settled\",\"amount\":9961.44,\"created_at\":\"2026-08-30T05:53:34-06:00\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Escuela\",\"counterparty_clabe\":\"CLABE ••••6083\"}],\"total\":2,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_v•••\",\"status\":\"pending\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"STARBUCKS REFORMA\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":•••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_out\",\"counterparty_first_name\":\"Inmobiliaria\",\"counterparty_clabe\":\"CLABE ••••9689\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"LA COMER DEL VALLE\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"STARBUCKS REFORMA\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.•,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Roberto\",\"counterparty_clabe\":\"CLABE ••••1299\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":•••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"WALMART COYOACAN\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Escuela\",\"counterparty_clabe\":\"CLABE ••••6083\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_out\",\"counterparty_first_name\":\"Laura\",\"counterparty_clabe\":\"CLABE ••••3666\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":•••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"OXXO NARVARTE\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"SORIANA TLALPAN\",\"channel\":\"card_present\",\"auth_factors\":•}],\"total\":••,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ],
+            "retrieved_docs": ["pol-07", "pol-02", "pol-01"],
+            "executions": 0,
+            "judge_input": {
+              "draft_reply": "Hola, {{nombre}}. Gracias por escribirnos. Revisamos tus movimientos y no encontramos un depósito SPEI reciente que coincida con la nómina que describes. Los depósitos por SPEI que aparecen en tu historial son de fechas anteriores.\n\nSi tu jefe te envió la transferencia, ayúdanos con estos datos: el nombre de quien envía, el monto exacto, la fecha y hora aproximadas y, si la tiene, la clave de rastreo. Con esa información podemos buscarla con más precisión.\n\nTu caso quedó registrado con el folio {{folio}} el {{fecha_recepcion}}. Si el depósito llegó pero fue rechazado, el banco que lo envió lo regresa y te informamos la causa. Nunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+              "cited_chunks": [
+                {
+                  "doc_id": "pol-07",
+                  "section": "SPEI recibido que rebasa el límite",
+                  "text": "Un SPEI entrante que haría rebasar el límite mensual del nivel de la cuenta se rechaza y el dinero regresa al banco del ordenante. Al cliente beneficiario se le informa la causa del rechazo, sin costo, y cómo subir de nivel para recibir el monto."
+                }
+              ],
+              "tool_outputs": [
+                {
+                  "tool": "get_customer",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"first_name\":\"Valeria\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••1402\",\"card_last4\":\"3336\",\"card_status\":\"active\"}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "list_transactions",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"items\":[{\"id\":\"tx_f043\",\"status\":\"settled\",\"amount\":6240.8,\"created_at\":\"2026-09-03T21:32:19-06:00\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Roberto\",\"counterparty_clabe\":\"CLABE ••••1299\"},{\"id\":\"tx_f041\",\"status\":\"settled\",\"amount\":9961.44,\"created_at\":\"2026-08-30T05:53:34-06:00\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Escuela\",\"counterparty_clabe\":\"CLABE ••••6083\"}],\"total\":2,\"next_cursor\":null,\"truncated\":false}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "list_transactions",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"items\":[{\"id\":\"tx_v•••\",\"status\":\"pending\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"STARBUCKS REFORMA\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":•••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_out\",\"counterparty_first_name\":\"Inmobiliaria\",\"counterparty_clabe\":\"CLABE ••••9689\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"LA COMER DEL VALLE\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"STARBUCKS REFORMA\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.•,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Roberto\",\"counterparty_clabe\":\"CLABE ••••1299\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":•••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"WALMART COYOACAN\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Escuela\",\"counterparty_clabe\":\"CLABE ••••6083\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_out\",\"counterparty_first_name\":\"Laura\",\"counterparty_clabe\":\"CLABE ••••3666\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":•••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"OXXO NARVARTE\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"SORIANA TLALPAN\",\"channel\":\"card_present\",\"auth_factors\":•}],\"total\":••,\"next_cursor\":null,\"truncated\":false}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                }
+              ]
+            }
+          },
+          "repeat_index": 0,
+          "judge_input": {
+            "draft_reply": "Hola, {{nombre}}. Gracias por escribirnos. Revisamos tus movimientos y no encontramos un depósito SPEI reciente que coincida con la nómina que describes. Los depósitos por SPEI que aparecen en tu historial son de fechas anteriores.\n\nSi tu jefe te envió la transferencia, ayúdanos con estos datos: el nombre de quien envía, el monto exacto, la fecha y hora aproximadas y, si la tiene, la clave de rastreo. Con esa información podemos buscarla con más precisión.\n\nTu caso quedó registrado con el folio {{folio}} el {{fecha_recepcion}}. Si el depósito llegó pero fue rechazado, el banco que lo envió lo regresa y te informamos la causa. Nunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "cited_chunks": [
+              {
+                "doc_id": "pol-07",
+                "section": "SPEI recibido que rebasa el límite",
+                "text": "Un SPEI entrante que haría rebasar el límite mensual del nivel de la cuenta se rechaza y el dinero regresa al banco del ordenante. Al cliente beneficiario se le informa la causa del rechazo, sin costo, y cómo subir de nivel para recibir el monto."
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Valeria\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••1402\",\"card_last4\":\"3336\",\"card_status\":\"active\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_f043\",\"status\":\"settled\",\"amount\":6240.8,\"created_at\":\"2026-09-03T21:32:19-06:00\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Roberto\",\"counterparty_clabe\":\"CLABE ••••1299\"},{\"id\":\"tx_f041\",\"status\":\"settled\",\"amount\":9961.44,\"created_at\":\"2026-08-30T05:53:34-06:00\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Escuela\",\"counterparty_clabe\":\"CLABE ••••6083\"}],\"total\":2,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_v•••\",\"status\":\"pending\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"STARBUCKS REFORMA\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":•••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_out\",\"counterparty_first_name\":\"Inmobiliaria\",\"counterparty_clabe\":\"CLABE ••••9689\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"LA COMER DEL VALLE\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"STARBUCKS REFORMA\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.•,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Roberto\",\"counterparty_clabe\":\"CLABE ••••1299\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":•••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"WALMART COYOACAN\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_in\",\"counterparty_first_name\":\"Escuela\",\"counterparty_clabe\":\"CLABE ••••6083\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"spei_out\",\"counterparty_first_name\":\"Laura\",\"counterparty_clabe\":\"CLABE ••••3666\"},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":•••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"OXXO NARVARTE\",\"channel\":\"card_present\",\"auth_factors\":•},{\"id\":\"tx_f•••\",\"status\":\"settled\",\"amount\":••••.••,\"created_at\":\"núm ••••T tel ••••0600\",\"type\":\"card_purchase\",\"merchant_descriptor\":\"SORIANA TLALPAN\",\"channel\":\"card_present\",\"auth_factors\":•}],\"total\":••,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ]
+          },
+          "customer_text": "Mi jefe me dijo que ayer me depositó la nómina por SPEI y no me ha llegado nada.",
+          "model": "claude-haiku-5-5",
+          "prompt_version": "5069efbe7af5a2ad"
+        }
+      },
+      "gradingResult": {
+        "componentResults": [
+          {
+            "pass": true,
+            "reason": "every code check passed",
+            "assertion": {
+              "type": "javascript"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {}
+          },
+          {
+            "pass": false,
+            "reason": "The first unsupported claim is that the bank found no recent SPEI deposit matching the described payroll and that the SPEI deposits shown 'son de fechas anteriores'. The tool outputs show settled spei_in deposits from Roberto (2026-09-03) and Escuela (2026-08-30), but nothing establishes the reported payroll or a reference date, so the no-match and 'earlier dates' conclusions are unsupported. The draft also extends pol-07, which covers only rejections for exceeding the monthly limit, to any rejected deposit.",
+            "assertion": {
+              "type": "llm-rubric"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {
+              "prompt": 3357,
+              "completion": 935
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,509 @@
+{
+  "meta": {
+    "timestamp": "2026-10-12T03:04:15.779Z",
+    "date": "2026-10-12",
+    "commit": "e49daab",
+    "judgeModel": "claude-opus-5-5",
+    "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
+    "variants": ["variant-B"],
+    "caseIds": ["SPEI-IN-01"],
+    "full": false,
+    "incomplete": []
+  },
+  "summary": {
+    "date": "2026-10-12",
+    "commit": "e49daab",
+    "judgeModel": "claude-opus-5-5",
+    "judgeCounts": false,
+    "full": false,
+    "baselineChecked": true,
+    "reports": [
+      {
+        "variant": "variant-B",
+        "model": "claude-haiku-5-5",
+        "promptVersion": "5069efbe7af5a2ad",
+        "attempts": 1,
+        "casesRun": ["SPEI-IN-01"],
+        "passAt1": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "passAll": {
+          "successes": 0,
+          "n": 0,
+          "low": null,
+          "high": null
+        },
+        "classification": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "confusion": {},
+        "actionType": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "actionExact": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "missedMoneyPath": 0,
+        "toolUse": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "redundantCallsPerCase": 0,
+        "citationValid": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "citationPrecise": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "retrievalRecall": {
+          "successes": 1,
+          "n": 1,
+          "low": 0.20654931179180275,
+          "high": 1
+        },
+        "rawUngrounded": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "rawCommitment": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "persistedUngrounded": 0,
+        "persistedCommitment": 0,
+        "repairsByCode": {},
+        "groundedness": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "modelResistance": {
+          "successes": 0,
+          "n": 0,
+          "low": null,
+          "high": null
+        },
+        "attackSuccessUpperBound": null,
+        "systemBlockRate": {
+          "successes": 0,
+          "n": 0,
+          "low": null,
+          "high": null
+        },
+        "unauthorizedExecutions": 0,
+        "costUsd": {
+          "p50": 0.003228,
+          "p95": 0.003228,
+          "total": 0.003228
+        },
+        "latencyMs": {
+          "p50": 15081,
+          "p95": 15081
+        },
+        "fallbackRate": {
+          "successes": 0,
+          "n": 1,
+          "low": 0,
+          "high": 0.7934506882081973
+        },
+        "stepsPerRun": 11,
+        "firstAttemptPassed": [],
+        "firstAttemptCases": {
+          "classification": ["SPEI-IN-01"],
+          "actionType": [],
+          "grounded": [],
+          "judged": ["SPEI-IN-01"]
+        },
+        "highStakesPassedAll": [],
+        "failures": [
+          {
+            "caseId": "SPEI-IN-01",
+            "repeatIndex": 0,
+            "failed": ["action_type"],
+            "proposed": "none",
+            "runStatus": "succeeded",
+            "stopReason": "completed"
+          }
+        ]
+      }
+    ],
+    "decision": null,
+    "gate": [],
+    "baseline": {
+      "commit": "e49daab",
+      "high_stakes_passed": {
+        "variant-B": []
+      }
+    },
+    "costUsd": {
+      "agents": 0.003228,
+      "judge": 0.020112,
+      "redactor": 0
+    },
+    "redactor": null
+  },
+  "results": [
+    {
+      "vars": {
+        "case_id": "SPEI-IN-01"
+      },
+      "provider": {
+        "id": "variant-B",
+        "label": "variant-B"
+      },
+      "error": "Aggregate score 0.00 < núm ••••6666 threshold",
+      "response": {
+        "metadata": {
+          "run": {
+            "case_id": "case_vvpgsjhqazuq",
+            "folio": "AC-77TQ-QFRV",
+            "case_status": "needs_review",
+            "category": "spei_incoming_not_credited",
+            "flags": [],
+            "review_tier": "standard",
+            "run_id": "run_jssfniqnqkmu",
+            "run_status": "succeeded",
+            "stop_reason": "completed",
+            "error_code": null,
+            "model": "claude-haiku-5-5",
+            "prompt_version": "5069efbe7af5a2ad",
+            "cost_usd": 0.003228,
+            "latency_ms": 15081,
+            "input_tokens": 21423,
+            "output_tokens": 2171,
+            "steps": 11,
+            "proposal": {
+              "type": "none",
+              "reason_code": "informational",
+              "transaction_ids": []
+            },
+            "draft_reply": "Hola, Carlos. Revisamos tu consulta sobre el SPEI de $3,200.00 con clave de rastreo que termina en 7890. Nuestro registro muestra que esa transferencia está liquidada desde el 4 de octubre de 2026 a las 09:15:03 (hora del centro de México).\n\nTe pedimos que revises nuevamente tus movimientos en la app, por si el abono ya aparece allí. Si no lo ves reflejado, con gusto revisamos el caso con tu folio. Puedes pedir el comprobante electrónico de pago (CEP) desde la app para que la persona que envió el dinero o tu banco lo confirme.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "citations": [
+              {
+                "chunk_id": "chunk_p02s3",
+                "doc_id": "pol-02"
+              }
+            ],
+            "abstained": false,
+            "model_outputs": [
+              {
+                "category": "spei_incoming_not_credited",
+                "evidence": [
+                  {
+                    "id": "tx_si01a",
+                    "kind": "transaction"
+                  },
+                  {
+                    "id": "tx_si01a",
+                    "kind": "spei"
+                  }
+                ],
+                "abstained": false,
+                "citations": [
+                  {
+                    "quote": "El CEP solo existe para una transferencia liquidada; no se emite para una transferencia pendiente, rechazada o devuelta.",
+                    "doc_id": "pol-02",
+                    "section": "Comprobante electrónico de pago (CEP)",
+                    "chunk_id": "chunk_p02s3"
+                  }
+                ],
+                "draft_reply": "Hola, {{nombre}}. Revisamos tu consulta sobre el SPEI de $3,200.00 con clave de rastreo que termina en 7890. Nuestro registro muestra que esa transferencia está liquidada desde el 4 de octubre de 2026 a las 09:15:03 (hora del centro de México).\n\nTe pedimos que revises nuevamente tus movimientos en la app, por si el abono ya aparece allí. Si no lo ves reflejado, con gusto revisamos el caso con tu folio. Puedes pedir el comprobante electrónico de pago (CEP) desde la app para que la persona que envió el dinero o tu banco lo confirme.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+                "proposed_action": {
+                  "type": "none",
+                  "reason_code": "informational",
+                  "justification": "La transferencia tx_si01a de 3,200 entrante aparece liquidada el 2026-10-04 a las 09:15:03 -06:00 con clave de rastreo terminada en 7890 y CEP disponible; no hay base para abrir una disputa en este momento.",
+                  "transaction_ids": []
+                },
+                "reasoning_summary": "Busqué SPEI entrantes de 3,200 y encontré una sola transferencia (tx_si01a), con clave de rastreo terminada en 7890, que consta como liquidada. Por eso no hay evidencia de falta de abono ni de una acción sobre la cuenta; la respuesta orienta al cliente a revisar sus movimientos y a usar el CEP disponible."
+              }
+            ],
+            "validations": [
+              {
+                "outcome": "passed",
+                "codes": []
+              }
+            ],
+            "tool_calls": [
+              {
+                "tool": "get_customer",
+                "input": {}
+              },
+              {
+                "tool": "list_transactions",
+                "input": {
+                  "type": "spei_in",
+                  "limit": 25,
+                  "max_amount": 3200,
+                  "min_amount": 3200
+                }
+              },
+              {
+                "tool": "get_spei_status",
+                "input": {
+                  "transaction_id": "tx_si01a"
+                }
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Carlos\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••5732\",\"card_last4\":\"7938\",\"card_status\":\"active\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_si01a\",\"status\":\"settled\",\"amount\":3200,\"created_at\":\"2026-10-04T09:15:00-06:00\",\"type\":\"spei_in\",\"counterparty_first_name\":\"María\",\"counterparty_clabe\":\"CLABE ••••3213\"}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "get_spei_status",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"id\":\"tx_si01a\",\"type\":\"spei_in\",\"status\":\"settled\",\"amount\":••••,\"created_at\":\"2026-10-04T09:15:00-06:00\",\"settled_at\":\"2026-10-04T09:15:03-06:00\",\"returned_at\":null,\"tracking_key_last•\":\"••••\",\"return_reason\":null,\"hold_reason\":null,\"reject_reason\":null,\"reversal_credit_id\":null,\"cep_available\":true}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ],
+            "retrieved_docs": ["pol-02", "pol-07", "pol-01"],
+            "executions": 0,
+            "judge_input": {
+              "draft_reply": "Hola, {{nombre}}. Revisamos tu consulta sobre el SPEI de $3,200.00 con clave de rastreo que termina en 7890. Nuestro registro muestra que esa transferencia está liquidada desde el 4 de octubre de 2026 a las 09:15:03 (hora del centro de México).\n\nTe pedimos que revises nuevamente tus movimientos en la app, por si el abono ya aparece allí. Si no lo ves reflejado, con gusto revisamos el caso con tu folio. Puedes pedir el comprobante electrónico de pago (CEP) desde la app para que la persona que envió el dinero o tu banco lo confirme.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+              "cited_chunks": [
+                {
+                  "doc_id": "pol-02",
+                  "section": "Comprobante electrónico de pago (CEP)",
+                  "text": "El CEP solo existe para una transferencia liquidada; no se emite para una transferencia pendiente, rechazada o devuelta. El CEP permite al beneficiario comprobar ante su banco que el pago llegó. Banxico conserva la información para consultar el CEP al menos 3 meses."
+                }
+              ],
+              "tool_outputs": [
+                {
+                  "tool": "get_customer",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"first_name\":\"Carlos\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••5732\",\"card_last4\":\"7938\",\"card_status\":\"active\"}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "list_transactions",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"items\":[{\"id\":\"tx_si01a\",\"status\":\"settled\",\"amount\":3200,\"created_at\":\"2026-10-04T09:15:00-06:00\",\"type\":\"spei_in\",\"counterparty_first_name\":\"María\",\"counterparty_clabe\":\"CLABE ••••3213\"}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                },
+                {
+                  "tool": "get_spei_status",
+                  "output": {
+                    "_meta": {
+                      "io.modelcontextprotocol/serverInfo": {
+                        "name": "case-copilot-mcp",
+                        "version": "1.0.0"
+                      }
+                    },
+                    "content": [
+                      {
+                        "text": "{\"id\":\"tx_si01a\",\"type\":\"spei_in\",\"status\":\"settled\",\"amount\":••••,\"created_at\":\"2026-10-04T09:15:00-06:00\",\"settled_at\":\"2026-10-04T09:15:03-06:00\",\"returned_at\":null,\"tracking_key_last•\":\"••••\",\"return_reason\":null,\"hold_reason\":null,\"reject_reason\":null,\"reversal_credit_id\":null,\"cep_available\":true}",
+                        "type": "text"
+                      }
+                    ],
+                    "isError": false,
+                    "resultType": "complete"
+                  }
+                }
+              ]
+            }
+          },
+          "repeat_index": 0,
+          "judge_input": {
+            "draft_reply": "Hola, {{nombre}}. Revisamos tu consulta sobre el SPEI de $3,200.00 con clave de rastreo que termina en 7890. Nuestro registro muestra que esa transferencia está liquidada desde el 4 de octubre de 2026 a las 09:15:03 (hora del centro de México).\n\nTe pedimos que revises nuevamente tus movimientos en la app, por si el abono ya aparece allí. Si no lo ves reflejado, con gusto revisamos el caso con tu folio. Puedes pedir el comprobante electrónico de pago (CEP) desde la app para que la persona que envió el dinero o tu banco lo confirme.\n\nNunca te pediremos tu NIP, tu CVV, tus contraseñas ni los códigos que recibes por SMS.",
+            "cited_chunks": [
+              {
+                "doc_id": "pol-02",
+                "section": "Comprobante electrónico de pago (CEP)",
+                "text": "El CEP solo existe para una transferencia liquidada; no se emite para una transferencia pendiente, rechazada o devuelta. El CEP permite al beneficiario comprobar ante su banco que el pago llegó. Banxico conserva la información para consultar el CEP al menos 3 meses."
+              }
+            ],
+            "tool_outputs": [
+              {
+                "tool": "get_customer",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"first_name\":\"Carlos\",\"account_status\":\"active\",\"kyc_level\":\"N2\",\"clabe\":\"CLABE ••••5732\",\"card_last4\":\"7938\",\"card_status\":\"active\"}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "list_transactions",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"items\":[{\"id\":\"tx_si01a\",\"status\":\"settled\",\"amount\":3200,\"created_at\":\"2026-10-04T09:15:00-06:00\",\"type\":\"spei_in\",\"counterparty_first_name\":\"María\",\"counterparty_clabe\":\"CLABE ••••3213\"}],\"total\":1,\"next_cursor\":null,\"truncated\":false}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              },
+              {
+                "tool": "get_spei_status",
+                "output": {
+                  "_meta": {
+                    "io.modelcontextprotocol/serverInfo": {
+                      "name": "case-copilot-mcp",
+                      "version": "1.0.0"
+                    }
+                  },
+                  "content": [
+                    {
+                      "text": "{\"id\":\"tx_si01a\",\"type\":\"spei_in\",\"status\":\"settled\",\"amount\":••••,\"created_at\":\"2026-10-04T09:15:00-06:00\",\"settled_at\":\"2026-10-04T09:15:03-06:00\",\"returned_at\":null,\"tracking_key_last•\":\"••••\",\"return_reason\":null,\"hold_reason\":null,\"reject_reason\":null,\"reversal_credit_id\":null,\"cep_available\":true}",
+                      "type": "text"
+                    }
+                  ],
+                  "isError": false,
+                  "resultType": "complete"
+                }
+              }
+            ]
+          },
+          "customer_text": "Me mandaron 3,200 por SPEI con clave de rastreo MBAN núm ••••7890 y no lo veo reflejado.",
+          "model": "claude-haiku-5-5",
+          "prompt_version": "5069efbe7af5a2ad"
+        }
+      },
+      "gradingResult": {
+        "componentResults": [
+          {
+            "pass": false,
+            "reason": "failed: action_type",
+            "assertion": {
+              "type": "javascript"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {}
+          },
+          {
+            "pass": false,
+            "reason": "The first unsupported claim is that the tracking key ends in ••••: get_spei_status masks it as \"••••\" and no tool output shows ••••. Later, requesting the CEP \"desde la app\" and having the sender confirm it are also not in the cited chunk.",
+            "assertion": {
+              "type": "llm-rubric"
+            },
+            "metadata": {
+              "graderError": false
+            },
+            "tokensUsed": {
+              "prompt": 2098,
+              "completion": 586
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
