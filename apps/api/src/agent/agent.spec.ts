@@ -246,6 +246,31 @@ describe('runAgent (01 §The agentic node)', () => {
     expect(lastUserText(model)).toContain('SCHEMA');
   });
 
+  it('names the placeholder rules when SCHEMA is among the repair codes, and only then', async () => {
+    const schema = inOrder(
+      ...investigation,
+      () => objectResponse(withAction({ type: 'refund' })),
+      () => objectResponse(resolutionOf()),
+    );
+    await run(inputOf(schema));
+    expect(lastUserText(schema)).toContain(
+      'each {{compromiso_*}} is a whole sentence of its own, period included',
+    );
+    const [citation] = resolutionOf().citations;
+    const unseen = inOrder(
+      ...investigation,
+      () =>
+        objectResponse(
+          resolutionOf({
+            citations: [{ ...citation!, chunk_id: 'chunk_p09s1' }],
+          }),
+        ),
+      () => objectResponse(resolutionOf()),
+    );
+    await run(inputOf(unseen));
+    expect(lastUserText(unseen)).not.toContain('{{compromiso_*}}');
+  });
+
   it('repairs a citation of a chunk the run never saw', async () => {
     const [citation] = resolutionOf().citations;
     const model = inOrder(

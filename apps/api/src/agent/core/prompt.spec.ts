@@ -69,6 +69,12 @@ describe('SYSTEM_PROMPT (01 §Context policy, 02 G7)', () => {
     expect(SYSTEM_PROMPT).toMatch(/never say an action is already done/);
   });
 
+  it('keeps a commitment placeholder out of the middle of a sentence', () => {
+    expect(SYSTEM_PROMPT).toMatch(
+      /a compromiso is a whole sentence, period included/,
+    );
+  });
+
   it('greets by name only when get_customer returned the customer', () => {
     expect(SYSTEM_PROMPT).toMatch(/only if get_customer returned the customer/);
   });

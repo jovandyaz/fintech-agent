@@ -904,6 +904,8 @@ describe('validation time', () => {
     '_1',
     'medio millon ',
     'a las uno y ',
+    '{{compromiso_abono}} ',
+    '.   {{compromiso_dictamen}}   ',
   ];
 
   it('stays within budget on a maximal adversarial draft', () => {
@@ -964,6 +966,40 @@ describe('date placeholders and their commitments', () => {
     expect(
       codesOf(replying('Hola {{nombre}}, folio {{folio}}{{fecha_recepcion}}.')),
     ).toEqual(['SCHEMA']);
+  });
+
+  it('fails a commitment placeholder inside a sentence, which fills as broken text (SCHEMA)', () => {
+    for (const draft of [
+      'Nuestro equipo te dará su dictamen {{compromiso_dictamen}}.',
+      'El abono se haría {{compromiso_abono}}, salvo que se demuestren dos factores.',
+      'El abono llegaría en este plazo: {{compromiso_abono}}',
+      'Folio {{folio}}. {{compromiso_dictamen}}.',
+      'Folio {{folio}}. {{compromiso_dictamen}} y revisaremos el cargo.',
+      'Folio {{folio}}.{{compromiso_dictamen}}',
+      'Folio {{folio}}. {{compromiso_abono}}¿Dudas?',
+      'Folio {{folio}}. {{compromiso_dictamen}} {texto suelto',
+      'Folio {{folio}}. {{compromiso_dictamen}} {{ texto suelto',
+      'Folio {{folio}}. {{compromiso_dictamen}} {{fecha_recepcion}} es la fecha.',
+      'Tu folio {{folio}} {{compromiso_dictamen}}',
+    ]) {
+      expect(codesOf(replying(draft)), draft).toEqual(['SCHEMA']);
+    }
+  });
+
+  it('accepts a commitment placeholder that stands as its own sentence', () => {
+    for (const draft of [
+      '{{compromiso_dictamen}} Gracias por avisarnos.',
+      'Tu folio es {{folio}}. {{compromiso_abono}} {{compromiso_dictamen}}',
+      'Revisaremos el cargo.\n\n{{compromiso_dictamen}}\n\nGracias.',
+      '¿Tienes dudas? {{compromiso_abono}}',
+      'Folio {{folio}}. {{compromiso_dictamen}} ¿Tienes dudas? Escríbenos.',
+      'Gracias.\r\n{{compromiso_dictamen}}\r\nSaludos.',
+      '¡Gracias! {{compromiso_abono}} ¡Seguimos en contacto!',
+      'Revisaremos tu caso… {{compromiso_dictamen}} Éste es tu folio: {{folio}}.',
+      '{{compromiso_dictamen}} {{nombre}}, gracias por escribirnos.',
+    ]) {
+      expect(codesOf(replying(draft)), draft).toEqual([]);
+    }
   });
 });
 

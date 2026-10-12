@@ -1,5 +1,12 @@
 import { addBusinessDays, addNaturalDays, localDateOf } from '../calendar.js';
 
+/** The placeholders that fill as a whole sentence of approved wording (02 G5). */
+export const COMMITMENT_PLACEHOLDERS = [
+  'compromiso_dictamen',
+  'compromiso_abono',
+] as const;
+type CommitmentPlaceholder = (typeof COMMITMENT_PLACEHOLDERS)[number];
+
 /** The placeholders a draft may carry (02 G5); the harness fills them after validation. */
 export const PLACEHOLDERS = [
   'nombre',
@@ -7,8 +14,7 @@ export const PLACEHOLDERS = [
   'fecha_recepcion',
   'fecha_limite_dictamen',
   'fecha_limite_abono',
-  'compromiso_dictamen',
-  'compromiso_abono',
+  ...COMMITMENT_PLACEHOLDERS,
 ] as const;
 export type Placeholder = (typeof PLACEHOLDERS)[number];
 
@@ -30,7 +36,7 @@ const COMMITMENTS = {
     'Te daremos una respuesta por escrito a más tardar el {{fecha_limite_dictamen}}. Si no estás de acuerdo con ella, puedes acudir a la CONDUSEF.',
   compromiso_abono:
     'Te abonaremos el importe del cargo a más tardar el {{fecha_limite_abono}}, mientras resolvemos tu aclaración.',
-} as const satisfies Partial<Record<Placeholder, string>>;
+} as const satisfies Record<CommitmentPlaceholder, string>;
 
 // dd/mm/aaaa: the masker reads it as a date. A long Spanish date leaves its
 // day as loose digits that, with an amount in the same reply, cross the

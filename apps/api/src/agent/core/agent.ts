@@ -310,8 +310,13 @@ const validationRecord = (
   outputMasked: { outcome, codes },
 });
 
+// SCHEMA also covers placeholder form, which a bare code does not name, so a
+// resend would repeat it.
+const SCHEMA_HINT =
+  ' For SCHEMA: use only the listed placeholders, never glued to a word, and each {{compromiso_*}} is a whole sentence of its own, period included.';
+
 const repairMessage = (codes: readonly ValidationCode[]): string =>
-  `Your resolution failed validation with: ${codes.join(', ')}. Correct it and answer again with the complete resolution.`;
+  `Your resolution failed validation with: ${codes.join(', ')}.${codes.includes('SCHEMA') ? SCHEMA_HINT : ''} Correct it and answer again with the complete resolution.`;
 
 /** Sums the tokens and cost of a trace; only model steps carry them. */
 export function traceTotals(trace: readonly StepRecord[]): TraceTotals {

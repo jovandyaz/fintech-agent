@@ -9,14 +9,63 @@ import { hasCommitment } from './commitments.js';
 import type { RunEvidence } from './evidence.js';
 import { groundingAtoms, ungroundedAtoms } from './numbers.js';
 import {
+  COMMITMENT_PLACEHOLDERS,
   isPlaceholder,
   placeholdersIn,
   type Placeholder,
 } from './placeholders.js';
 import { TWO_FACTORS } from './predicates.js';
+
 // A filled value joined to a letter or digit becomes text nobody validated
 // ("1234567" + a date is an 8-digit run), so a placeholder stands apart.
 const GLUED_PLACEHOLDER = /[\p{L}\p{N}]\{\{|\}\}[\p{L}\p{N}]|\}\}\{\{/u;
+
+// A commitment fills as a whole sentence that starts with a capital and ends
+// with a period, so only a line break, or a space between it and a sentence
+// boundary, keeps the filled text whole ("su dictamen Te daremos… CONDUSEF..").
+const COMMITMENT_LITERALS = COMMITMENT_PLACEHOLDERS.map(
+  (name) => `{{${name}}}`,
+);
+const SENTENCE_OPENING_PLACEHOLDERS = [...COMMITMENT_LITERALS, '{{nombre}}'];
+const COMMITMENT_TOKEN = new RegExp(
+  `\\{\\{(?:${COMMITMENT_PLACEHOLDERS.join('|')})\\}\\}`,
+  'gu',
+);
+const SENTENCE_END = /[.!?…]/u;
+const SENTENCE_OPENER = /[\p{Lu}¿¡]/u;
+// Whitespace other than '\n', which may touch a commitment on its own.
+const INLINE_SPACE = /[^\S\n]/u;
+
+function startsSentenceAt(draft: string, index: number): boolean {
+  let start = index;
+  while (start > 0 && INLINE_SPACE.test(draft[start - 1]!)) start -= 1;
+  if (start === 0 || draft[start - 1] === '\n') return true;
+  return (
+    start < index &&
+    (SENTENCE_END.test(draft[start - 1]!) ||
+      COMMITMENT_LITERALS.some((literal) => draft.endsWith(literal, start)))
+  );
+}
+
+function endsSentenceAt(draft: string, end: number): boolean {
+  let next = end;
+  while (next < draft.length && INLINE_SPACE.test(draft[next]!)) next += 1;
+  if (next === draft.length || draft[next] === '\n') return true;
+  return (
+    next > end &&
+    (SENTENCE_OPENER.test(draft[next]!) ||
+      SENTENCE_OPENING_PLACEHOLDERS.some((literal) =>
+        draft.startsWith(literal, next),
+      ))
+  );
+}
+
+const commitmentInsideSentence = (draft: string): boolean =>
+  [...draft.matchAll(COMMITMENT_TOKEN)].some(
+    ({ index, 0: token }) =>
+      !startsSentenceAt(draft, index) ||
+      !endsSentenceAt(draft, index + token.length),
+  );
 
 // Reads card authorization outputs only: a promise of credit rests on the
 // factor count a status output confirms, never on a list row's copy.
@@ -66,7 +115,8 @@ export function replyCodes(
   const names = placeholdersIn(draft);
   if (
     names.some((name) => !isPlaceholder(name)) ||
-    GLUED_PLACEHOLDER.test(draft)
+    GLUED_PLACEHOLDER.test(draft) ||
+    commitmentInsideSentence(draft)
   ) {
     codes.push('SCHEMA');
   }

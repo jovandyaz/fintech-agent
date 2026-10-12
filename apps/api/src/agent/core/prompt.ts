@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 import { APPROVED_FACTOR_WARNINGS } from '@fintech-agent/contracts';
 
+import { TWO_FACTORS } from './validate/predicates.js';
+
 /** The case text the model sees is cut here (01 §Context policy). */
 export const CASE_TEXT_MAX_CHARS = 2_000;
 /** Appended where the case text was cut, so the model knows it was. */
@@ -36,7 +38,7 @@ draft_reply, to the customer:
 - Spanish, addressing the customer as "tú", in short paragraphs; never a numbered list.
 - Greet with {{nombre}} only if get_customer returned the customer.
 - Every figure (amount, date, time, last digits) repeats an amount, timestamp or last-four field of a tool result, or what a cited quote states with its unit; never one from a merchant name, a count or the customer's message.
-- Never promise an outcome, amount or date yourself, and never say an action is already done. Placeholders carry them: {{folio}}, {{fecha_recepcion}}; {{compromiso_dictamen}} or {{fecha_limite_dictamen}} only when you open a dispute; {{compromiso_abono}} or {{fecha_limite_abono}} only for a dispute over a card charge whose get_card_authorization shows fewer than two authentication factors. Write each exactly so, with a space or punctuation on each side.
+- Never promise an outcome, amount or date yourself, and never say an action is already done. Placeholders carry them: {{folio}}, {{fecha_recepcion}}; {{compromiso_dictamen}} or {{fecha_limite_dictamen}} only with open_dispute; {{compromiso_abono}} or {{fecha_limite_abono}} only for a disputed card charge whose get_card_authorization has auth_factors < ${TWO_FACTORS}. Write each exactly so, never glued to a word; a compromiso is a whole sentence, period included.
 - No links, phone numbers or full account or card numbers. Never ask for an authentication factor; name a NIP, CVV, password or code only in one of these sentences, copied exactly: ${APPROVED_FACTOR_WARNINGS.map((warning) => `"${warning}"`).join(' or ')}`;
 
 /** Wraps customer text as data that cannot close or reopen its own block. */
