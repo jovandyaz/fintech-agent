@@ -2,6 +2,16 @@
 
 An agent that investigates a customer case with read-only tools and policies, proposes a resolution, and leaves every consequential action to a human in ops. Built for the albo AI Lead challenge: a signed ticket webhook, one MCP server with four read-only tools bound to the case, cited policy retrieval, a validator after every model output, an ops console where an authenticated operator decides, and an executor in its own container. The specs in `specs/` are the design; `AGENTS.md` maps the code.
 
+## Review in 30 minutes
+
+1. [Quickstart](#quickstart): `pnpm install && pnpm start` opens the console with three sample cases (with `docker compose up --build` and no Node, open them with **Nuevo caso**); [data/CUSTOMERS.md](data/CUSTOMERS.md) lists every customer's movements for a case of your own.
+2. [DESIGN.md](DESIGN.md): the harness, the defense model and its residual risk, what was cut, what breaks at 10x.
+3. [EVALS.md](EVALS.md): the latest run, where the agent fails and why, and the run history, a regression the gate caught included.
+4. The code behind the guarantees: `apps/api/src/agent/core/agent.ts` (the loop and its budgets), `apps/api/src/agent/core/validate/` (the checks after every model output), `apps/api/src/approvals/` and `apps/api/src/executor/` (the human gate and the only writer), `apps/mcp/src/tools.ts` (tools bound to the case).
+5. [PLAYBOOK.md](PLAYBOOK.md) and [AI_NOTES.md](AI_NOTES.md).
+
+Further depth, not needed for a first pass: `specs/`, [docs/compliance.md](docs/compliance.md), [ops/README.md](ops/README.md) and the [canaries](#canaries).
+
 ## Quickstart
 
 ### Prerequisites

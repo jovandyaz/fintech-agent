@@ -140,7 +140,7 @@ describe('variantReport (03 §Metrics, §Repeats)', () => {
     expect(report.groundedness).toMatchObject({ successes: 0, n: 1 });
   });
 
-  it('reports cost and latency percentiles, the fallback rate, steps per run and executions', () => {
+  it('reports cost and latency percentiles, the fallback rate, trace rows per run and executions', () => {
     const report = reportOf(
       repeats([
         { cost_usd: 0.01, latency_ms: 1000, steps: 6 },

@@ -243,7 +243,7 @@ function variantTable(report: VariantReport, judgeCounts: boolean): string {
       `${ms(report.latencyMs.p50)} / ${ms(report.latencyMs.p95)}`,
     ],
     ['Fallback rate', count(report.fallbackRate)],
-    ['Steps per run', report.stepsPerRun.toFixed(1)],
+    ['Trace rows per run', report.stepsPerRun.toFixed(1)],
   ];
   return [
     `### ${report.variant} · ${report.model ?? NONE} · prompt ${report.promptVersion ?? NONE}`,

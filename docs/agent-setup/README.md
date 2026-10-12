@@ -2,7 +2,7 @@
 
 The brief asks for the agent setup "as it ended up". Part of it lives outside this repo, in my user-level `~/.claude/`, so this folder is a sanitized copy of the pieces that shaped this build. The repo-level setup is in `AGENTS.md`, `CLAUDE.md` and `.claude/`.
 
-Copied verbatim on 2026-10-05; personal tooling (notifications, terminal multiplexer state, machine environment, secrets) is left out.
+The files kept are copied verbatim on 2026-10-05; what makes it sanitized is what is left out: personal tooling (notifications, terminal multiplexer state, machine environment, secrets).
 
 ## What is here
 
