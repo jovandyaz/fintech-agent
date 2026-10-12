@@ -66,6 +66,21 @@ export function localTimeOf(instant: Date): string {
   return LOCAL_TIME.format(instant);
 }
 
+const LOCAL_OFFSET = new Intl.DateTimeFormat('en-US', {
+  timeZone: BANK_CALENDAR.time_zone,
+  timeZoneName: 'shortOffset',
+});
+const GMT = 'GMT';
+
+/** Mexico City's UTC offset at an instant, as `-6` or `-5`. */
+export function localOffsetOf(instant: Date): string {
+  const name =
+    LOCAL_OFFSET.formatToParts(instant).find(
+      ({ type }) => type === 'timeZoneName',
+    )?.value ?? GMT;
+  return name.slice(GMT.length);
+}
+
 const ISO_DAY_LENGTH = 'YYYY-MM-DD'.length;
 const YEAR_LENGTH = 'YYYY'.length;
 

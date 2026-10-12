@@ -29,6 +29,7 @@ import {
   UNIT_WORD,
   alternation,
 } from './spanish.js';
+import { COUNT_NOUNS } from './count-nouns.js';
 
 const PESOS_PER_MIL = 1000;
 const PESOS_PER_MILLION = 1_000_000;
@@ -82,36 +83,6 @@ const MONTH_NUMBER: Readonly<Record<string, number>> = {
   ...Object.fromEntries(SPANISH_MONTHS.map((name, index) => [name, index + 1])),
   setiembre: SPANISH_MONTHS.indexOf('septiembre') + 1,
 };
-// No singulars: once accents go, "pasó" and "cuenta" read as nouns, so
-// "1500 pasó" would hide 1500. Only "1" takes a singular, and it is no figure.
-const COUNT_NOUNS = [
-  'movimientos',
-  'cargos',
-  'transacciones',
-  'operaciones',
-  'compras',
-  'transferencias',
-  'pagos',
-  'intentos',
-  'veces',
-  'pasos',
-  'digitos',
-  'documentos',
-  'aclaraciones',
-  'casos',
-  'tarjetas',
-  'cuentas',
-  'opciones',
-  'cobros',
-  'abonos',
-  'depositos',
-  'reembolsos',
-  'devoluciones',
-  'retiros',
-  'comercios',
-  'solicitudes',
-  'factores',
-] as const;
 
 const INTEGER = String.raw`(?:${GROUPED}|\d+)`;
 const DECIMALS = String.raw`\d{1,2}`;

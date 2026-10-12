@@ -59,6 +59,14 @@ const CONSONANTS = 'BCDFGHJKLMNPQRSTVWXYZ';
 const KYC_DEFAULTS: KycLevel[] = ['N2', 'N3'];
 const SETTLED: TxStatus = 'settled';
 const REVERSAL_COUNTERPARTY = 'Devolución SPEI';
+const FILLER_ID_PREFIX = 'tx_f';
+const REVERSAL_ID_PREFIX = 'tx_r';
+const VARIETY_ID_PREFIX = 'tx_v';
+const VARIETY_SEED_OFFSET = 1;
+const PENDING_CARD_FROM = Date.parse('2026-10-03T08:00:00-06:00');
+const PENDING_CARD_TO = Date.parse('2026-10-04T20:00:00-06:00');
+const RETURNED_SPEI_IN_FROM = Date.parse('2026-10-01T08:00:00-06:00');
+const RETURNED_SPEI_IN_TO = Date.parse('2026-10-03T20:00:00-06:00');
 
 const MULBERRY_INCREMENT = 0x6d2b79f5;
 const MULBERRY_SHIFTS = [15, 7, 14] as const;
@@ -244,15 +252,16 @@ interface FillerContext {
   random: Random;
   owner: Customer;
   next: () => number;
+  idPrefix: string;
 }
 
 function fillerSpei(
-  { random, owner, next }: FillerContext,
+  { random, owner, next, idPrefix }: FillerContext,
   type: SpeiTx['type'],
   at: number,
 ): SpeiTx {
   return {
-    id: `tx_f${pad(next(), ID_PAD)}`,
+    id: `${idPrefix}${pad(next(), ID_PAD)}`,
     customer_id: owner.id,
     type,
     status: SETTLED,
@@ -274,7 +283,7 @@ function fillerSpei(
 }
 
 function fillerCard(
-  { random, owner, next }: FillerContext,
+  { random, owner, next, idPrefix }: FillerContext,
   at: number,
   notPresentLeft: Merchant[],
 ): CardTx {
@@ -285,7 +294,7 @@ function fillerCard(
     : pick(random, CARD_PRESENT_MERCHANTS);
   const declined = random() < SHARE_CARD_DECLINED;
   return {
-    id: `tx_f${pad(next(), ID_PAD)}`,
+    id: `${idPrefix}${pad(next(), ID_PAD)}`,
     customer_id: owner.id,
     type: 'card_purchase',
     status: declined ? 'rejected' : SETTLED,
@@ -296,6 +305,18 @@ function fillerCard(
     channel: remote ? 'card_not_present' : 'card_present',
     auth_factors: remote ? 1 : 2,
     decline_reason: declined ? 'insufficient_funds' : null,
+  };
+}
+
+function returnedOf(tx: SpeiTx, reversalCreditId: string | null): SpeiTx {
+  return {
+    ...tx,
+    status: 'returned',
+    settled_at: null,
+    cep_available: false,
+    return_reason: 'beneficiario_no_coincide',
+    returned_at: isoMx(Date.parse(tx.created_at) + RETURN_DELAY_MS),
+    reversal_credit_id: reversalCreditId,
   };
 }
 
@@ -342,20 +363,64 @@ function fillerFor(context: FillerContext, index: number): Transaction[] {
       out.push(tx);
       continue;
     }
-    const reversalId = `tx_r${pad(next(), ID_PAD)}`;
-    const returned: SpeiTx = {
-      ...tx,
-      status: 'returned',
-      settled_at: null,
-      cep_available: false,
-      return_reason: 'beneficiario_no_coincide',
-      returned_at: isoMx(at + RETURN_DELAY_MS),
-      reversal_credit_id: reversalId,
-    };
+    const reversalId = `${REVERSAL_ID_PREFIX}${pad(next(), ID_PAD)}`;
+    const returned = returnedOf(tx, reversalId);
     out.push(returned, reversalOf(returned, reversalId));
     needsReturn = false;
   }
   return out;
+}
+
+// An authorization held but not captured yet. An empty not-present pool keeps
+// it card-present with two factors, so the SPEI cases of the customers it
+// lands on gain no one-factor charge to dispute.
+const pendingCard = (context: FillerContext): CardTx => ({
+  ...fillerCard(
+    context,
+    int(context.random, PENDING_CARD_FROM, PENDING_CARD_TO),
+    [],
+  ),
+  status: 'pending',
+  decline_reason: null,
+});
+
+// albo could not credit it, so the money went back to the sender: nothing is
+// credited to the customer and no reversal row exists.
+const returnedSpeiIn = (context: FillerContext): SpeiTx =>
+  returnedOf(
+    fillerSpei(
+      context,
+      'spei_in',
+      int(context.random, RETURNED_SPEI_IN_FROM, RETURNED_SPEI_IN_TO),
+    ),
+    null,
+  );
+
+// Customers whose eval cases never ask about these rows (SPEI-OUT-02,
+// SPEI-IN-01, SPEI-IN-02, CARD-DECL-03); never cus_07, whose PAYPAL charge e2e
+// disputes, nor cus_13 or cus_18, which host several cases.
+const VARIETY: readonly {
+  customerId: string;
+  build: (context: FillerContext) => Transaction;
+}[] = [
+  { customerId: 'cus_02', build: returnedSpeiIn },
+  { customerId: 'cus_04', build: pendingCard },
+  { customerId: 'cus_05', build: pendingCard },
+  { customerId: 'cus_12', build: returnedSpeiIn },
+];
+
+function varietyFor(seed: number, lookup: CustomerLookup): Transaction[] {
+  const random = mulberry32(seed + VARIETY_SEED_OFFSET);
+  let counter = 0;
+  const next = (): number => ++counter;
+  return VARIETY.map(({ customerId, build }) =>
+    build({
+      random,
+      owner: lookup(customerId),
+      next,
+      idPrefix: VARIETY_ID_PREFIX,
+    }),
+  );
 }
 
 export interface GeneratedFixture {
@@ -371,8 +436,9 @@ export interface Dataset {
 
 /**
  * Builds the whole synthetic core: every scenario is planted first under its
- * fixed ids, then seeded filler dated before any scenario. The same seed
- * always yields the same dataset.
+ * fixed ids, then seeded filler dated before any scenario, then a few rows of
+ * the states filler lacks from a second seeded stream, so adding them moved
+ * no planted or filler row. The same seed always yields the same dataset.
  */
 export function generateDataset(seed: number): Dataset {
   const random = mulberry32(seed);
@@ -400,7 +466,7 @@ export function generateDataset(seed: number): Dataset {
   let counter = 0;
   const next = (): number => ++counter;
   const filler = customers.flatMap((owner, i) =>
-    fillerFor({ random, owner, next }, i),
+    fillerFor({ random, owner, next, idPrefix: FILLER_ID_PREFIX }, i),
   );
 
   const fixtures = SCENARIOS.map((scenario) => ({
@@ -414,5 +480,9 @@ export function generateDataset(seed: number): Dataset {
     },
   }));
 
-  return { customers, transactions: [...planted, ...filler], fixtures };
+  return {
+    customers,
+    transactions: [...planted, ...filler, ...varietyFor(seed, lookup)],
+    fixtures,
+  };
 }

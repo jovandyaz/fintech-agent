@@ -1,10 +1,11 @@
-import { localDateOf, localTimeOf } from '../calendar.js';
+import { localDateOf, localOffsetOf, localTimeOf } from '../calendar.js';
 
 const CENTS_PER_PESO = 100;
 const MONTHS_IN_YEAR = 12;
 const MAX_DAY_OF_MONTH = 31;
 const TWO_DIGITS = 2;
 const GROUP_MARK = ',';
+const HOUR_MS = 3_600_000;
 
 /**
  * The kinds of atom a reply figure reads as. A reply atom is grounded only
@@ -82,16 +83,30 @@ export function localClockOf(
 
 /**
  * The atoms of a whole instant as its Mexico City date and time: to the
- * second, then to the minute. Comparing one atom, not a date and a time
- * apart, keeps two different instants from grounding it together.
+ * second, then to the minute, with the UTC offset in a repeated hour.
+ * Comparing one atom, not a date and a time apart, keeps two different
+ * instants from grounding it together.
  */
 export function instantForms(
   instant: Date,
 ): [toSecond: string, toMinute: string] {
   const date = localDateOf(instant);
   const [toSecond, toMinute] = localClockOf(instant);
+  // In the hour a daylight-saving change repeats, two instants share one
+  // wall clock; the offset tells them apart. Elsewhere the atom stays bare.
+  const offset = isRepeatedHour(instant) ? [localOffsetOf(instant)] : [];
   return [
-    atom(ATOM_KIND.instant, date, toSecond),
-    atom(ATOM_KIND.instant, date, toMinute),
+    atom(ATOM_KIND.instant, date, toSecond, ...offset),
+    atom(ATOM_KIND.instant, date, toMinute, ...offset),
   ];
+}
+
+const wallClockOf = (instant: Date): string =>
+  `${localDateOf(instant)} ${localClockOf(instant)[0]}`;
+
+function isRepeatedHour(instant: Date): boolean {
+  const clock = wallClockOf(instant);
+  return [-HOUR_MS, HOUR_MS].some(
+    (shift) => wallClockOf(new Date(instant.getTime() + shift)) === clock,
+  );
 }

@@ -7,6 +7,7 @@ import {
   addNaturalDays,
   businessDaysBetween,
   localDateOf,
+  localOffsetOf,
   localTimeOf,
 } from './calendar.js';
 
@@ -21,6 +22,14 @@ describe('localTimeOf', () => {
   it('reads the 24-hour wall clock in Mexico City, midnight as 00', () => {
     expect(localTimeOf(new Date('2026-10-06T20:30:00Z'))).toBe('14:30');
     expect(localTimeOf(new Date('2026-10-07T06:05:00Z'))).toBe('00:05');
+  });
+});
+
+describe('localOffsetOf', () => {
+  it("reads Mexico City's UTC offset at the instant, daylight saving before 2022 included", () => {
+    expect(localOffsetOf(new Date('2026-10-06T20:30:00Z'))).toBe('-6');
+    expect(localOffsetOf(new Date('2021-10-31T06:30:00Z'))).toBe('-5');
+    expect(localOffsetOf(new Date('2021-10-31T07:30:00Z'))).toBe('-6');
   });
 });
 

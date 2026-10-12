@@ -194,6 +194,14 @@ describe('hasCommitment, deadlines with decimals or thousands', () => {
     'En 1.5 días tendrás tu dinero.',
     'En 1.000 días tendrás tu dinero.',
     'En mil días te llega el abono.',
+    'En 5 mil días te llega el abono.',
+    'En 3 cinco días te llega el abono.',
+    'En 5,quinientos días te llega el abono.',
+    'En 5.cinco días te llega el abono.',
+    'En 1,cinco días te llega el abono.',
+    'No en 3 días te devolvemos el cargo.',
+    'No en 5 mil días te devolveremos el dinero.',
+    'No en 1 tres días te devolvemos el cargo.',
   ])('finds "%s"', (text) => {
     expect(hasCommitment(text)).toBe(true);
   });

@@ -399,6 +399,12 @@ describe('numberAtoms, figures spelled out', () => {
       ['instant:2026-10-02:11:20:04', 'amount:50000'],
     ],
     ['los cinco fueron por quinientos pesos', ['amount:50000']],
+    ['5,quinientos pesos', ['amount:500', 'amount:50000']],
+    ['5.quinientos pesos', ['amount:500', 'amount:50000']],
+    [
+      '2026-10-02T11:20:04Z quinientos pesos',
+      ['instant:2026-10-02:05:20:04', 'amount:50000'],
+    ],
   ])(
     'reads a number word right after a figure as a figure of its own: %s',
     (text, atoms) => {
@@ -421,12 +427,47 @@ describe('numberAtoms, figures spelled out', () => {
     ['el cuarenta y una por ciento dos meses', ['pct:41', 'dur:2:mes']],
     ['el ciento un por ciento un mes', ['pct:101', 'dur:1:mes']],
     ['un cargo por ciento y cinco pesos', ['amount:10500']],
-    ['el 10 por cien cinco días', ['amount:1000', 'dur:105:dia']],
-    ['el cien por cien un mes', ['amount:10000', 'dur:101:mes']],
+    ['el 10 por cien cinco días', ['amount:1000', 'amount:10000', 'dur:5:dia']],
+    ['el cien por cien un mes', ['amount:10000', 'amount:10000', 'dur:1:mes']],
     [
       'el cargo del 2 de octubre de 2026 por cien una vez',
-      ['date:2026-10-02', 'amount:10100'],
+      ['date:2026-10-02', 'amount:10000'],
     ],
+    ['un cargo por ciento 50 pesos', ['amount:15000']],
+    ['un cargo por ciento 5 pesos', ['amount:10500']],
+    ['el 10 por ciento 50 pesos', ['pct:10', 'amount:5000']],
+    ['los dos por ciento cincuenta pesos', ['amount:15000']],
+    ['las tres por ciento veinte pesos', ['pct:3', 'amount:2000']],
+    ['a las tres por 500 pesos', ['time:03:00', 'amount:50000']],
+    ['a las dos por 10 minutos', ['time:02:00', 'dur:10:minuto']],
+    ['los dos por ciento 500 pesos', ['pct:2', 'amount:50000']],
+    ['los dos por ciento 3 cargos', ['pct:2']],
+    ['los dos por ciento tres cargos', ['pct:2']],
+    ['los veinte por ciento cincuenta pesos', ['pct:20', 'amount:5000']],
+    ['el uno por ciento y 50 pesos', ['pct:1', 'amount:5000']],
+    ['los dos por ciento y 50 pesos', ['pct:2', 'amount:5000']],
+    ['un cargo por ciento 1 500 pesos', ['amount:150000']],
+    ['mil ciento 5 000 pesos', ['amount:110000', 'amount:500000']],
+    ['te devolvimos los diez por una falla', ['amount:1000']],
+    ['se abonaron los cinco por un ajuste', ['amount:500']],
+    ['se abonaron los diez por uno', ['amount:1000']],
+    ['se abonaron los diez por mil disculpas', ['amount:1000']],
+    ['se abonaron cada diez por un error', ['amount:1000']],
+    ['te cobramos los diez por 1 retiro', ['amount:1000']],
+    ['los dos por 1 500 pesos', ['amount:150000']],
+    ['te cobramos los diez por 3D Secure', ['amount:1000']],
+    ['te cobramos los diez por 3-D Secure', ['amount:1000']],
+    ['te cobramos los diez por 3DS', ['amount:1000']],
+    ['se abonaron los diez por 3er intento', ['amount:1000']],
+    ['se abonaron los diez por 1era vez', ['amount:1000']],
+    ['se abonaron los diez por 2º intento', ['amount:1000']],
+    ['se abonaron cada diez por 2a vez', ['amount:1000']],
+    ['se cobraron los tres por 1.5 veces el monto', ['amount:300']],
+    ['se abonaron los diez por 1.5a vez', ['amount:1000']],
+    ['los dos por 1_ vez', ['amount:200']],
+    ['cada dos por cien pesos', ['amount:10000']],
+    ['los dos por ciento', ['pct:2']],
+    ['los dos por ciento de comisión', ['pct:2']],
     ['un reembolso por cien pesos', ['amount:10000']],
     ['a las 11:20 por cien pesos', ['time:11:20', 'amount:10000']],
     [
@@ -1087,6 +1128,26 @@ describe('numberAtoms, card and key digits', () => {
     ]);
   });
 
+  it('reads single digits spelled out with no "y" as one digit string', () => {
+    expect(
+      numberAtoms(
+        'terminación uno dos tres cuatro, con final cero cinco uno dos y el folio cuatro cinco seis',
+      ),
+    ).toEqual(['last4:1234', 'last4:0512', 'amount:45600']);
+  });
+
+  it('reads a run of spelled single digits after a larger number word as a digit string of its own', () => {
+    expect(
+      numberAtoms('veinte uno dos tres pesos y ciento cinco seis pesos'),
+    ).toEqual(['amount:2000', 'amount:12300', 'amount:10000', 'amount:5600']);
+  });
+
+  it('scales a spelled digit string by the "mil" after it', () => {
+    expect(numberAtoms('te devolvemos dos tres mil pesos')).toEqual([
+      'amount:2300000',
+    ]);
+  });
+
   it('reads alphanumeric key digits after a cue, lowercased', () => {
     expect(numberAtoms('con final O01A y terminación 12ab')).toEqual([
       'last4:o01a',
@@ -1360,6 +1421,21 @@ describe('groundingAtoms, seconds and instants', () => {
         precise,
       ),
     ).toEqual([]);
+  });
+
+  // Mexico City left daylight saving at 02:00 on 2021-10-31, so 06:30Z and
+  // 07:30Z both read 01:30 there.
+  it('never grounds an instant on another that shares its wall clock in a repeated hour', () => {
+    const repeated = groundingAtoms({
+      outputs: [{ settled_at: '2021-10-31T07:30:00Z' }],
+      citedTexts: [],
+    });
+    expect(
+      ungroundedAtoms('2021-10-31T07:30:00Z y 2021-10-31T07:30Z', repeated),
+    ).toEqual([]);
+    expect(
+      ungroundedAtoms('2021-10-31T06:30:00Z y 2021-10-31T06:30Z', repeated),
+    ).toHaveLength(2);
   });
 
   it('grounds a time on a cited time to the second, with or without its seconds', () => {
