@@ -49,15 +49,11 @@ export function run(
 
 /** How many `core_write` lines core-mock's log holds for an action id (needs the compose stack). */
 export function coreWritesFor(actionId: string): number {
-  // Compose reads .env on its own, which may hold a real key; this run needs none.
-  const logs = run('docker', [
-    'compose',
-    '--env-file',
-    '/dev/null',
-    'logs',
-    '--no-color',
-    'core-mock',
-  ]);
+  // Compose reads .env on its own, which may hold a real key; this run needs
+  // none. The variable, unlike --env-file /dev/null, also works on Windows.
+  const logs = run('docker', ['compose', 'logs', '--no-color', 'core-mock'], {
+    COMPOSE_DISABLE_ENV_FILE: '1',
+  });
   return logs
     .split('\n')
     .filter(

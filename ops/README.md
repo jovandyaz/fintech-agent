@@ -49,7 +49,7 @@ The log-line alerts and the PII sink scan judge a value by the masker itself, so
 What the scans cannot see: a number split across several keys or values with fewer than 8 digits each; the earlier of two duplicate JSON keys, as parsing keeps the last; and a float with 8 or more digits in all (`1234.5678`, `0.1234567`) counts as a hit even when it is a measurement, failing closed; the api's writers round floats to 6 significant digits, so only a line that skipped `maskJson` holds one.
 
 ```sh
-docker compose --env-file /dev/null logs --no-log-prefix --no-color --since 10m api mcp executor \
+COMPOSE_DISABLE_ENV_FILE=1 docker compose logs --no-log-prefix --no-color --since 10m api mcp executor \
   | pnpm ops:scan-logs
 pnpm ops:scan-traces                                   # the last 24 h
 pnpm ops:scan-traces --since 2026-10-10T00:00:00-06:00
