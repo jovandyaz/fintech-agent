@@ -23,7 +23,7 @@ Notes for whoever runs the stack next:
 
 A parallel Step 8 made in another session (origin `fd24116`) was reconciled on 2026-10-11: this history is the base, and four of its changes were ported (path-only nginx log, the variant-A compose test, the masker fix for rounded fractions, four alert arms) plus two spec 01 residuals; its rulings and notes are kept in `build-log/progress.md` and `build-log/ai-notes-log.md`, and `git merge -s ours` records it as an ancestor.
 
-Step 9 delivered (plan: `build-log/step-9-plan.md`, briefs: `build-log/step-9/`): `README.md` completed, `DESIGN.md`, `docs/compliance.md`, `PLAYBOOK.md` (Spanish), `AI_NOTES.md` in the brief's shape (the dated log moved to `build-log/ai-notes-log.md`), AGENTS.md mapping the new docs, and the seed's role passwords kept out of every Postgres statement log path (`role-passwords-log.int.spec.ts`). The docs passed a fact-check of about 125 claims against the code, specs and EVALS.md; a fresh verifier followed the README literally on a clean stack without a key.
+Step 9 delivered (plan: `build-log/step-9-plan.md`, briefs: `build-log/step-9/`): `README.md` completed, `DESIGN.md`, `docs/compliance.md`, `PLAYBOOK.md` (Spanish; English since 2026-10-11), `AI_NOTES.md` in the brief's shape (the dated log moved to `build-log/ai-notes-log.md`), AGENTS.md mapping the new docs, and the seed's role passwords kept out of every Postgres statement log path (`role-passwords-log.int.spec.ts`). The docs passed a fact-check of about 125 claims against the code, specs and EVALS.md; a fresh verifier followed the README literally on a clean stack without a key.
 
 Step 8 delivered (plan: `build-log/step-8-plan.md`, briefs: `build-log/step-8/`):
 

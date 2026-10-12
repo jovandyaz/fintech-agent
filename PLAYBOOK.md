@@ -1,46 +1,46 @@
-# Guía para llevar un agente de IA a operaciones
+# Playbook: taking an AI agent into operations
 
-Para líderes que no son expertos en IA, con este proyecto como ejemplo.
+For team leads who are not AI experts, using this project as the example.
 
-## 1. Qué reutilizar tal cual y qué adaptar
+## 1. What to reuse as is, and what to adapt
 
-**Tal cual:** la conexión de solo lectura a los sistemas, atada al cliente del caso; el enmascarado de datos personales; el paso de aprobación; el servicio separado que ejecuta solo lo aprobado, una vez; el programa que corre los casos de prueba.
+**As is:** the read-only connection to the systems, tied to the case's customer; the masking of personal data; the approval step; the separate service that carries out only what was approved, once; the program that runs the test cases.
 
-**Adapta:** las consultas a tus sistemas; la lista cerrada de acciones (aquí: abrir aclaración, reenviar el CEP, escalar a fraude); las políticas; los casos de prueba, con los de ataque; y la descripción de puesto del agente, en un párrafo. Por ejemplo:
+**Adapt:** the queries to your systems; the closed list of actions (here: open a dispute, resend the transfer receipt (the CEP), escalate to fraud); the policies; the test cases, attack cases included; and the agent's job description, in one paragraph. For example:
 
-> Lee la cuenta del cliente y nuestras políticas, clasifica el caso, redacta una respuesta y sugiere a lo más una acción de la lista. No mueve dinero, no envía nada al cliente y nunca pide NIP, CVV ni contraseña. Cada caso pasa a una persona, que aprueba o rechaza la acción y firma la respuesta. Si los datos no respaldan lo que propone, entrega el caso sin acción y con el motivo; nunca adivina.
+> Reads the customer's account and our policies, classifies the case, drafts a reply and suggests at most one action from the list. It does not move money, sends nothing to the customer and never asks for a PIN, CVV or password. Every case goes to a person, who approves or rejects the action and signs off on the reply. If the data does not back what it proposes, it hands the case over with no action and says why; it never guesses.
 
-## 2. Reglas que no se negocian
+## 2. Non-negotiable rules
 
-- El agente solo lee.
-- La aprobación vive en el código, no en las instrucciones: aunque engañen al agente, no puede saltársela.
-- Los datos personales se enmascaran en todas partes.
-- Antes de cada cambio corren los casos de prueba, con los de ataque.
-- Un tope de gasto por intento y un máximo de intentos por caso (aquí, USD 0.5 por intento y 3 intentos, más 3 repeticiones que pide una persona).
-- El cliente siempre puede llegar a una persona.
-- Si un agente llega a tener una herramienta que escribe, lleva un límite en pesos aplicado en código.
+- The agent only reads.
+- Approval lives in the code, not in the instructions: even if someone tricks the agent, it cannot skip it.
+- Personal data is masked everywhere.
+- The test cases, attack cases included, run before every change.
+- A spending cap per attempt and a maximum number of attempts per case (here, USD 0.5 per attempt and 3 attempts, plus 3 reruns a person asks for).
+- The customer can always reach a person.
+- If an agent ever gets a tool that writes, it carries a money limit enforced in code.
 
-## 3. Cómo saber que está listo para producción
+## 3. How to know it is ready for production
 
-- Resistió cada caso de ataque en tres de tres intentos (aquí, el sistema frenó 30 de 30 intentos).
-- El calificador automático detecta los errores que detecta una persona (aquí aún falta compararlo en 62 respuestas).
-- Costo y tiempo por caso dentro del presupuesto.
-- Alertas conectadas, cada una con su responsable.
-- Probado contra casos reales cerrados hace poco.
-- Despliegue: en sombra (nadie usa lo que propone) → copiloto (este proyecto) → envío automático solo de respuestas de bajo riesgo sin acción, revisando una muestra del 10 al 20 %. Las acciones nunca se automatizan.
-- La medida es si el cliente vuelve a escribir en 7 días: una aprobación no es una resolución.
+- It withstood every attack case in three out of three attempts (here, the system stopped 30 of 30 attempts).
+- The automatic grader agrees with a person on what is wrong and on what is fine (here it does not yet: checked against 52 replies a person graded, it caught every bad one but also marked too many good ones as bad, so nobody relies on it).
+- Cost and time per case within budget.
+- Alerts wired up, each with an owner.
+- Tested against real cases closed recently.
+- Rollout: shadow (nobody uses what it proposes) → copilot (a person approves everything; this project) → then automatic sending only of low-risk replies that carry no action, reviewing a 10–20% sample. Actions are never automated.
+- The measure is whether the customer writes again within 7 days: an approval is not a resolution.
 
-## Quién es dueño
+## Who owns it
 
-- Una persona con nombre y una revisión semanal.
-- El botón de apagado, probado: sin agente, los casos se trabajan a mano.
-- Cada operador nuevo revisa primero los casos de práctica con errores sembrados.
+- A named person and a weekly review.
+- The off switch, tested: without the agent, cases are worked by hand.
+- Every new operator first reviews the practice cases with planted mistakes.
 
-## Si el agente se porta mal
+## If the agent misbehaves
 
-1. Apágalo.
-2. Revisa las acciones ejecutadas en ese periodo.
-3. Convierte el caso en un caso de prueba.
-4. Vuelve a encenderlo solo cuando pase todos los casos de ataque.
+1. Turn it off.
+2. Review the actions carried out in that period.
+3. Turn the case into a test case.
+4. Turn it back on only when it passes every attack case.
 
-Detalle técnico: [DESIGN.md](DESIGN.md).
+Technical detail: [DESIGN.md](DESIGN.md).

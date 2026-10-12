@@ -142,7 +142,7 @@ Both print one JSON line per alert, never the flagged content, and exit `0` when
 
 - [DESIGN.md](DESIGN.md): trade-offs, defense model, rollout.
 - [EVALS.md](EVALS.md): the measurements and why variant B runs.
-- [PLAYBOOK.md](PLAYBOOK.md): one page in Spanish for ops teams.
+- [PLAYBOOK.md](PLAYBOOK.md): one page for teams that want to reuse the pattern, written for people who are not AI experts.
 - [AI_NOTES.md](AI_NOTES.md): the agent setup that built this.
 - [docs/compliance.md](docs/compliance.md): OWASP mappings, Mexican regulation, retention.
 - [specs/](specs/): the binding design.

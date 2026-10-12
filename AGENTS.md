@@ -21,7 +21,7 @@ An agent that investigates a customer case with read-only tools and policies, pr
 | `.claude/skills/`                 | `add-eval-case` and `add-policy-doc`: the two project skills for small changes                        | 04 step 0     |
 | `ops/`                            | Alert and metric SQL, on-call README                                                                  | 01            |
 | `docs/handoff/`                   | Handoff and build log                                                                                 | —             |
-| root `*.md`, `docs/compliance.md` | Docs: README, DESIGN, EVALS (results), PLAYBOOK (Spanish, for ops), AI_NOTES; the compliance appendix | 03, 04 step 9 |
+| root `*.md`, `docs/compliance.md` | Docs: README, DESIGN, EVALS (results), PLAYBOOK (teams reusing it), AI_NOTES; the compliance appendix | 03, 04 step 9 |
 
 Folders appear as the build plan (`specs/04-build-plan.md`) reaches them.
 
@@ -66,7 +66,7 @@ Never weaken one of these without a test that fails first and the user's explici
 - Commits: one line, Conventional Commits, English, imperative. Never squash.
 - No secrets in the repo. Every variable lives in `.env.example` with a dev default; only `ANTHROPIC_API_KEY` is left empty.
 - No dead code, no `TODO` without a ticket.
-- `PLAYBOOK.md` is written in Spanish for non-AI-experts; everything else in English.
+- Code, specs and docs are in English, `PLAYBOOK.md` included; Spanish is for the product's data and UI (cases, replies, policies, console). The global-setup snapshot in `docs/agent-setup/` keeps its source language.
 
 ## Hooks (`.claude/settings.json`)
 

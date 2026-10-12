@@ -36,7 +36,7 @@ Priority order when time runs out (from the brief): security and evals first, th
 
 ## Assumptions (documented, not asked)
 
-1. Cases and replies are in Spanish (Mexico). Code, specs and docs are in English, except PLAYBOOK.md, which is written in Spanish for albo teams that are not AI experts.
+1. Cases, replies, policy docs and the console are in Spanish (Mexico). Code, specs and docs are in English, PLAYBOOK.md included: the brief asks for it to be written for people who are not AI experts, not in a given language. The snapshot of the global agent setup in `docs/agent-setup/` keeps its source language.
 2. One webhook event = one case. The emitter retries with the same `event_id`.
 3. Actions are limited to three: open a dispute (aclaración), resend a CEP receipt, escalate to fraud. None of them moves money; all still require approval because they touch customer data or trigger downstream work.
 4. A refund is not an action the agent can propose at all. A request for one is answered with the policy path (dispute) or escalated. The regulated credit for an unrecognized charge (Banxico Circ. 12/2018, 18.a: by the 2nd business day unless two-factor authentication is proven) is part of the dispute process `open_dispute` starts, not an agent action; the reply may state it only through the `{{compromiso_abono}}` placeholder, which the harness renders when its predicate holds (02 G5).
