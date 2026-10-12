@@ -41,7 +41,7 @@ const ENV_EXAMPLE = [
   'JUDGE_MODEL=claude-opus-5-5',
   'EVAL_SPEND_CAP_USD=13',
 ].join('\n');
-const INPUT = '2026-10-08-0576343-140923Z.json';
+const INPUT = '2026-10-08-896bcef-140923Z.json';
 const NOW = new Date('2026-10-10T17:45:01.000Z');
 const START = '<!-- evals:summary:start -->';
 const END = '<!-- evals:summary:end -->';
@@ -158,7 +158,7 @@ const recordOf = (
   const meta: RunRecord['meta'] = {
     timestamp: '2026-10-08T14:09:23.663Z',
     date: '2026-10-08',
-    commit: '0576343',
+    commit: '896bcef',
     judgeModel: 'claude-opus-5-5',
     rubricSha256: rubricFingerprint(RUBRIC),
     variants: ['variant-A'],
@@ -258,7 +258,7 @@ const rejudge = (
     baseline: join(dir, 'baseline.json'),
     dryRun: over.dryRun ?? false,
     clock: () => NOW,
-    commit: 'caf58fd',
+    commit: 'f76eb6c',
     log: (line) => over.log?.push(line),
   });
 
@@ -272,7 +272,7 @@ describe('rejudgeFile (pnpm eval:rejudge, 03 §Judge validation)', () => {
     expect(written).toBe(
       join(
         resultsDir,
-        '2026-10-08-0576343-140923Z-rejudged-caf58fd-174501Z.json',
+        '2026-10-08-896bcef-140923Z-rejudged-f76eb6c-174501Z.json',
       ),
     );
     expect(await readFile(path, 'utf8')).toBe(before);
@@ -285,7 +285,7 @@ describe('rejudgeFile (pnpm eval:rejudge, 03 §Judge validation)', () => {
     expect(record.meta).toMatchObject({
       timestamp: NOW.toISOString(),
       date: '2026-10-08',
-      commit: '0576343',
+      commit: '896bcef',
       judgeModel: 'claude-opus-5-5',
       rubricSha256: rubricFingerprint(RUBRIC),
       rejudgedFrom: { file: INPUT },
@@ -345,7 +345,7 @@ describe('rejudgeFile (pnpm eval:rejudge, 03 §Judge validation)', () => {
       baseline: join(dir, 'baseline.json'),
       writeBaseline: false,
     });
-    expect(await readFile(evalsMd, 'utf8')).toContain('commit `0576343`');
+    expect(await readFile(evalsMd, 'utf8')).toContain('commit `896bcef`');
   });
 
   it("prints the judge calls and their estimated cost, from the run's own judge spend per call, before any call", async () => {
@@ -411,7 +411,7 @@ describe('rejudgeFile (pnpm eval:rejudge, 03 §Judge validation)', () => {
     const path = await withInput();
     const taken = join(
       resultsDir,
-      '2026-10-08-0576343-140923Z-rejudged-caf58fd-174501Z.json',
+      '2026-10-08-896bcef-140923Z-rejudged-f76eb6c-174501Z.json',
     );
     const older = JSON.stringify(
       recordOf({ timestamp: '2026-10-01T00:00:00.000Z' }),

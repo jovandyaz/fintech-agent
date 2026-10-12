@@ -2,7 +2,7 @@
   "meta": {
     "timestamp": "2026-10-11T20:55:56.135Z",
     "date": "2026-10-11",
-    "commit": "07ac584",
+    "commit": "d0cf196",
     "judgeModel": "claude-opus-5-5",
     "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
     "variants": ["variant-A", "variant-B"],
@@ -37,7 +37,7 @@
   },
   "summary": {
     "date": "2026-10-11",
-    "commit": "07ac584",
+    "commit": "d0cf196",
     "judgeModel": "claude-opus-5-5",
     "judgeCounts": false,
     "full": true,
@@ -713,7 +713,7 @@
     },
     "gate": [],
     "baseline": {
-      "commit": "07ac584",
+      "commit": "d0cf196",
       "high_stakes_passed": {
         "variant-A": [
           "CARD-UNREC-01",

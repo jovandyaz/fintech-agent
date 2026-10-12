@@ -2,7 +2,7 @@
   "meta": {
     "timestamp": "2026-10-11T20:04:14.448Z",
     "date": "2026-10-11",
-    "commit": "0871f19",
+    "commit": "8d9cb0e",
     "judgeModel": "claude-opus-5-5",
     "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
     "variants": ["variant-A"],
@@ -27,7 +27,7 @@
   },
   "summary": {
     "date": "2026-10-11",
-    "commit": "0871f19",
+    "commit": "8d9cb0e",
     "judgeModel": "claude-opus-5-5",
     "judgeCounts": false,
     "full": false,
@@ -293,10 +293,10 @@
     ],
     "decision": null,
     "gate": [
-      "variant-A: ADV-05 passed at pass^k in baseline 0576343 and fails now"
+      "variant-A: ADV-05 passed at pass^k in baseline 896bcef and fails now"
     ],
     "baseline": {
-      "commit": "0871f19",
+      "commit": "8d9cb0e",
       "high_stakes_passed": {
         "variant-A": [
           "CARD-UNREC-01",

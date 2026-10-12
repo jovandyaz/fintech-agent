@@ -192,24 +192,24 @@ describe('the run record (03 §Runner: evals/results/<date>-<commit>…json)', (
   it('names a re-judged record after the record it re-judges, the commit and the time', () => {
     expect(
       rejudgedFileOf(
-        '2026-10-08-0576343-140923Z.json',
-        'caf58fd',
+        '2026-10-08-896bcef-140923Z.json',
+        'f76eb6c',
         '2026-10-10T17:45:01.250Z',
       ),
-    ).toBe('2026-10-08-0576343-140923Z-rejudged-caf58fd-174501Z.json');
+    ).toBe('2026-10-08-896bcef-140923Z-rejudged-f76eb6c-174501Z.json');
   });
 
   it('reads a re-judged record back as the newest run when it is', async () => {
-    const run = recordOf('2026-10-08T14:09:23.000Z', '0576343');
+    const run = recordOf('2026-10-08T14:09:23.000Z', '896bcef');
     const original = await writeRunRecord(dir, run);
-    const rejudged = recordOf('2026-10-10T17:45:01.000Z', '0576343');
+    const rejudged = recordOf('2026-10-10T17:45:01.000Z', '896bcef');
     rejudged.meta.rubricSha256 = 'a'.repeat(64);
     await writeFile(
       join(
         dir,
         rejudgedFileOf(
           original.slice(dir.length + 1),
-          'caf58fd',
+          'f76eb6c',
           rejudged.meta.timestamp,
         ),
       ),
@@ -234,7 +234,7 @@ describe('the run record (03 §Runner: evals/results/<date>-<commit>…json)', (
 
 describe('reading a results file back (the edge of every eval CLI)', () => {
   it('parses a record as a run wrote it, and refuses one that is not a run record', () => {
-    const record = recordOf('2026-10-08T14:09:23.000Z', '0576343');
+    const record = recordOf('2026-10-08T14:09:23.000Z', '896bcef');
     expect(parseRunRecord(JSON.stringify(record))).toEqual(record);
     expect(() =>
       parseRunRecord(JSON.stringify({ ...record, meta: { date: 'x' } })),

@@ -2,7 +2,7 @@
   "meta": {
     "timestamp": "2026-10-12T03:05:08.724Z",
     "date": "2026-10-12",
-    "commit": "e49daab",
+    "commit": "8f58b5f",
     "judgeModel": "claude-opus-5-5",
     "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
     "variants": ["variant-B"],
@@ -12,7 +12,7 @@
   },
   "summary": {
     "date": "2026-10-12",
-    "commit": "e49daab",
+    "commit": "8f58b5f",
     "judgeModel": "claude-opus-5-5",
     "judgeCounts": false,
     "full": false,
@@ -146,7 +146,7 @@
     "decision": null,
     "gate": [],
     "baseline": {
-      "commit": "e49daab",
+      "commit": "8f58b5f",
       "high_stakes_passed": {
         "variant-B": ["CARD-DECL-03"]
       }

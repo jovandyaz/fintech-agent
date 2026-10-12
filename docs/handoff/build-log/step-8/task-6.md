@@ -4,7 +4,7 @@ Read `common.md` first. Spec: specs/02-security.md G3 "Canary proposals" bullet 
 
 Code: `apps/api/src/canaries/script.ts` (scripted v4 model: `investigationOf`, `resolutionOf`, `canaryModelsOf`, token/latency ranges), `templates.ts` (`CANARY_DEFECTS`, `CANARY_TEMPLATES`, `canaryTemplateOf`), `inject.ts` (`injectCanaries`: one case per template, shuffled, spread), their specs, `canary-run.e2e.spec.ts`, and `apps/api/src/console/console.int.spec.ts` no-tell tests. Find how the worker picks a canary's template (`canaryTemplateOf(defect)` callers) — with several templates per defect, the `canary_cases` row must identify the template (see step 6b.3).
 
-Reference data (do not re-derive; you may read the file to check): `evals/results/2026-10-08-0576343-140923Z.json`, the 52 `variant-A` runs (`results[].response.metadata.run`):
+Reference data (do not re-derive; you may read the file to check): `evals/results/2026-10-08-896bcef-140923Z.json`, the 52 `variant-A` runs (`results[].response.metadata.run`):
 
 - run totals: input tokens 9,919–30,610 (q1 15,454, median 15,911, q3 22,442); output 649–3,108 (q1 1,195, median 1,412, q3 2,232); latency 8,803–37,674 ms (median 14,225); cost US$0.026–0.082 (median 0.0447); `steps` (all kinds) 7–14, median 10; MCP tool calls 1–5, median 3 (search_policies is a `retrieval` step, not counted there).
 - sequences: get_customer + list_transactions + get_card_authorization (26); + get_spei_status (11); get_customer only (8); others with repeated lookups.
@@ -15,7 +15,7 @@ Reference data (do not re-derive; you may read the file to check): `evals/result
 
 ## 6a — scripted model
 
-1. New `apps/api/src/canaries/real-runs.ts`: the envelope above as named constants, with a header comment naming the results file and commit `0576343`.
+1. New `apps/api/src/canaries/real-runs.ts`: the envelope above as named constants, with a header comment naming the results file and commit `896bcef`.
 2. `script.ts` changes:
    - First agent step: a short Spanish prose text part plus two tool calls in the same step: `get_customer {}` and `list_transactions` with filters derived from the seed (e.g. `{type, query}` from the template's category/merchant, or `{min_amount,max_amount,type}`).
    - Lookups: all of a seed's lookups in one step (parallel tool calls), with a prose lead-in.

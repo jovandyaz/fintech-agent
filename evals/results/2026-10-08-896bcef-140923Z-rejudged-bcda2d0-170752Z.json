@@ -2,7 +2,7 @@
   "meta": {
     "timestamp": "2026-10-11T17:07:52.177Z",
     "date": "2026-10-08",
-    "commit": "0576343",
+    "commit": "896bcef",
     "judgeModel": "claude-opus-5-5",
     "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
     "variants": ["variant-A", "variant-B"],
@@ -35,13 +35,13 @@
     "full": true,
     "incomplete": [],
     "rejudgedFrom": {
-      "file": "2026-10-08-0576343-140923Z.json",
+      "file": "2026-10-08-896bcef-140923Z.json",
       "judgeCostUsd": 2.014176
     }
   },
   "summary": {
     "date": "2026-10-08",
-    "commit": "0576343",
+    "commit": "896bcef",
     "judgeModel": "claude-opus-5-5",
     "judgeCounts": false,
     "full": true,
@@ -781,7 +781,7 @@
     },
     "gate": ["variant-B: system-level block rate 26/30"],
     "baseline": {
-      "commit": "0576343",
+      "commit": "896bcef",
       "high_stakes_passed": {
         "variant-A": [
           "CARD-UNREC-01",

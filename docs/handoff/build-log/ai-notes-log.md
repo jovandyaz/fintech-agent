@@ -92,7 +92,7 @@ The running log, written as things happened, trimmed out of [AI_NOTES.md](../../
 
 ### 2026-10-07 — Step 5, policies and retrieval
 
-- **Port, declared.** The injection guard and its test corpus come from Knowtis (`feat(port)`, `d03c769`), trimmed as 00 says: the windowing exports and their tests dropped, Knowtis-specific benign strings swapped for customer phrasings. Spanish patterns for voseo overrides, role takeovers and directives aimed at the agent came after, in their own commit.
+- **Port, declared.** The injection guard and its test corpus come from Knowtis (`feat(port)`, `f944a9f`), trimmed as 00 says: the windowing exports and their tests dropped, Knowtis-specific benign strings swapped for customer phrasings. Spanish patterns for voseo overrides, role takeovers and directives aimed at the agent came after, in their own commit.
 - **Agent error caught: a ReDoS I ported without looking.** The invariant reviewer timed the inherited `(decode|execute|run)\s*…\s*` pattern: 32 KB of spaces after "run" took a second of event loop, reachable from any webhook body. The pattern now has one whitespace run, and a timing test (fastest of three under 250 ms) covers every verb and opener.
 - **Agent error caught: invisible characters I wrote myself.** Writing `'\u202e'` in a test turned into the literal bidi character in the file, the same slip as in Step 4d. A repo-wide test now fails on any default-ignorable or format character in a text file; its first run found two more in an older fixture.
 - **A rule rewritten after four blocks.** The invariant reviewer blocked ingestion four times, each time with a new way to hide text from someone reading the rendered policy while the model still reads it: a comment spanning two headings, then bogus comments and reference definitions, then link titles, image alt text and `&#x200B;`, then a table cell past the header and `$\phantom{}$`. I had been listing hiding forms; the fix was to stop. A policy is plain prose, so any `<`, `[`, `]`, backtick, `|`, `$`, `\`, `~~~`, character reference or line opening with `>` quarantines the chunk, on the raw and the normalized text. The ten real docs use none of them; the rule costs a future policy its links and tables, which is now a reviewed spec change.
@@ -134,7 +134,7 @@ The running log, written as things happened, trimmed out of [AI_NOTES.md](../../
 - **Agent error caught: a fix that fixed nothing.** The first Testcontainers fix set a startup timeout that does not govern the 10 s port wait; the quality gate read the library source, and the verifier then found that capping workers broke `pnpm test` until integration got its own group.
 - **What I did not delegate blind:** the decision to skip an OTel exporter (the brief accepts own traces), the canary design (calibrated against 52 recorded runs, 4 of 9 proposing `none`), and every ruling on a G path.
 
-<!-- From the parallel Step 8 on origin/main (fd24116), kept for the record; the local Step 8 superseded it, and its references to 01 are to that history's spec. -->
+<!-- From the parallel Step 8 on origin/main, kept for the record; the local Step 8 superseded it, and its references to 01 are to that history's spec. -->
 
 ### 2026-10-11 — Parallel Step 8 (superseded), alerts, PII scans and canary realism
 

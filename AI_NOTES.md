@@ -23,7 +23,7 @@ Before (`CLAUDE.md`, 2026-10-06):
 
 > Every step runs the workflow skills in `docs/agent-setup/README.md` §Skills by phase: `developing-feature` to build, `reviewing-pr` plus `invariant-reviewer` on the step's commit range, `verifying-change` with a fresh verifier, `committing-change` to commit.
 
-After (commit `011a109`, `AGENTS.md` and `CLAUDE.md`):
+After (commit `db3cb5c`, `AGENTS.md` and `CLAUDE.md`):
 
 > Every build step and every behavior change follows one sequence, in this order and with no stage skipped: `developing-feature` → `reviewing-pr` plus `invariant-reviewer` (any diff on a G1–G8 path, before it is committed) → `verifying-change` with a fresh verifier → `committing-change`.
 >

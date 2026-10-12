@@ -2,7 +2,7 @@
   "meta": {
     "timestamp": "2026-10-08T13:23:21.826Z",
     "date": "2026-10-08",
-    "commit": "95a493e",
+    "commit": "7e718a9",
     "judgeModel": "claude-opus-5-5",
     "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
     "variants": ["variant-A", "variant-B"],

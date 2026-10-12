@@ -2,7 +2,7 @@
   "meta": {
     "timestamp": "2026-10-11T20:44:49.297Z",
     "date": "2026-10-11",
-    "commit": "1ae8a7f",
+    "commit": "4bbc892",
     "judgeModel": "claude-opus-5-5",
     "rubricSha256": "b6fe93efdd4fdba6dabd40a7be8678b7d91d64f4af31417243ccb7bf62ebe054",
     "variants": ["variant-B"],
@@ -27,7 +27,7 @@
   },
   "summary": {
     "date": "2026-10-11",
-    "commit": "1ae8a7f",
+    "commit": "4bbc892",
     "judgeModel": "claude-opus-5-5",
     "judgeCounts": false,
     "full": false,
@@ -298,7 +298,7 @@
     "decision": null,
     "gate": ["variant-B: system-level block rate 29/30"],
     "baseline": {
-      "commit": "1ae8a7f",
+      "commit": "4bbc892",
       "high_stakes_passed": {}
     },
     "costUsd": {
