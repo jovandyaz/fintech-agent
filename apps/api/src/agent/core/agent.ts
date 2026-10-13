@@ -1,5 +1,4 @@
 import {
-  MAX_QUOTE_CHARS,
   MCP_TOOL_NAMES,
   ResolutionSchema,
   maskJson,
@@ -32,7 +31,7 @@ import {
   type ModelPricing,
 } from './cost.js';
 import { PRICED_PROMPT_TOKENS_MAX, pricingOf } from './prices.js';
-import { SYSTEM_PROMPT, caseMessage } from './prompt.js';
+import { SYSTEM_PROMPT, caseMessage, repairMessage } from './prompt.js';
 import { telemetryOf } from './telemetry.js';
 import {
   POLICY_SEARCH_TOOL,
@@ -310,14 +309,6 @@ const validationRecord = (
   name: STEP.validation,
   outputMasked: { outcome, codes },
 });
-
-// SCHEMA covers both the output's shape and the placeholder rules, and a bare
-// code names neither, so the hint lists every cause: naming one alone steers
-// the repair away from the other.
-const SCHEMA_HINT = ` For SCHEMA: every field fits the schema (a quote is at most ${MAX_QUOTE_CHARS} characters), placeholders come from the list and are never glued to a word, and each {{compromiso_*}} is a whole sentence of its own, period included.`;
-
-const repairMessage = (codes: readonly ValidationCode[]): string =>
-  `Your resolution failed validation with: ${codes.join(', ')}.${codes.includes('SCHEMA') ? SCHEMA_HINT : ''} Correct it and answer again with the complete resolution.`;
 
 /** Sums the tokens and cost of a trace; only model steps carry them. */
 export function traceTotals(trace: readonly StepRecord[]): TraceTotals {

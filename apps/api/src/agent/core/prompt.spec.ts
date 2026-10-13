@@ -1,5 +1,5 @@
 import { APPROVED_FACTOR_WARNINGS, maskPii } from '@fintech-agent/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PLACEHOLDERS } from './validate/placeholders.js';
 import {
@@ -159,5 +159,22 @@ describe('promptVersion (01 agent_runs.prompt_version)', () => {
       promptVersion([first, { ...second, inputSchema: { type: 'string' } }]),
     ).not.toBe(base);
     expect(promptVersion([second, first])).not.toBe(base);
+  });
+
+  it('changes when a repair hint changes, since the repair turn is prompt too', async () => {
+    const base = promptVersion(TOOLS);
+    vi.resetModules();
+    vi.doMock('./validate/commitments.js', () => ({
+      REFUSAL_WITHOUT_PROMISE:
+        'Por ahora no podemos prometerte lo que nos pides.',
+    }));
+    try {
+      const reworded = await import('./prompt.js');
+      expect(reworded.SYSTEM_PROMPT).toBe(SYSTEM_PROMPT);
+      expect(reworded.promptVersion(TOOLS)).not.toBe(base);
+    } finally {
+      vi.doUnmock('./validate/commitments.js');
+      vi.resetModules();
+    }
   });
 });

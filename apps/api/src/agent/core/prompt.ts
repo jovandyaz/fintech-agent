@@ -3,8 +3,10 @@ import { createHash } from 'node:crypto';
 import {
   APPROVED_FACTOR_WARNINGS,
   MAX_QUOTE_CHARS,
+  type ValidationCode,
 } from '@fintech-agent/contracts';
 
+import { REFUSAL_WITHOUT_PROMISE } from './validate/commitments.js';
 import { TWO_FACTORS } from './validate/predicates.js';
 
 /** The case text the model sees is cut here (01 §Context policy). */
@@ -17,6 +19,9 @@ const DATA_TAG = 'customer_message';
 // lookalikes the customer spells it with; the guillemets read the same.
 const ANGLE_BRACKETS = /[<>]/g;
 const INERT_BRACKET = { '<': '‹', '>': '›' } as const;
+
+// A clause, not a sentence: the prompt and the repair hint each punctuate it.
+const COMMITMENT_PLACEHOLDER_RULE = `{{compromiso_dictamen}} or {{fecha_limite_dictamen}} only with open_dispute; {{compromiso_abono}} or {{fecha_limite_abono}} only for a disputed card charge whose get_card_authorization has auth_factors < ${TWO_FACTORS}`;
 
 /**
  * The static instructions of the agent: no customer, policy or tool text
@@ -41,8 +46,32 @@ draft_reply, to the customer:
 - Spanish, addressing the customer as "tú", in short paragraphs; never a numbered list.
 - Greet with {{nombre}} only if get_customer returned the customer.
 - Every figure (amount, date, time, last digits) repeats an amount, timestamp or last-four field of a tool result, or what a cited quote states with its unit; never one from a merchant name, a count or the customer's message.
-- Never promise an outcome, amount or date yourself, and never say an action is already done. Placeholders carry them: {{folio}}, {{fecha_recepcion}}; {{compromiso_dictamen}} or {{fecha_limite_dictamen}} only with open_dispute; {{compromiso_abono}} or {{fecha_limite_abono}} only for a disputed card charge whose get_card_authorization has auth_factors < ${TWO_FACTORS}. Write each exactly so, never glued to a word; a compromiso is a whole sentence, period included.
+- Never promise an outcome, amount or date yourself, and never say an action is already done. Placeholders carry them: {{folio}}, {{fecha_recepcion}}; ${COMMITMENT_PLACEHOLDER_RULE}. Write each exactly so, never glued to a word; a compromiso is a whole sentence, period included.
 - No links, phone numbers or full account or card numbers. Never ask for an authentication factor; name a NIP, CVV, password or code only in one of these sentences, copied exactly: ${APPROVED_FACTOR_WARNINGS.map((warning) => `"${warning}"`).join(' or ')}`;
+
+// SCHEMA covers both the output's shape and the placeholder rules, and a bare
+// code names neither, so the hint lists every cause: naming one alone steers
+// the repair away from the other.
+const SCHEMA_HINT = ` For SCHEMA: every field fits the schema (a quote is at most ${MAX_QUOTE_CHARS} characters), placeholders come from the list and are never glued to a word, and each {{compromiso_*}} is a whole sentence of its own, period included.`;
+
+// COMMITMENT_IN_REPLY covers a listed verb, even inside a refusal, and a
+// placeholder whose predicate fails; told only the code, a model repeats the
+// refusal, so the hint names both causes.
+const COMMITMENT_HINT = ` For COMMITMENT_IN_REPLY: make no promise, deadline or completed action in your own words, not even to deny one, so a refusal names no promise verb ("${REFUSAL_WITHOUT_PROMISE}"); use ${COMMITMENT_PLACEHOLDER_RULE}, and otherwise no commitment at all.`;
+
+const REPAIR_HINTS = [
+  ['SCHEMA', SCHEMA_HINT],
+  ['COMMITMENT_IN_REPLY', COMMITMENT_HINT],
+] as const satisfies readonly (readonly [ValidationCode, string])[];
+
+const hintsFor = (codes: readonly ValidationCode[]): string =>
+  REPAIR_HINTS.filter(([code]) => codes.includes(code))
+    .map(([, hint]) => hint)
+    .join('');
+
+/** The repair turn: the failed codes and, for the codes that cover several causes, every cause. */
+export const repairMessage = (codes: readonly ValidationCode[]): string =>
+  `Your resolution failed validation with: ${codes.join(', ')}.${hintsFor(codes)} Correct it and answer again with the complete resolution.`;
 
 /** Wraps customer text as data that cannot close or reopen its own block. */
 export function asCustomerData(text: string): string {
@@ -68,10 +97,12 @@ export interface ToolDefinition {
   inputSchema: unknown;
 }
 
-/** `agent_runs.prompt_version`: a hash of the system prompt and the tools. */
+/** `agent_runs.prompt_version`: a hash of the system prompt, the repair hints and the tools. */
 export function promptVersion(tools: readonly ToolDefinition[]): string {
   return createHash('sha256')
-    .update(JSON.stringify({ system: SYSTEM_PROMPT, tools }))
+    .update(
+      JSON.stringify({ system: SYSTEM_PROMPT, repair: REPAIR_HINTS, tools }),
+    )
     .digest('hex')
     .slice(0, PROMPT_VERSION_HEX_CHARS);
 }

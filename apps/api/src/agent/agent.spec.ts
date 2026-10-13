@@ -1,4 +1,5 @@
 import {
+  MAX_QUOTE_CHARS,
   maskJson,
   type McpToolName,
   type Resolution,
@@ -51,6 +52,7 @@ import {
 import { SYSTEM_PROMPT, caseMessage } from './core/prompt.js';
 import { isProviderOutage, providerErrorOf } from './core/provider-errors.js';
 import { RETRIEVAL_UNAVAILABLE, searchPoliciesTool } from './core/tools.js';
+import { REFUSAL_WITHOUT_PROMISE } from './core/validate/commitments.js';
 import type { ChunkStateRules } from './core/validate/state-rules.js';
 
 const CASE_TEXT = 'No reconozco un cargo de AMZN MKTP MX en mi tarjeta.';
@@ -256,7 +258,9 @@ describe('runAgent (01 §The agentic node)', () => {
     expect(lastUserText(schema)).toContain(
       'each {{compromiso_*}} is a whole sentence of its own, period included',
     );
-    expect(lastUserText(schema)).toContain('a quote is at most 200 characters');
+    expect(lastUserText(schema)).toContain(
+      `a quote is at most ${MAX_QUOTE_CHARS} characters`,
+    );
     const [citation] = resolutionOf().citations;
     const unseen = inOrder(
       ...investigation,
@@ -270,6 +274,92 @@ describe('runAgent (01 §The agentic node)', () => {
     );
     await run(inputOf(unseen));
     expect(lastUserText(unseen)).not.toContain('{{compromiso_*}}');
+  });
+
+  it('says how to refuse without a promise verb when COMMITMENT_IN_REPLY is among the repair codes, and only then', async () => {
+    const refusal = inOrder(
+      ...investigation,
+      () =>
+        objectResponse(
+          resolutionOf({
+            draft_reply:
+              'Hola {{nombre}}. No puedo confirmarte hoy que se te reembolsará un monto. {{compromiso_dictamen}}',
+          }),
+        ),
+      () => objectResponse(resolutionOf()),
+    );
+    await run(inputOf(refusal));
+    expect(lastUserText(refusal)).toContain('a refusal names no promise verb');
+    expect(lastUserText(refusal)).toContain(REFUSAL_WITHOUT_PROMISE);
+    const schema = inOrder(
+      ...investigation,
+      () => objectResponse(withAction({ type: 'refund' })),
+      () => objectResponse(resolutionOf()),
+    );
+    await run(inputOf(schema));
+    expect(lastUserText(schema)).not.toContain(
+      'a refusal names no promise verb',
+    );
+  });
+
+  it('names the placeholder rule when a commitment placeholder fails its predicate', async () => {
+    const model = inOrder(
+      ...investigation,
+      () =>
+        objectResponse(
+          withAction({
+            type: 'none',
+            transaction_ids: [],
+            reason_code: 'informational',
+          }),
+        ),
+      () => objectResponse(resolutionOf()),
+    );
+    await run(inputOf(model));
+    expect(lastUserText(model)).toContain('COMMITMENT_IN_REPLY');
+    expect(lastUserText(model)).toContain(
+      '{{compromiso_dictamen}} or {{fecha_limite_dictamen}} only with open_dispute',
+    );
+  });
+
+  it('joins the SCHEMA and COMMITMENT_IN_REPLY hints in that order', async () => {
+    const model = inOrder(
+      ...investigation,
+      () =>
+        objectResponse(
+          resolutionOf({
+            draft_reply:
+              'Hola{{nombre}}. Tranquila, te reembolsaremos. {{compromiso_dictamen}}',
+          }),
+        ),
+      () => objectResponse(resolutionOf()),
+    );
+    await run(inputOf(model));
+    const text = lastUserText(model);
+    expect(text.indexOf(' For SCHEMA:')).toBeGreaterThan(0);
+    expect(text.indexOf(' For COMMITMENT_IN_REPLY:')).toBeGreaterThan(
+      text.indexOf(' For SCHEMA:'),
+    );
+  });
+
+  it('adds no hint for a code that has none', async () => {
+    const model = inOrder(
+      ...investigation,
+      () =>
+        objectResponse(
+          resolutionOf({
+            draft_reply:
+              'Hola {{nombre}}, revisamos tu cargo de $9,876.00. {{compromiso_dictamen}}',
+          }),
+        ),
+      () => objectResponse(resolutionOf()),
+    );
+    await run(inputOf(model));
+    expect(lastUserText(model)).toContain(
+      JSON.stringify(
+        'Your resolution failed validation with: UNGROUNDED_NUMBER. Correct it and answer again with the complete resolution.',
+      ),
+    );
   });
 
   it('repairs a citation of a chunk the run never saw', async () => {

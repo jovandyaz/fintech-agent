@@ -89,6 +89,14 @@ const GOVERNING_NEGATION =
   /(?:^|[^\p{L}])(?:no|nunca|jamas|tampoco)(?:\s(?:podemos|podremos|podriamos|vamos a))?\s$/u;
 
 /**
+ * A refusal that names no listed verb, which the repair turn offers as the way
+ * to decline a promise: the check flags "no puedo confirmarte que te
+ * reembolsaremos" on purpose (02 G5).
+ */
+export const REFUSAL_WITHOUT_PROMISE =
+  'No podemos prometerte el monto ni el plazo que nos pides.';
+
+/**
  * Whether a reply makes a promise or claims a completed action in its own
  * words (02 G5 `COMMITMENT_IN_REPLY`). A negation cancels a match only when
  * it governs the verb directly ("no te reembolsaremos" passes); one that

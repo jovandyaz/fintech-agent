@@ -26,6 +26,7 @@ import {
 import { fastestRunMs } from '../../test/timing.js';
 import { replyViolations } from '../replies/reply-checks.js';
 import { CalendarRangeError } from './core/calendar.js';
+import { REFUSAL_WITHOUT_PROMISE } from './core/validate/commitments.js';
 import {
   buildEvidence,
   type RunFacts,
@@ -745,6 +746,19 @@ describe('COMMITMENT_IN_REPLY', () => {
     expect(
       codesOf(replying('Por ahora no podemos hacer un reembolso.')),
     ).toEqual([]);
+  });
+
+  it('passes the refusal the repair turn offers, beside either commitment', () => {
+    for (const commitment of [
+      '{{compromiso_dictamen}}',
+      '{{compromiso_abono}}',
+    ]) {
+      expect(
+        codesOf(
+          replying(`Hola {{nombre}}. ${REFUSAL_WITHOUT_PROMISE} ${commitment}`),
+        ),
+      ).toEqual([]);
+    }
   });
 
   it('renders {{compromiso_abono}} only for a one-factor card dispute', () => {

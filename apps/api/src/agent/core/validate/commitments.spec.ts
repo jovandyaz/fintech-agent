@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasCommitment } from './commitments.js';
+import { REFUSAL_WITHOUT_PROMISE, hasCommitment } from './commitments.js';
 
 describe('hasCommitment', () => {
   it('finds the promise and completed-action verbs of 02 G5', () => {
@@ -204,5 +204,22 @@ describe('hasCommitment, deadlines with decimals or thousands', () => {
     'No en 1 tres días te devolvemos el cargo.',
   ])('finds "%s"', (text) => {
     expect(hasCommitment(text)).toBe(true);
+  });
+});
+
+describe('hasCommitment, a refusal that names a listed verb', () => {
+  it.each([
+    'No puedo confirmarte hoy que se te reembolsará un monto ni en qué fecha.',
+    'No puedo confirmarte cuándo te devolveremos el dinero.',
+    'No podemos garantizarte que te reembolsaremos el total, pero sí una parte.',
+  ])(
+    'fails "%s": a negation in another clause does not cancel, so it fails closed',
+    (text) => {
+      expect(hasCommitment(text)).toBe(true);
+    },
+  );
+
+  it('passes the refusal the repair turn offers instead', () => {
+    expect(hasCommitment(REFUSAL_WITHOUT_PROMISE)).toBe(false);
   });
 });
