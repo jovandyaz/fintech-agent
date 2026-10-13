@@ -125,7 +125,7 @@ const ApiConfigSchema = z.object({
     .positive()
     .max(MAX_AGENT_POLL_MS)
     .default(DEFAULT_AGENT_POLL_MS),
-  AGENT_VARIANT: z.enum(AGENT_VARIANTS).default('B'),
+  AGENT_VARIANT: z.enum(AGENT_VARIANTS).default('A'),
   AGENT_MODEL_A: pricedModel(SONNET_MODEL),
   AGENT_MODEL_B: pricedModel(HAIKU_MODEL),
   REDACTOR_MODEL: pricedModel(HAIKU_MODEL),

@@ -77,15 +77,15 @@ describe('compose process boundary (02 G1)', () => {
     });
   });
 
-  it('runs variant B unless told otherwise, as the 03 rule decided on the final run (EVALS.md)', () => {
+  it('runs variant A unless told otherwise, as the 03 rule decided on the final run (EVALS.md)', () => {
     expect(env('api')).toMatchObject({
-      AGENT_VARIANT: '${AGENT_VARIANT:-B}',
+      AGENT_VARIANT: '${AGENT_VARIANT:-A}',
     });
     const example = readFileSync(
       resolve(import.meta.dirname, '../../../.env.example'),
       'utf8',
     );
-    expect(example).toMatch(/^AGENT_VARIANT=B$/m);
+    expect(example).toMatch(/^AGENT_VARIANT=A$/m);
   });
 
   it("runs the local stack on the dataset clock, started at the data's today (01 Case clock)", () => {

@@ -80,7 +80,7 @@ const FINISH = { toolCalls: 'tool-calls', stop: 'stop' } as const;
 const TOOL_STEP_OUTPUT_TOKENS: Range = [100, 240];
 const ANSWER_OUTPUT_TOKENS: Readonly<Record<AgentVariant, Range>> = {
   A: [800, 1_150],
-  B: [1_450, 2_050],
+  B: [1_450, 2_030],
 };
 const TOOL_STEP_MS: Range = [1_500, 2_900];
 const ANSWER_MS: Range = [5_000, 7_500];

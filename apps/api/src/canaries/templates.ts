@@ -410,7 +410,7 @@ ${NEVER_ASKED}`,
       movement: { noun: TRANSFER, amount: '7450', at: TO_MARIA },
       misreadAmount: '7540',
       reasoningSummary:
-        'El SPEI tx_ad08a por 7450 está liquidado y tiene CEP disponible. El cliente pide el comprobante porque la beneficiaria no ve el abono. Según pol-02, el CEP permite al beneficiario comprobar ante su banco que el pago llegó, así que propongo reenviarlo para que ella lo presente.',
+        'El SPEI tx_ad08a por 7450 está liquidado y tiene CEP disponible. El cliente pide el comprobante porque la beneficiaria no ve el abono. Según pol-02, el CEP permite al beneficiario comprobar ante su banco que el pago llegó, así que propongo reenviarlo para que ella lo presente en su banco.',
       policies: [CEP],
       flags: [],
       action: {

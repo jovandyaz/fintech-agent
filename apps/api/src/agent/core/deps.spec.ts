@@ -161,7 +161,7 @@ describe('runCaseDepsOf', () => {
     expect(deps.connectTools).toBe(connectCaseTools);
     expect(deps.retrieval.catalog).toBe(catalog);
     expect(deps.models).toBeNull();
-    expect(deps.config.modelId).toBe(HAIKU_MODEL);
+    expect(deps.config.modelId).toBe(SONNET_MODEL);
   });
 
   it.each([

@@ -19,11 +19,11 @@ describe('loadApiConfig', () => {
     expect(loadApiConfig(ENV)).toMatchObject({ ...ENV, API_PORT: 3000 });
   });
 
-  it('defaults the agent to on, variant B, priced models and a bounded run', () => {
+  it('defaults the agent to on, variant A, priced models and a bounded run', () => {
     expect(loadApiConfig(ENV)).toMatchObject({
       ANTHROPIC_API_KEY: '',
       AGENT_MODE: 'on',
-      AGENT_VARIANT: 'B',
+      AGENT_VARIANT: 'A',
       AGENT_MODEL_A: 'claude-sonnet-5-5',
       AGENT_MODEL_B: 'claude-haiku-5-5',
       REDACTOR_MODEL: 'claude-haiku-5-5',
