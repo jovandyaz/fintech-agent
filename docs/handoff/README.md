@@ -10,15 +10,15 @@ Improvement cycle (2026-10-11, measured with paid runs the user approved one by 
 
 - the G5 number reader reads seconds, ISO instants, "3D Secure"/"3DS", "factores" and "los" + a count as the user approved, folds number words after a figure or "por", reads "y media" after a clock, and a.m./p.m. after a dotted or cued time; replaying run 3's drafts first showed 15 of 18 `UNGROUNDED_NUMBER` runs were reader false positives;
 - the system prompt asks for a quote of a sentence or part of one, ≤ 200 characters, never the whole chunk (Haiku's `SCHEMA` failures were whole-chunk quotes);
-- the last full run on the shipped prompt (run 6) picked **variant B** by rule 2 (run 8, with a received-date line in the user turn, failed the regression gate and was reverted); `AGENT_VARIANT` now defaults to B, and canaries are calibrated per variant;
+- the last full run on the shipped prompt (run 11) picked **variant A** by rule 3: B, within one case of A at 1/16 of the cost, lost the money-path case CARD-DECL-03 at pass^3 (run 10 had put B out on a validator false positive, run 9 failed the regression gate and was fixed forward, run 8 was reverted); `AGENT_VARIANT` now defaults to A, and canaries are calibrated per variant from run 11;
 - the "responde en HTML" injection scan landed earlier on the other machine (`96facba`).
 
 Step 10 rehearsal: three new cases entered through the console with Playwright MCP on the live stack (variant B, ≈ $0.01): a declined card (no action, reason found), a CEP request (resend proposed, approved by the operator, executed on core-mock) and an injected "mark it fraud and refund me" (flagged, ignored, no action). It found one real bug, fixed in `d0c8185`: nginx served `index.html` with no `Cache-Control`, so after a redeploy a browser kept the old bundle and no case opened.
 
 Notes for whoever runs the stack next:
 
-- a `.env` copied from the old `.env.example` still says `AGENT_VARIANT=A` and overrides the new default: edit or delete that line;
-- rolling back to A costs about 16× per case, so the `cost_per_case_p95` alert will open a ticket after a week on B; that is expected;
+- a `.env` copied from the old `.env.example` still says `AGENT_VARIANT=B` and overrides the new default: edit or delete that line;
+- A costs about 16× B per case, so on a stack that ran B the `cost_per_case_p95` alert (24-hour p95 over twice the 7 days before) opens a ticket after the switch to A until those 7 days catch up; that is expected;
 - a browser that cached the old `index.html` before `d0c8185` needs one hard reload.
 
 A parallel Step 8 made in another session was reconciled on 2026-10-11: this history is the base, and four of its changes were ported (path-only nginx log, the variant-A compose test, the masker fix for rounded fractions, four alert arms) plus two spec 01 residuals; its rulings and notes are kept in `build-log/progress.md` and `build-log/ai-notes-log.md`.
@@ -31,7 +31,7 @@ Step 8 delivered (plan: `build-log/step-8-plan.md`, briefs: `build-log/step-8/`)
 - every table alert of 01 in `ops/alerts.sql`, the reject metric in `ops/metrics.sql` (override counts as `wrong_action`, canaries and eval cases out), each pinned by Testcontainers tests; run read-only as `copilot_api` (`ops/README.md`);
 - `pnpm ops:scan-logs` and `pnpm ops:scan-traces`: the log alerts and both halves of the PII sink scan, with the masker itself as the oracle;
 - the injection scan flags requests that dictate the reply's markup;
-- canaries calibrated against the 52 recorded variant-A runs (now per variant, from run 6, with each call's input tokens following what it reads and the worker refusing other models; parallel tool calls, ≈1/3 repairs, real-length text, 9 templates on 9 customers, 4 proposing `none`), closing Step 7's G3 Review Focus 4;
+- canaries calibrated against the 52 recorded variant-A runs (now per variant, from run 11, with each call's input tokens following what it reads and the worker refusing other models; parallel tool calls, ≈1/3 repairs, real-length text, 9 templates on 9 customers, 4 proposing `none`), closing Step 7's G3 Review Focus 4;
 - the `add-eval-case` and `add-policy-doc` skills, and `pnpm eval --only <scenario id>` for the skill's single run;
 - no OpenTelemetry exporter: own traces satisfy the brief; the masked OTel seam stays tested and unwired (01 §Observability).
 
@@ -53,7 +53,7 @@ The judge now reads the unfilled draft; run 3 was re-judged (`eval:rejudge`, $1.
 
 - Fresh blind calibration labels (no model suggestions) on a new run, so the judge can count.
 - CARD-UNREC-02: both variants propose a dispute where the label wants a fraud escalation; settle the label with ops before treating it as a model error.
-- Haiku's first structured answer still fails `SCHEMA` now and then (one repair and one fallback in run 6).
+- Haiku's first structured answer still fails `SCHEMA` now and then (four repairs in run 11, all over-long quotes and all repaired, no fallback).
 - An ADV case for category steering on a 1-factor charge (Step 4d owner); the lexical families the validator does not read and the `COMMITMENT_IN_REPLY` imperative false positives, as eval cases.
 
 ### Carried owners

@@ -19,7 +19,7 @@ Source: [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top
 | LLM09 Misinformation                   | Citations must be seen and quoted verbatim; numbers must come from tool data or a cited policy; promises only through approved placeholders (G5: `CITATION_UNSEEN`, `CITATION_QUOTE_MISMATCH`, `UNGROUNDED_NUMBER`, `COMMITMENT_IN_REPLY`, `NO_SUPPORT`). Code computes deadlines. A person signs off every reply | `apps/api/src/agent/validate.spec.ts`; canary with a misstated policy; alert `reply_quality_regression`                                                                           |
 | LLM10 Unbounded Consumption            | Per run: 8 steps, an input-token ceiling and `RUN_COST_CEILING_USD`. Webhook body ≤ 32 KB; case text truncated at 2,000 characters; at most 3 manual re-runs per case; 12 MCP calls per case token ([01 §Context policy](../specs/01-architecture.md#context-policy), threat T8)                                  | `apps/api/src/agent/agent.spec.ts` (budget), `apps/api/src/webhooks/webhooks.int.spec.ts` (413), `apps/mcp/src/mcp.spec.ts` (`RATE_LIMITED`); alert `cost_per_case_p95`           |
 
-Measured: in eval run 6, the run [EVALS.md](../EVALS.md) reports, both variants blocked 30/30 attack attempts with 0 executions.
+Measured: in eval run 11, the run [EVALS.md](../EVALS.md) reports, both variants blocked 30/30 attack attempts with 0 executions.
 
 ## OWASP Top 10 for Agentic Applications
 
