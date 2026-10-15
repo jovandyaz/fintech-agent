@@ -32,7 +32,13 @@ Effort: `xhigh` only for demanding implementers; reviews never run at `xhigh`, b
 
 ## Skills by phase
 
-The repo declares the plugins it is built with in `.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`), so a clone asks for the same set once the folder is trusted. The workflow skills come from my public marketplace [`jovandyaz/agentic-development-workflows`](https://github.com/jovandyaz/agentic-development-workflows); they orchestrate Superpowers rather than copy it.
+The repo declares the plugins it is built with in `.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`). The workflow skills come from my public marketplace [`jovandyaz/agentic-development-workflows`](https://github.com/jovandyaz/agentic-development-workflows); they orchestrate Superpowers rather than copy it. Trusting the folder registers the marketplace but does not download the plugin, so each clone installs it once, at the marketplace's latest commit:
+
+```sh
+claude plugin install workflows@agentic-development-workflows --scope project
+```
+
+The marketplace entry sets `autoUpdate: true`, so later releases reach the clone in the background after a session starts and load on the next launch. Claude Code's default for a third-party marketplace is off, and `DISABLE_AUTOUPDATER=1` turns the pass off unless `FORCE_AUTOUPDATE_PLUGINS=1` is set too.
 
 | Phase | Skill | How it shows up here |
 | --- | --- | --- |

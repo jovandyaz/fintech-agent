@@ -56,7 +56,8 @@
       "source": {
         "source": "github",
         "repo": "jovandyaz/agentic-development-workflows"
-      }
+      },
+      "autoUpdate": true
     }
   },
   "enabledPlugins": {
