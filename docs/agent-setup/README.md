@@ -47,11 +47,12 @@ The marketplace entry sets `autoUpdate: true`, so later releases reach the clone
 | Planning | `superpowers:writing-plans` | `specs/04-build-plan.md` is the plan; deviations are `Ruling:` lines in the ledger |
 | Execution | `workflows:developing-feature`, `superpowers:executing-plans`, `superpowers:test-driven-development` | Each build step and each behavior change outside a step; every test is seen failing first, and mutation checks prove the tests bite |
 | Bugs | `workflows:fixing-bug`, `superpowers:systematic-debugging` | A defect starts with the test that reproduces it |
-| Review | `workflows:reviewing-pr` (code-quality gate, then `superpowers:requesting-code-review`, then separate Spec and Standards subagents that are never merged into one verdict), plus the repo's `invariant-reviewer` | On every step and behavior change before it is committed, with `invariant-reviewer` on any diff on a G1–G8 path; on the whole branch at the end. The Anthropic `code-review` lens publishes to GitHub, so it stays off: the repo is local |
+| Review | `workflows:reviewing-change` (`workflows:assessing-code-quality` gate, then `superpowers:requesting-code-review`, then separate Spec and Standards subagents that are never merged into one verdict), plus the repo's `invariant-reviewer` | On every step and behavior change before it is committed, with `invariant-reviewer` on any diff on a G1–G8 path; on the whole branch at the end. The Anthropic `code-review` lens publishes to GitHub, so it stays off: the repo is local |
 | Verification | `workflows:verifying-change`, `superpowers:verification-before-completion` | A fresh verifier checks each claim: `curl --fail-with-body` for HTTP surfaces, Playwright MCP (desktop and mobile) for the console, promptfoo evals for agent behavior |
 | Commit | `workflows:committing-change` | One concern per commit, single-line Conventional Commits, never squashed |
+| Lessons | `workflows:capturing-lessons` | A mistake that recurs becomes a test, a lint rule or a hook before it becomes an AGENTS.md line; proposed, never applied without approval |
 
-Prerequisites outside the plugins: the MCP servers in `.mcp.json` (Context7, Playwright and a read-only Postgres). Matt Pocock's `code-review` was part of `reviewing-pr` until workflows 0.4.0; it was dropped because its two axes duplicated `code-quality` and `requesting-code-review` and its setup writes scaffolding into the repo.
+Prerequisites outside the plugins: the MCP servers in `.mcp.json` (Context7, Playwright and a read-only Postgres). Workflows 0.5 renamed `reviewing-pr` to `reviewing-change` and `code-quality` to `assessing-code-quality`; the build log keeps the old names. Matt Pocock's `code-review` was part of the review skill until workflows 0.4.0; it was dropped because its two axes duplicated the code-quality gate and `requesting-code-review` and its setup writes scaffolding into the repo.
 
 ## What stays personal
 

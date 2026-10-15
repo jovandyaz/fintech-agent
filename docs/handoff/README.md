@@ -63,7 +63,7 @@ The judge now reads the unfilled draft; run 3 was re-judged (`eval:rejudge`, $1.
 
 ## Working rules that are easy to lose
 
-- Every behavior change follows the AGENTS.md sequence: `developing-feature` → `reviewing-pr` + `invariant-reviewer` (read-only) → `verifying-change` with a fresh verifier → `committing-change`.
+- Every behavior change follows the AGENTS.md sequence: `developing-feature` → `reviewing-change` + `invariant-reviewer` (read-only) → `verifying-change` with a fresh verifier → `committing-change`.
 - Commits:
   - one line, ≤ 72 chars, Conventional Commits, no trailers;
   - never squash, amend or force push;

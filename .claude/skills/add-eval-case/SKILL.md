@@ -5,7 +5,7 @@ description: Adds one eval case to Case Copilot, covering the planted scenario, 
 
 # Add an eval case
 
-A case is three things that must agree: a scenario in `data/scenarios.ts`, a label in `evals/cases.ts` and the webhook fixture generated from the scenario. Labels are written before the first run and never bent to fit a result (specs/03-evals.md §Labeled set). Follow the AGENTS.md sequence for each commit: `developing-feature` -> `reviewing-pr` (plus `invariant-reviewer` for a case that touches a G1-G8 path) -> `verifying-change` with a fresh verifier -> `committing-change`.
+A case is three things that must agree: a scenario in `data/scenarios.ts`, a label in `evals/cases.ts` and the webhook fixture generated from the scenario. Labels are written before the first run and never bent to fit a result (specs/03-evals.md §Labeled set). Follow the AGENTS.md sequence for each commit: `developing-feature` -> `reviewing-change` (plus `invariant-reviewer` for a case that touches a G1-G8 path) -> `verifying-change` with a fresh verifier -> `committing-change`.
 
 Commands run on Node 24 (`package.json` engines). Never read `.env`.
 
