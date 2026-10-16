@@ -41,8 +41,9 @@ const FLOAT_TOLERANCE = 1e-9;
 
 const NON_DIGIT = /\D/g;
 const JOINER = String.raw`[\s./_()+\-:]`;
-const NOT_JOINED_AFTER = String.raw`(?!${JOINER}{1,3}\d)`;
-const NOT_JOINED_BEFORE = String.raw`(?<!\d${JOINER}{1,3})`;
+const MAX_JOINERS = 3;
+const NOT_JOINED_AFTER = String.raw`(?!${JOINER}{1,${MAX_JOINERS}}\d)`;
+const NOT_JOINED_BEFORE = String.raw`(?<!\d${JOINER}{1,${MAX_JOINERS}})`;
 
 const MASK_LABELS = ['CLABE', 'tarjeta', 'tel', 'núm', 'ref'] as const;
 const DOC_LABELS = ['CURP', 'RFC'] as const;
@@ -68,8 +69,9 @@ const OWN_MASK = new RegExp(
   String.raw`(?<=(?:${MASK_LABELS.join('|')}) )${MASK}[0-9A-Za-z+/_-]{0,4}(?![0-9A-Za-z])|${BULLET}+(?!\d)|\[factor\]`,
   'gu',
 );
+const YEAR_CORE = String.raw`(?:19|20)\d{2}`;
 const DATE = new RegExp(
-  String.raw`(?<!\d)(?:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])(?:[T ](?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?(?:\.\d{1,6})?Z?)?|(?:0?[1-9]|[12]\d|3[01])\/(?:0?[1-9]|1[0-2])\/(?:19|20)\d{2}(?:[T ](?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)?)(?!\d)`,
+  String.raw`(?<!\d)(?:${YEAR_CORE}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])(?:[T ](?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?(?:\.\d{1,6})?Z?)?|(?:0?[1-9]|[12]\d|3[01])\/(?:0?[1-9]|1[0-2])\/${YEAR_CORE}(?:[T ](?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)?)(?!\d)`,
   'g',
 );
 const TIME_CORE = String.raw`(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?`;
@@ -96,21 +98,31 @@ const fewLargeAmounts = (matches: string[]): boolean =>
 const PERCENT = /(?<![\d.,])\d{1,3}(?:[.,]\d{1,2})?\s?%/g;
 const DURATION =
   /(?<![\d.,])\d{1,3}\s(?:d[ií]as?|mes(?:es)?|años?|horas?|minutos?|semanas?|segundos?|veces|MSI)(?!\p{L})/giu;
-const REFERENCE =
-  /(?<!\p{L})(?:ref(?:erencia)?|orden|pedido|folio|operaci[oó]n|contrato|ticket|caso)\.?(?:\s+(?:n[uú]m(?:ero)?\.?|no\.?))?\s*:?\s*#?\s*\d{1,7}(?:-\d{1,7})?(?![\d-])/giu;
+const MAX_REFERENCE_DIGITS = 7;
+const YEAR_SERIAL_DIGITS = 4;
+const REFERENCE_NUMBER = String.raw`(?:${YEAR_CORE}-\d{1,${YEAR_SERIAL_DIGITS}}|(?!(?:-?\d){${MAX_REFERENCE_DIGITS + 1}})\d+(?:-\d+)?)(?![\d-])`;
+const REFERENCE = new RegExp(
+  String.raw`(?<!\p{L})(?:ref(?:erencia)?|orden|pedido|folio|operaci[oó]n|contrato|ticket|caso)\.?(?:\s+(?:n[uú]m(?:ero)?\.?|no\.?))?\s*(?::\s*)?(?:#\s*)?${REFERENCE_NUMBER}`,
+  'giu',
+);
 const YEAR = new RegExp(
-  String.raw`${NOT_JOINED_BEFORE}(?<!\d)(?:19|20)\d{2}(?!\d)${NOT_JOINED_AFTER}`,
+  String.raw`${NOT_JOINED_BEFORE}(?<!\d)${YEAR_CORE}(?!\d)${NOT_JOINED_AFTER}`,
   'g',
 );
-const POSTAL_CODE = /(?:\bCP|\bC\.P\.|c[oó]digo postal)\s*:?\s*\d{5}(?!\d)/gi;
+const POSTAL_CODE =
+  /(?:\bCP|\bC\.P\.|c[oó]digo postal)\s*(?::\s*)?\d{5}(?!\d)/gi;
 const LAST_FOUR = new RegExp(
-  String.raw`(?:termina(?:da)?\s+en|terminaci[oó]n|[uú]ltimos?\s+(?:4|cuatro)(?:\s+d[ií]gitos)?)\s*:?\s*\d{4}(?!\d)${NOT_JOINED_AFTER}`,
+  String.raw`(?:termina(?:da)?\s+en|terminaci[oó]n|[uú]ltimos?\s+(?:4|cuatro)(?:\s+d[ií]gitos)?)\s*(?::\s*)?\d{4}(?!\d)${NOT_JOINED_AFTER}`,
   'gi',
 );
 /** A registry id (`tx_…`, `case_…`) anywhere in a text, never inside a word. */
 export const REGISTRY_ID_IN_TEXT = new RegExp(
   String.raw`(?<![\p{L}\d_])(?:${ID_PREFIXES.join('|')})_${ID_PAYLOAD_PATTERN}(?![0-9a-z_])`,
   'gu',
+);
+const REGISTRY_ID_LIST = new RegExp(
+  String.raw`${REGISTRY_ID_IN_TEXT.source}(?:${JOINER}{1,${MAX_JOINERS}}${REGISTRY_ID_IN_TEXT.source})*`,
+  REGISTRY_ID_IN_TEXT.flags,
 );
 const FOLIO = new RegExp(
   String.raw`(?<![\p{L}\d])AC-${FOLIO_GROUP_PATTERN}-${FOLIO_GROUP_PATTERN}(?![\p{L}\d])${NOT_JOINED_AFTER}`,
@@ -138,18 +150,26 @@ const EXEMPTIONS: readonly Exemption[] = [
     countPattern: ANY_AMOUNT,
     accepts: fewLargeAmounts,
   },
+];
+// Shapes that can carry free digits, checked together: a match that, read as
+// its own digits, joins a run of MESSAGE_DIGIT_BUDGET digits holding any digit
+// besides its own is not exempt.
+const JOINT_EXEMPTIONS: readonly Pick<Exemption, 'pattern' | 'maxDigits'>[] = [
   { pattern: PERCENT, maxDigits: PERCENT_DIGITS_CAP },
   { pattern: DURATION, maxDigits: DURATION_DIGITS_CAP },
   { pattern: REFERENCE, maxDigits: REFERENCE_DIGITS_CAP },
   { pattern: LAST_FOUR, maxDigits: LAST_FOUR_DIGITS_CAP },
   { pattern: POSTAL_CODE, maxDigits: POSTAL_DIGITS_CAP },
   { pattern: YEAR, maxDigits: YEAR_DIGITS_CAP },
-  { pattern: REGISTRY_ID_IN_TEXT, maxDigits: REGISTRY_DIGITS_CAP },
+  { pattern: REGISTRY_ID_LIST, maxDigits: REGISTRY_DIGITS_CAP },
   { pattern: FOLIO, maxDigits: FOLIO_DIGITS_CAP },
 ];
 
-const DIGIT_RUN = new RegExp(String.raw`[+(]?\d+(?:${JOINER}{1,3}\d+)*`, 'g');
-const RUN_SPLIT = new RegExp(`(${JOINER}{1,3})`);
+const DIGIT_RUN = new RegExp(
+  String.raw`[+(]?\d+(?:${JOINER}{1,${MAX_JOINERS}}\d+)*`,
+  'g',
+);
+const RUN_SPLIT = new RegExp(`(${JOINER}{1,${MAX_JOINERS}})`);
 const DIGIT_GROUP = /\d+/g;
 const LETTER_BEFORE = /\p{L}$/u;
 const ECHO_LOOKBACK_CHARS = 40;
@@ -164,6 +184,13 @@ const INVISIBLE = /\p{Default_Ignorable_Code_Point}/gu;
 const COMBINING = /\p{M}/gu;
 const CONTROL = /[^\P{Cc}\t\n\r]/gu;
 const ENCODED_AT = /%40|&#0*64;|&#x0*40;/gi;
+const DASH = String.raw`[\p{Pd}−]`;
+const MAX_JOINERS_BY_DASH = MAX_JOINERS - 1;
+const JOINER_OR_DASH = String.raw`(?:${JOINER}|${DASH})`;
+const DASH_BY_DIGIT = new RegExp(
+  String.raw`(?<=\d${JOINER_OR_DASH}{0,${MAX_JOINERS_BY_DASH}})${DASH}|${DASH}(?=${JOINER_OR_DASH}{0,${MAX_JOINERS_BY_DASH}}\d)`,
+  'gu',
+);
 const MIXED_SCRIPT_TOKEN = /[\p{L}\p{N}]+/gu;
 const HAS_LATIN = /\p{Script=Latin}/u;
 const HAS_LOOKALIKE_SCRIPT = /[\p{Script=Cyrillic}\p{Script=Greek}]/u;
@@ -411,18 +438,18 @@ const DOTTED = (letters: string): string =>
   [...letters].join(String.raw`\.?\s?`) + String.raw`\.?`;
 const AUTH_KEYWORD = String.raw`(?:${DOTTED('nip')}|${DOTTED('pin')}|${DOTTED('cvv')}2?|${DOTTED('cvc')}2?|${DOTTED('otp')}|totp|mfa|2fa|token|sms|code|c[oó]digo|contrase[ñn]a|clave|password|passcode|pwd|pass|secret[oa]?|d[ií]gitos de atr[aá]s)(?!\p{L})`;
 const AUTH_GAP = String.raw`(?:[^\d•\]]{0,40}?[^\p{L}\d•\]])??`;
-const NOT_AN_AMOUNT_OR_DATE = String.raw`(?!\d{3,7}[.,]\d{2}(?!\d)|\d{1,2}[:/]\d{1,2}|(?:19|20)\d{2}-)`;
+const NOT_AN_AMOUNT_OR_DATE = String.raw`(?!\d{3,7}[.,]\d{2}(?!\d)|\d{1,2}[:/]\d{1,2}|${YEAR_CORE}-)`;
 const AUTH_DIGITS = String.raw`${NOT_AN_AMOUNT_OR_DATE}(?:\d(?:[ .,_-]?\d){2,15}|\d{1,4}(?:[ .,_-]\d{1,4}){1,3})(?![\d\p{L}]|[.,:/-]\d)`;
 const AUTH_FACTOR_AFTER = new RegExp(
   String.raw`(?<!\p{L})(${AUTH_KEYWORD})(${AUTH_GAP})${AUTH_DIGITS}`,
   'giu',
 );
 const AUTH_FACTOR_BEFORE = new RegExp(
-  String.raw`(?<![\d•])${AUTH_DIGITS}(\s*,?\s*(?:(?:es|era|fue|is|was)\s+)?(?:(?:mi|el|la|tu|my|the)\s+)?${AUTH_KEYWORD})`,
+  String.raw`(?<![\d•])${AUTH_DIGITS}(\s*(?:,\s*)?(?:(?:es|era|fue|is|was)\s+)?(?:(?:mi|el|la|tu|my|the)\s+)?${AUTH_KEYWORD})`,
   'giu',
 );
 const SECRET_AFTER =
-  /(?<!\p{L})(password|passcode|contrase[ñn]a|clave de acceso|pwd|pass)(\s*(?:es|is|:|=)?\s*)(\S{4,64})/giu;
+  /(?<!\p{L})(password|passcode|contrase[ñn]a|clave de acceso|pwd|pass)(\s*(?:(?:es|is|:|=)\s*)?)(\S{4,64})/giu;
 const STRONG_SECRET = /[\d\p{P}\p{S}]|\p{Lu}.*\p{Ll}|\p{Ll}.*\p{Lu}/u;
 const NOT_AN_AUTH_FACTOR =
   /postal|rastreo|referencia|folio|interbancaria|error/i;
@@ -430,7 +457,7 @@ const NOT_AN_AUTH_FACTOR =
 const EMAIL_LOCAL_PART =
   /(?<![\p{L}\p{N}._%+-])([\p{L}\p{N}])[\p{L}\p{N}._%+-]*(?=\s*@)/gu;
 const EMAIL_WORDS = new RegExp(
-  String.raw`(?<![\p{L}\p{N}._%+-])([\p{L}\p{N}])[\p{L}\p{N}._%+-]*(\s*[\[(]?\s*(?:at|arroba)\s*[\])]?\s*)([\p{L}\p{N}-]+(?:(?:\.|\s+(?:dot|punto)\s+)[\p{L}\p{N}-]+)+)`,
+  String.raw`(?<![\p{L}\p{N}._%+-])([\p{L}\p{N}])[\p{L}\p{N}._%+-]*(\s*(?:[\[(]\s*)?(?:at|arroba)\s*(?:[\])]\s*)?)([\p{L}\p{N}-]+(?:(?:\.|\s+(?:dot|punto)\s+)[\p{L}\p{N}-]+)+)`,
   'giu',
 );
 
@@ -676,7 +703,7 @@ function fold(text: string): string {
     .replace(CONFUSABLE_TOKEN, (token) =>
       token.replace(ZERO_LOOKALIKE, '0').replace(ONE_LOOKALIKE, '1'),
     );
-  return foldNumberWords(normalized);
+  return foldNumberWords(normalized).replace(DASH_BY_DIGIT, '-');
 }
 
 function passesLuhn(digits: string): boolean {
@@ -820,6 +847,94 @@ const digitCount = (text: string): number =>
 const endsWithLetter = (text: string, at: number): boolean =>
   LETTER_BEFORE.test(text.slice(Math.max(0, at - SURROGATE_PAIR), at));
 
+interface Span {
+  start: number;
+  end: number;
+}
+
+function unjoinedMatches(
+  text: string,
+  found: readonly RegExpExecArray[],
+): RegExpExecArray[] {
+  const parts: string[] = [];
+  const spans: Span[] = [];
+  let cursor = 0;
+  let length = 0;
+  for (const match of found) {
+    const gap = text.slice(cursor, match.index);
+    const digits = match[0].replace(NON_DIGIT, '') || SHADOW;
+    parts.push(gap, digits);
+    length += gap.length;
+    spans.push({ start: length, end: length + digits.length });
+    length += digits.length;
+    cursor = match.index + match[0].length;
+  }
+  parts.push(text.slice(cursor));
+  const bridged = parts.join('');
+  const joined = new Set<number>();
+  let first = 0;
+  for (const run of bridged.matchAll(DIGIT_RUN)) {
+    const start = run.index;
+    const end = start + run[0].length;
+    while ((spans[first]?.end ?? Number.POSITIVE_INFINITY) <= start) first++;
+    const total = digitCount(run[0]);
+    if (total < MESSAGE_DIGIT_BUDGET) continue;
+    for (let i = first; i < spans.length; i++) {
+      const span = spans[i];
+      if (!span || span.start >= end) break;
+      const own = digitCount(bridged.slice(span.start, span.end));
+      if (total > own) joined.add(i);
+    }
+  }
+  return found.filter((_, i) => !joined.has(i));
+}
+
+function shadowMatches(
+  text: string,
+  matches: readonly RegExpExecArray[],
+): string {
+  const out: string[] = [];
+  let cursor = 0;
+  for (const match of matches) {
+    out.push(text.slice(cursor, match.index), SHADOW.repeat(match[0].length));
+    cursor = match.index + match[0].length;
+  }
+  out.push(text.slice(cursor));
+  return out.join('');
+}
+
+interface KindMatch {
+  kind: number;
+  match: RegExpExecArray;
+}
+
+function jointCandidates(text: string): RegExpExecArray[] {
+  const found: KindMatch[] = JOINT_EXEMPTIONS.flatMap(({ pattern }, kind) =>
+    [...text.matchAll(pattern)].map((match) => ({ kind, match })),
+  ).sort((a, b) => a.match.index - b.match.index);
+  const disjoint: KindMatch[] = [];
+  let end = 0;
+  for (const candidate of found) {
+    if (candidate.match.index < end) continue;
+    disjoint.push(candidate);
+    end = candidate.match.index + candidate.match[0].length;
+  }
+  const digitsByKind = new Map<number, number>();
+  for (const { kind, match } of disjoint) {
+    digitsByKind.set(
+      kind,
+      (digitsByKind.get(kind) ?? 0) + digitCount(match[0]),
+    );
+  }
+  return disjoint
+    .filter(
+      ({ kind }) =>
+        (digitsByKind.get(kind) ?? 0) <=
+        (JOINT_EXEMPTIONS[kind]?.maxDigits ?? 0),
+    )
+    .map(({ match }) => match);
+}
+
 function shadowOf(text: string): string {
   let shadow = text;
   for (const { pattern, maxDigits, countPattern, accepts } of EXEMPTIONS) {
@@ -828,7 +943,10 @@ function shadowOf(text: string): string {
     if (total > maxDigits || (accepts && !accepts(matches))) continue;
     shadow = shadow.replace(pattern, (match) => SHADOW.repeat(match.length));
   }
-  return shadow;
+  return shadowMatches(
+    shadow,
+    unjoinedMatches(shadow, jointCandidates(shadow)),
+  );
 }
 
 function maskDigitRuns(text: string): string {
@@ -987,9 +1105,26 @@ function maskSegment(text: string): string {
       (_, first: string, at: string, domain: string) =>
         `${first}•••${at}${domain}`,
     );
-  return absorbEchoes(
-    enforceBudget(maskOpaqueTokens(maskDigitRuns(patterned))),
+  return unforgeIds(
+    text,
+    absorbEchoes(enforceBudget(maskOpaqueTokens(maskDigitRuns(patterned)))),
   );
+}
+
+// A partly masked id must not read as another one (`tx_f001 1250.00` would
+// leave `tx_f`), so an id beyond the times the input held it loses its prefix
+// join.
+function unforgeIds(original: string, masked: string): string {
+  const held = new Map<string, number>();
+  for (const id of original.match(REGISTRY_ID_IN_TEXT) ?? []) {
+    held.set(id, (held.get(id) ?? 0) + 1);
+  }
+  return masked.replace(REGISTRY_ID_IN_TEXT, (id) => {
+    const left = held.get(id) ?? 0;
+    if (left === 0) return id.replace('_', '_ ');
+    held.set(id, left - 1);
+    return id;
+  });
 }
 
 /**

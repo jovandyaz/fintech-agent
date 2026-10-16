@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasPii, maskJson, maskPii, visibleTailOf } from './mask.js';
+import {
+  hasPii,
+  maskJson,
+  maskPii,
+  REGISTRY_ID_IN_TEXT,
+  visibleTailOf,
+} from './mask.js';
 
 const CLABE = '012180001234567899';
 const CLABE_PASSING_LUHN = '012180001234500267';
@@ -282,8 +288,17 @@ describe('maskPii — system ids, dates, times and amounts stay intact', () => {
     '05/10/2026',
     'tx_0412',
     'tx_0412 y tx_0413 y tx_0414',
+    'tx_0412 05/10/2026',
+    'tx_0412 tx_0413 tx_0414',
+    '- tx_0412\n- tx_0413\n- tx_0414',
+    '14:30 tx_0412',
     'Mi folio es AC-K7Q3-M9X2',
     'La referencia numérica es 1234567',
+    'pedido 123-4567',
+    'Contrato 2025-0042',
+    'Hola — gracias por el pago de 2026',
+    'terminación 2019, del 2020 al 2023 y 2024',
+    'tx_ad07a (650, card_not_present) se aprobó con solo 1 factor, pol-04',
     '$12,345.67 y $1,250.50',
     'Fecha y hora: 2026-10-05T14:22:10Z',
   ])('leaves %s unchanged', (text) => {
@@ -303,6 +318,7 @@ describe('maskPii — folios whose groups spell an auth keyword', () => {
   ])('keeps %s whole, alone and in a sentence', (folio) => {
     expect(maskPii(folio)).toBe(folio);
     expect(maskPii(`Tu folio es ${folio}.`)).toBe(`Tu folio es ${folio}.`);
+    expect(maskPii(`1. ${folio}`)).toBe(`1. ${folio}`);
   });
 
   it('still masks a password that follows a folio', () => {
@@ -408,6 +424,10 @@ describe('maskPii — properties', () => {
     `mi tarjeta ${VISA_BASE64}`,
     'cinco cinco 1 2 3 4 cinco seis siete ocho',
     '4111-11-11-1111-1111',
+    'tx_a1b2 4111111111111111',
+    '1. tx_0412\n2. tx_0413',
+    'AC-K7Q3-M9X2 AC-K7Q3-M9X4',
+    'tx_5512–345678',
   ])('is idempotent on %s', (text) => {
     const once = maskPii(text);
     expect(maskPii(once)).toBe(once);
@@ -424,6 +444,23 @@ describe('maskPii — properties', () => {
     ['many separate phone numbers', '5512345678 '.repeat(2_900)],
     ['repeated labels before one value', `${'tel '.repeat(7_000)}5512345678`],
     ['many typed bullets and digits', '•1 '.repeat(10_000)],
+    ['registry ids before one digit', `${'tx_a '.repeat(6_500)}1`],
+    ['dashed registry ids before one digit', `${'tx_a-'.repeat(6_500)}1`],
+    [
+      'alternating registry ids before one digit',
+      `${'tx_ab tx_1 '.repeat(2_900)}9`,
+    ],
+    [
+      'comma-separated registry ids before one digit',
+      `${'tx_a, '.repeat(5_400)}1`,
+    ],
+    ['many small references', 'ref 1 y '.repeat(4_000)],
+    ['spaces after a reference keyword', `ref${' '.repeat(32_000)}x`],
+    ['spaces after a postal code keyword', `CP${' '.repeat(32_000)}x`],
+    ['spaces after a last-4 phrase', `termina en${' '.repeat(32_000)}x`],
+    ['spaces after a password keyword', `pass${' '.repeat(32_000)}1`],
+    ['spaces after contraseña', `contraseña${' '.repeat(32_000)}1`],
+    ['spaces between digits and an auth keyword', `1234${' '.repeat(32_000)}x`],
   ])('masks 32 KB of %s in linear time', (_, text) => {
     // The fastest of a few runs: parallel verify runs stall single samples,
     // but a superlinear regression is slow on every run.
@@ -577,6 +614,54 @@ describe('maskPii — attack review, round 3', () => {
     ['trailing confusables', '4111 1111 1111 1lll'],
     ['registry-shaped phone', 'tx_5512a3456a78'],
     ['customer-shaped phone', 'cus_5512a3456a78'],
+    ['a phone joined to a registry id by a hyphen', 'tx_5512-345678'],
+    ['a phone joined to a registry id by a space', 'mi cel cus_5512 345678'],
+    ['a phone joined to a letter-ending registry id', 'tx_551a 2345678'],
+    ['a phone joined before a registry id by a space', 'mi cel 551234 tx_5678'],
+    ['a phone joined before a registry id by a hyphen', '551234-tx_5678'],
+    ['a phone joined before a folio', '55123-AC-456X-78YZ'],
+    ['a phone joined before a last-4 phrase', '551234 termina en 5678'],
+    ['a registry id after an over-long one', 'tx_551234 tx_5678'],
+    ['a phone joined before a list of short ids', '551234 tx_5 tx_678'],
+    ['a phone joined before a one-digit id', '55123 tx_4 tx_5678'],
+    ['digits bridged by two registry ids', 'tx_551 23 tx_4 5678'],
+    ['a phone chained across a reference and an id', 'ref 5512 tx_3456 78'],
+    ['a phone chained into a year-like last-4', '34 tx_5512 termina en 2026'],
+    ['a phone ending in a percentage', '5512 345 678%'],
+    ['a phone ending in a duration', '5512 345 678 días'],
+    ['a phone split across an id and a percentage', 'tx_5512 345.67% 8'],
+    ['a phone chained into a year-like reference', '34 tx_5512 ref 2026'],
+    [
+      'a phone chained across a last-4 and a folio',
+      'termina en 5512 AC-34K5-6Z78',
+    ],
+    ['a list of ids joined after to digits', 'tx_5512 tx_34-5678'],
+    [
+      'a phone joined before a list opening with a letter id',
+      '551234 tx_ab tx_5678',
+    ],
+    ['a phone split into a registry id and an amount', 'tx_5512 3456.78 MXN'],
+    ['a phone in a dashed reference', 'ref 5512-345678'],
+    ['eight digits across one dash after ref', 'ref 1234-5678'],
+    ['a five-digit year serial', 'Contrato 2025-00421'],
+    ['a phone joined after a reference', 'pedido 551234 5678'],
+    ['a phone joined before a reference', '551234 ref 5678'],
+    ['a phone joined to a registry id by an en dash', 'tx_5512–345678'],
+    ['a phone joined to a registry id by a minus sign', 'tx_5512−345678'],
+    ['a phone joined to a registry id by a no-break hyphen', 'tx_5512‑345678'],
+    ['a phone joined before a registry id by an en dash', '551234 – tx_5678'],
+    ['a phone joined before a folio by an en dash', '55123–AC-456X-78YZ'],
+    ['an en dash between dots after an id', 'tx_5512.–.345678'],
+    ['an en dash in brackets after an id', 'tx_5512(–)345678'],
+    ['three en dashes before an id', '5512–––tx_5678'],
+    [
+      'number words joined before a registry id by an en dash',
+      'cinco cinco uno dos tres cuatro – tx_5678',
+    ],
+    [
+      'number words joined after a registry id by an en dash',
+      'tx_5512a – dos tres cuatro cinco seis siete',
+    ],
     ['dingbat digits', '❶❶❶❶❶❶❶❶❶❶❶❶❶❶❶❶'],
     ['negative circled phone', '❺❺❶❷❸❹❺❻❼❽'],
     ['CJK numerals', '五五一二三四五六七八'],
@@ -679,13 +764,65 @@ describe('maskPii — attack review, round 3', () => {
       'El 15 de enero de 2024 recibí 2500 pesos y el 20 de enero 3000 pesos',
     ],
     ['CP 03100 y mi cel 5512345678', 'CP 03100 y mi cel tel ••••5678'],
-    ['tx_a1b2 4111111111111111', 'tx_a1b2 tarjeta ••••1111'],
+    ['tx_a1b2c 4111111111111111', 'tx_a1b2c tarjeta ••••1111'],
+    ['10:00 – 14:00', '10:00 - 14:00'],
     ['el pedido número 123456789', 'el pedido número núm ••••'],
     ['clave de rastreo 123456789', 'clave de rastreo núm ••••'],
     ['operacion 987654321', 'operacion núm ••••'],
   ])('keeps what the spec needs in %j', (text, expected) => {
     expect(maskPii(text)).toBe(expected);
   });
+
+  it.each([
+    'tx_5512-345678',
+    'tx_f001 1250.00 MXN',
+    'tx_a1b2 4111111111111111',
+    '1. tx_so01a\n2. tx_so02a\n3. tx_so03a',
+    'tx_f tx_f001 1250.00 MXN',
+  ])('leaves no registry id in %j that the input did not hold', (text) => {
+    const count = (s: string): Map<string, number> => {
+      const ids = new Map<string, number>();
+      for (const id of s.match(REGISTRY_ID_IN_TEXT) ?? []) {
+        ids.set(id, (ids.get(id) ?? 0) + 1);
+      }
+      return ids;
+    };
+    const before = count(text);
+    const added = [...count(maskPii(text))].filter(
+      ([id, n]) => n > (before.get(id) ?? 0),
+    );
+    expect(added).toEqual([]);
+  });
+
+  it.each([
+    ['tx_a1b2 4111111111111111', 'tx_ a1b • tarjeta ••••1111'],
+    ['tx_f001 1250.00 MXN', 'tx_ f núm •••• MXN'],
+    ['tx_0412 14:30', 'tx_ núm ••••'],
+  ])(
+    'fails closed on a digit-ending registry id joined to digits in %j',
+    (text, expected) => {
+      expect(maskPii(text)).toBe(expected);
+    },
+  );
+
+  it.each([
+    ['1. Referencia 1234567', '•. Referencia •••••••'],
+    ['1. tx_0412\n2. tx_0413', '•. tx_••••\n•. tx_••••'],
+    ['AC-K7Q3-M9X2 AC-K7Q3-M9X4', 'AC-K•Q•-M•X• AC-K•Q•-M•X•'],
+    ['Insurgentes Sur 1602 CP 03940', 'Insurgentes Sur •••• CP •••••'],
+    ['pagué 800 referencia 123456', 'pagué ••• referencia ••••••'],
+    ['10% 20% 30% 40%', '••% ••% ••% ••%'],
+    [
+      '1. tx_so01a\n2. tx_so02a\n3. tx_so03a',
+      '•. tx_ so••a\n•. tx_ so••a\n•. tx_ so••a',
+    ],
+    ['ciclo 2025–2026', 'ciclo núm ••••'],
+  ])(
+    'fails closed on exempt shapes that join an 8-digit run in %j',
+    (text, expected) => {
+      expect(maskPii(text)).toBe(expected);
+    },
+  );
 });
 
 describe('maskJson — attack review, round 3', () => {
